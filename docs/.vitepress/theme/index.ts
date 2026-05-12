@@ -1,0 +1,66 @@
+import DefaultTheme from "vitepress/theme";
+import AdapterSelector from "./components/AdapterSelector.vue";
+import ArchitectureDiagram from "./components/ArchitectureDiagram.vue";
+import AdvancedUsageOverview from "./components/AdvancedUsageOverview.vue";
+import AggregateOperationFlow from "./components/AggregateOperationFlow.vue";
+import ContextBindingFlow from "./components/ContextBindingFlow.vue";
+import CreateOperationFlow from "./components/CreateOperationFlow.vue";
+import DeleteOperationFlow from "./components/DeleteOperationFlow.vue";
+import DirectorDashboardPreview from "./components/DirectorDashboardPreview.vue";
+import DocOverviewCards from "./components/DocOverviewCards.vue";
+import HomepageCodePanel from "./components/HomepageCodePanel.vue";
+import InstrumentationOverview from "./components/InstrumentationOverview.vue";
+import MiddlewareLifecycleOverview from "./components/MiddlewareLifecycleOverview.vue";
+import MultiTenancyOverview from "./components/MultiTenancyOverview.vue";
+import OneRequestFlowVisual from "./components/OneRequestFlowVisual.vue";
+import ProviderContractPrinciples from "./components/ProviderContractPrinciples.vue";
+import ReadOperationFlow from "./components/ReadOperationFlow.vue";
+import RuntimeExecutionVisualFlow from "./components/RuntimeExecutionVisualFlow.vue";
+import RuntimeAdapterGrid from "./components/RuntimeAdapterGrid.vue";
+import SignalFlow from "./components/SignalFlow.vue";
+import SoftDeleteOverview from "./components/SoftDeleteOverview.vue";
+import TenraModelConceptMap from "./components/TenraModelConceptMap.vue";
+import TenraModelPrinciples from "./components/TenraModelPrinciples.vue";
+import TenraModelRuntimeFlow from "./components/TenraModelRuntimeFlow.vue";
+import TenraSchemaPrinciples from "./components/TenraSchemaPrinciples.vue";
+import TransactionLifecycleOverview from "./components/TransactionLifecycleOverview.vue";
+import TutorialGrid from "./components/TutorialGrid.vue";
+import UpdateOperationFlow from "./components/UpdateOperationFlow.vue";
+import TutorialHero from "./components/TutorialHero.vue";
+import BootstrapCapabilitiesOverview from "./components/BootstrapCapabilitiesOverview.vue";
+import "./custom.css";
+
+export default {
+  extends: DefaultTheme,
+  enhanceApp({ app }) {
+    app.component("AdapterSelector", AdapterSelector);
+    app.component("AdvancedUsageOverview", AdvancedUsageOverview);
+    app.component("AggregateOperationFlow", AggregateOperationFlow);
+    app.component("ArchitectureDiagram", ArchitectureDiagram);
+    app.component("ContextBindingFlow", ContextBindingFlow);
+    app.component("CreateOperationFlow", CreateOperationFlow);
+    app.component("DeleteOperationFlow", DeleteOperationFlow);
+    app.component("DirectorDashboardPreview", DirectorDashboardPreview);
+    app.component("DocOverviewCards", DocOverviewCards);
+    app.component("HomepageCodePanel", HomepageCodePanel);
+    app.component("InstrumentationOverview", InstrumentationOverview);
+    app.component("MiddlewareLifecycleOverview", MiddlewareLifecycleOverview);
+    app.component("MultiTenancyOverview", MultiTenancyOverview);
+    app.component("OneRequestFlowVisual", OneRequestFlowVisual);
+    app.component("ProviderContractPrinciples", ProviderContractPrinciples);
+    app.component("ReadOperationFlow", ReadOperationFlow);
+    app.component("RuntimeExecutionVisualFlow", RuntimeExecutionVisualFlow);
+    app.component("RuntimeAdapterGrid", RuntimeAdapterGrid);
+    app.component("SignalFlow", SignalFlow);
+    app.component("SoftDeleteOverview", SoftDeleteOverview);
+    app.component("TenraModelConceptMap", TenraModelConceptMap);
+    app.component("TenraModelPrinciples", TenraModelPrinciples);
+    app.component("TenraModelRuntimeFlow", TenraModelRuntimeFlow);
+    app.component("TenraSchemaPrinciples", TenraSchemaPrinciples);
+    app.component("TransactionLifecycleOverview", TransactionLifecycleOverview);
+    app.component("TutorialGrid", TutorialGrid);
+    app.component("UpdateOperationFlow", UpdateOperationFlow);
+    app.component("TutorialHero", TutorialHero);
+    app.component("BootstrapCapabilitiesOverview", BootstrapCapabilitiesOverview);
+  }
+};
