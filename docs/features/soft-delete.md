@@ -1,10 +1,10 @@
 # # Soft Delete
 
-Soft delete in Tenra is not simply a boolean field attached to a document.
+Soft delete in Ambiten is not simply a boolean field attached to a document.
 
 It is a runtime-level lifecycle policy that changes how deletion behaves across reads, writes, aggregates, middleware, and recovery workflows.
 
-Instead of physically removing records immediately, Tenra allows documents to transition into a deleted state while remaining excluded from normal application behavior by default.
+Instead of physically removing records immediately, Ambiten allows documents to transition into a deleted state while remaining excluded from normal application behavior by default.
 
 <SoftDeleteOverview />
 
@@ -22,9 +22,9 @@ Soft delete introduces a safer lifecycle model. Documents can disappear from nor
 
 In most SaaS and enterprise systems, this becomes the safer default behavior.
 
-## The Tenra approach
+## The Ambiten approach
 
-Tenra does not implement soft delete through repeated query conditions scattered across services or controllers.
+Ambiten does not implement soft delete through repeated query conditions scattered across services or controllers.
 
 Instead, deletion behavior is enforced through the runtime itself using schema behavior, middleware execution, and context-aware model operations.
 
@@ -58,7 +58,7 @@ This turns deletion into a controlled lifecycle transition rather than an immedi
 A schema typically defines deletion lifecycle fields directly:
 
 ```ts
-const userSchema = new TenraSchema({
+const userSchema = new AmbitenSchema({
   name: String,
   email: String,
   isDeleted: Boolean,
@@ -124,7 +124,7 @@ Some workflows still require visibility into deleted data.
 
 Administrative tooling, recovery systems, audit workflows, and compliance tooling often need controlled access to deleted records.
 
-Tenra allows this explicitly:
+Ambiten allows this explicitly:
 
 ```ts
 await UserModel.find(
@@ -238,9 +238,9 @@ Most importantly, keep lifecycle enforcement inside the runtime instead of dupli
 
 ## Summary
 
-Soft delete in Tenra transforms deletion from an irreversible action into a controlled lifecycle transition.
+Soft delete in Ambiten transforms deletion from an irreversible action into a controlled lifecycle transition.
 
-By combining schema behavior, middleware execution, and runtime-aware model operations, Tenra allows systems to remain safer, more recoverable, and operationally consistent without leaking lifecycle concerns into business logic.
+By combining schema behavior, middleware execution, and runtime-aware model operations, Ambiten allows systems to remain safer, more recoverable, and operationally consistent without leaking lifecycle concerns into business logic.
 
 ## Related pages
 

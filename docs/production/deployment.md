@@ -1,14 +1,14 @@
 # Deployment Guide
 
-Deploying Tenra is not only about starting an application server. It is about operating a context-aware runtime safely under real production conditions.
+Deploying Ambiten is not only about starting an application server. It is about operating a context-aware runtime safely under real production conditions.
 
 A production-ready deployment depends on database topology, tenant isolation strategy, connection reuse, transaction boundaries, instrumentation, and explicit runtime scope management.
 
-This page focuses on operating Tenra in production environments. For guarantees inside an execution boundary, see [Execution Guarantees](/architecture/execution-guarantees).
+This page focuses on operating Ambiten in production environments. For guarantees inside an execution boundary, see [Execution Guarantees](/architecture/execution-guarantees).
 
 <DocOverviewCards 
 eyebrow="Production Runtime"
-title="Deploy Tenra as an execution runtime, not only a MongoDB abstraction." description="Production deployment combines stable MongoDB topology, request-scoped execution, connection reuse, observability, tenant isolation, and controlled runtime boundaries."
+title="Deploy Ambiten as an execution runtime, not only a MongoDB abstraction." description="Production deployment combines stable MongoDB topology, request-scoped execution, connection reuse, observability, tenant isolation, and controlled runtime boundaries."
 accent="#16a37b"
 :signals='["Replica set", "Tenant isolation", "Connection reuse", "Transactions", "Instrumentation", "Worker scope"
 ]'
@@ -16,7 +16,7 @@ accent="#16a37b"
 {
 "label": "Topology", "title": "Database architecture shapes runtime behavior", "text": "Replica sets enable transactions and resilient production execution, while sharding introduces tenant-scale distribution concerns." 
 },
-{ "label": "Execution", "title": "Runtime context remains request-scoped", "text": "Tenant identity, sessions, and request metadata live inside TenraContext instead of leaking into global application state."
+{ "label": "Execution", "title": "Runtime context remains request-scoped", "text": "Tenant identity, sessions, and request metadata live inside AmbitenContext instead of leaking into global application state."
 },
 { "label": "Operations", "title": "Observability and resilience stay first-class", "text": "Structured instrumentation, tenant-aware logging, and explicit worker scope make runtime behavior diagnosable at scale." }
 ]'
@@ -30,15 +30,15 @@ accent="#16a37b"
 
 ## Deployment model
 
-A Tenra application is stateless at the application layer and stateful at the database layer.
+A Ambiten application is stateless at the application layer and stateful at the database layer.
 
 ```Plain text
-Client → Application Runtime → Tenra → MongoDB
+Client → Application Runtime → Ambiten → MongoDB
 ```
 
-Each request creates its own execution boundary through `TenraContext`.
+Each request creates its own execution boundary through `AmbitenContext`.
 
-Request-specific state is never stored globally, which makes Tenra suitable for horizontally scaled services, containerized deployments, and serverless environments.
+Request-specific state is never stored globally, which makes Ambiten suitable for horizontally scaled services, containerized deployments, and serverless environments.
 
 ## Environment configuration
 
@@ -55,7 +55,7 @@ NODE_ENV=production
 Projects using generated configuration can also rely on:
 
 ```sh
-tenra.config.json
+ambiten.config.json
 ```
 
 Production configuration should ensure:
@@ -78,7 +78,7 @@ Replica sets are the recommended production baseline.
 
 They provide failover capability, transaction support, and operational reliability.
 
-Tenra transaction support depends on replica set capability.
+Ambiten transaction support depends on replica set capability.
 
 ### Sharded cluster
 
@@ -118,7 +118,7 @@ This model depends heavily on strict filtering discipline and should be chosen i
 
 ## Application scaling
 
-Tenra applications are designed for horizontal scaling.
+Ambiten applications are designed for horizontal scaling.
 
 ```sh
 Load Balancer → App Instance A
@@ -126,13 +126,13 @@ Load Balancer → App Instance A
               → App Instance C
 ```
 
-Because request identity and runtime state remain scoped to TenraContext, instances can scale independently without sharing in-memory request state.
+Because request identity and runtime state remain scoped to AmbitenContext, instances can scale independently without sharing in-memory request state.
 
 The important operational concern is connection reuse rather than request coordination.
 
 ## Connection management
 
-TenraClient uses pooled MongoDB connections by default.
+AmbitenClient uses pooled MongoDB connections by default.
 
 In production environments:
 
@@ -150,7 +150,7 @@ Transactions should remain focused and deliberate.
 They work best when multiple writes must succeed or fail together.
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await OrderModel.create(order);
   await PaymentModel.create(payment);
 });
@@ -164,7 +164,7 @@ Shorter transactions reduce coordination cost and improve runtime predictability
 
 Production systems require visibility into runtime behavior.
 
-Tenra exposes structured instrumentation and runtime-aware event signals that integrate naturally with observability systems such as OpenTelemetry, ELK, or Datadog.
+Ambiten exposes structured instrumentation and runtime-aware event signals that integrate naturally with observability systems such as OpenTelemetry, ELK, or Datadog.
 
 A production observability setup should ensure:
 
@@ -190,7 +190,7 @@ Background processes do not inherit request context automatically.
 Instead, execution scope should be created explicitly.
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   { tenantId: "tenant-a" },
   async () => {
     await JobModel.process();
@@ -208,7 +208,7 @@ This keeps runtime behavior predictable outside HTTP request lifecycles.
 
 ## Deployment environments
 
-Tenra supports multiple deployment models without changing the runtime contract.
+Ambiten supports multiple deployment models without changing the runtime contract.
 
 ### Containerized environments
 
@@ -240,11 +240,11 @@ Structured instrumentation should make failure origin visible.
 
 ## Production checklist
 
-Use this checklist before deploying a Tenra application:
+Use this checklist before deploying a Ambiten application:
 
 ```text
 Is MongoDB running as a replica set or better?
-Is TenraClient initialized once and reused?
+Is AmbitenClient initialized once and reused?
 Is tenant isolation strategy clearly defined?
 Is instrumentation enabled in production?
 Are transactions kept short and intentional?
@@ -255,14 +255,14 @@ Do background jobs create explicit runtime scope?
 
 ## Summary
 
-Deploying Tenra successfully means treating it as a runtime system rather than only a database abstraction layer.
+Deploying Ambiten successfully means treating it as a runtime system rather than only a database abstraction layer.
 
-When database topology, tenant isolation, connection reuse, transactions, and observability are aligned properly, Tenra remains predictable, scalable, and diagnosable under real production conditions.
+When database topology, tenant isolation, connection reuse, transactions, and observability are aligned properly, Ambiten remains predictable, scalable, and diagnosable under real production conditions.
 
 ## Related pages
 
 - [Execution Guarantees](/architecture/execution-guarantees)
 - [Performance Tuning](/advanced/performance-tuning)
 - [Multi-Tenancy](/architecture/multi-tenancy)
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)
 - [Instrumentation](/core/instrumentation)

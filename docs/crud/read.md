@@ -1,16 +1,16 @@
 # Read
 
-Read operations retrieve documents through the Tenra model layer.
+Read operations retrieve documents through the Ambiten model layer.
 
 Although reads are often treated as straightforward database lookups, they still participate in the runtime. Queries can be shaped by middleware, scoped by tenant and database context, filtered by lifecycle policies such as soft delete, instrumented for observability, and normalized before results reach application code.
 
 This allows reads to remain simple at the API surface while still behaving consistently across environments and execution boundaries.
 
-## What read means in Tenra
+## What read means in Ambiten
 
-In Tenra, a read operation is part of the runtime execution flow rather than a direct driver call.
+In Ambiten, a read operation is part of the runtime execution flow rather than a direct driver call.
 
-A query may pass through middleware, inherit tenant scope from `TenraContext`, resolve the correct database and collection, execute under transaction-aware conditions, and return results in a normalized form.
+A query may pass through middleware, inherit tenant scope from `AmbitenContext`, resolve the correct database and collection, execute under transaction-aware conditions, and return results in a normalized form.
 
 This keeps query behavior predictable across services, adapters, workers, and request lifecycles.
 
@@ -76,7 +76,7 @@ await UserModel.find(
 
 This is useful for operational tooling, workers, scripts, or controlled maintenance flows.
 
-In normal request-driven applications, explicit runtime overrides should be rare. Most reads should inherit scope from adapters or `TenraContext`.
+In normal request-driven applications, explicit runtime overrides should be rare. Most reads should inherit scope from adapters or `AmbitenContext`.
 
 ## Middleware around reads
 
@@ -137,7 +137,7 @@ This is especially important in multi-tenant systems where query safety should n
 
 ## Query design considerations
 
-Tenra improves runtime consistency, but query performance still depends on good MongoDB design.
+Ambiten improves runtime consistency, but query performance still depends on good MongoDB design.
 
 Reads should remain selective and measurable. Frequently queried fields should be indexed, broad collection scans should be avoided in high-traffic paths, and projection should limit unnecessary payload size.
 
@@ -164,7 +164,7 @@ const user = await UserModel.findOne({
 Context-bound execution:
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   {
     tenantId: "tenant-a",
     requestId: "read-001"
@@ -200,7 +200,7 @@ MongoDB returns the result.
 
 ## Summary
 
-Read operations in Tenra are runtime-aware queries.
+Read operations in Ambiten are runtime-aware queries.
 
 They can be shaped by middleware, scoped by tenant and database context, aligned to lifecycle policies such as soft delete, and normalized before results reach application code.
 

@@ -1,22 +1,22 @@
 # Instrumentation & Observability
 
-Instrumentation is a foundational capability of the Tenra runtime.
+Instrumentation is a foundational capability of the Ambiten runtime.
 
 It provides the operational visibility required to manage high-concurrency, multi-tenant systems where execution correctness depends not only on database performance, but on the behavior of the runtime itself.
 
-Unlike traditional query logging, Tenra instrumentation is context-aware. It captures the full execution lifecycle surrounding a model operation, including middleware overhead, infrastructure resolution, transaction participation, and persistence behavior.
+Unlike traditional query logging, Ambiten instrumentation is context-aware. It captures the full execution lifecycle surrounding a model operation, including middleware overhead, infrastructure resolution, transaction participation, and persistence behavior.
 
-This page explains how Tenra measures execution behavior. If you are looking for how these runtime signals become operational insight, see [Director Observability Dashboard](/operations/director).
+This page explains how Ambiten measures execution behavior. If you are looking for how these runtime signals become operational insight, see [Director Observability Dashboard](/operations/director).
 
 <InstrumentationOverview />
 
 ## The wall-clock strategy
 
-Tenra instruments at the model boundary rather than the MongoDB driver layer.
+Ambiten instruments at the model boundary rather than the MongoDB driver layer.
 
 This distinction is intentional.
 
-Instead of measuring only database execution time, Tenra measures the entire runtime cost of an operation, including middleware execution, cache resolution, tenant routing, transaction binding, persistence, post-processing, and schema lifecycle hooks.
+Instead of measuring only database execution time, Ambiten measures the entire runtime cost of an operation, including middleware execution, cache resolution, tenant routing, transaction binding, persistence, post-processing, and schema lifecycle hooks.
 
 The result is a wall-clock view of the true operational cost of execution.
 
@@ -28,7 +28,7 @@ A slow operation may be caused by validation layers, RBAC enforcement, cache neg
 
 Without runtime-aware instrumentation, these costs remain fragmented and difficult to diagnose.
 
-Tenra makes the full execution path observable.
+Ambiten makes the full execution path observable.
 
 ## Anatomy of an instrumented operation
 
@@ -65,7 +65,7 @@ Because the entire execution lifecycle is measured, the reported durationMs refl
 
 ### Runtime-aware telemetry
 
-Instrumentation executes inside TenraContext, allowing telemetry payloads to inherit runtime identity automatically.
+Instrumentation executes inside AmbitenContext, allowing telemetry payloads to inherit runtime identity automatically.
 
 Operational metadata such as `tenantId`, `requestId`, `dbName`, `collectionName`, transaction state, and execution context are attached without manual propagation.
 
@@ -73,13 +73,13 @@ This makes telemetry inherently correlated with the execution boundary that prod
 
 ### Resource budgeting and execution guardrails
 
-Tenra also tracks runtime resource consumption at the request level.
+Ambiten also tracks runtime resource consumption at the request level.
 
 The instrumentation layer monitors query counts, cumulative execution time, and runtime budget consumption across the execution lifecycle.
 
 This is particularly important in shared multi-tenant environments where runaway request chains, excessive middleware execution, or N+1 query patterns can degrade infrastructure stability.
 
-By measuring execution holistically, Tenra can surface operational pressure before it becomes infrastructure failure.
+By measuring execution holistically, Ambiten can surface operational pressure before it becomes infrastructure failure.
 
 ### Non-blocking telemetry
 
@@ -88,7 +88,7 @@ Telemetry emission is asynchronous by design.
 ```ts
 setImmediate(() => {
   observer?.onQuery?.(payload);
-  logger?.info?.("[Tenra Query]", payload);
+  logger?.info?.("[Ambiten Query]", payload);
 });
 ```
 
@@ -98,7 +98,7 @@ This makes integration with external observability systems such as OpenTelemetry
 
 ## Observability model
 
-Tenra separates runtime signals into several operational categories.
+Ambiten separates runtime signals into several operational categories.
 
 | Signal Type   | Focus                               | Operational Use                            |
 | ------------- | ----------------------------------- | ------------------------------------------ |
@@ -158,7 +158,7 @@ The instrumentation describes how the runtime behaved. The log describes what th
 
 ## Design philosophy
 
-Tenra treats observability as part of the execution architecture rather than as an external concern added after deployment.
+Ambiten treats observability as part of the execution architecture rather than as an external concern added after deployment.
 
 Because instrumentation is integrated directly into the runtime boundary, operational visibility remains consistent across adapters, tenants, transactions, and execution environments.
 
@@ -166,15 +166,15 @@ This continuity allows teams to reason about runtime behavior with the same cons
 
 ## Director dashboard
 
-[Director](/operations/director) is the operational surface built on top of Tenra instrumentation.
+[Director](/operations/director) is the operational surface built on top of Ambiten instrumentation.
 
 It consumes runtime telemetry and transforms it into higher-level operational insight such as tenant heatmaps, leak detection for unscoped queries, rollback-rate analysis, and execution anomaly tracking.
 
 ## Summary
 
-Instrumentation in Tenra transforms data access from a black-box persistence layer into an inspectable runtime system.
+Instrumentation in Ambiten transforms data access from a black-box persistence layer into an inspectable runtime system.
 
-By combining structured telemetry with runtime-aware context propagation, Tenra provides visibility into what executed, where it executed, how it behaved, and why it incurred its operational cost.
+By combining structured telemetry with runtime-aware context propagation, Ambiten provides visibility into what executed, where it executed, how it behaved, and why it incurred its operational cost.
 
 Observability is therefore not an auxiliary feature of the runtime.
 

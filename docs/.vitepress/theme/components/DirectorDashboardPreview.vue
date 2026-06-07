@@ -3,7 +3,7 @@
     <div class="director-dashboard-shell">
       <header class="director-dashboard-topbar">
         <div>
-          <span class="director-eyebrow">Director</span>
+          <span class="director-eyebrow">Concept Preview</span>
           <h3>Runtime observability by tenant</h3>
         </div>
         <div class="director-dashboard-window-controls" aria-hidden="true">

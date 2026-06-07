@@ -1,8 +1,8 @@
-# Migrating from Abimongo to Tenra
+# Migrating from Abimongo to Ambiten
 
-Tenra is the evolution of Abimongo.
+Ambiten is the evolution of Abimongo.
 
-Abimongo began as a MongoDB ODM and data-access abstraction layer. Tenra continues that foundation while expanding it into a context-driven runtime for multi-tenant, transaction-aware, observable systems.
+Abimongo began as a MongoDB ODM and data-access abstraction layer. Ambiten continues that foundation while expanding it into a context-driven runtime for multi-tenant, transaction-aware, observable systems.
 
 This migration is primarily about runtime structure, package identity, and execution behavior—not database reconstruction.
 
@@ -18,14 +18,14 @@ eyebrow="Platform Evolution" title="Move from ODM-oriented infrastructure to a r
 The most visible change is the platform identity.
 
 ```text
-Abimongo → Tenra
+Abimongo → Ambiten
 ```
 
 The architectural direction has expanded as well.
 
 Abimongo focused primarily on ODM-style modeling and MongoDB abstraction.
 
-Tenra extends that into a runtime system built around:
+Ambiten extends that into a runtime system built around:
 
 - context-aware execution
 - multi-tenant runtime boundaries
@@ -34,7 +34,7 @@ Tenra extends that into a runtime system built around:
 - structured instrumentation
 - adapter-driven portability
 
-The original Abimongo packages remain part of the project's history, but future development continues under the Tenra platform identity.
+The original Abimongo packages remain part of the project's history, but future development continues under the Ambiten platform identity.
 
 ## What does not change
 
@@ -54,44 +54,44 @@ rather than data transformation.
 
 ## Package migration
 
-Replace legacy Abimongo packages with Tenra packages.
+Replace legacy Abimongo packages with Ambiten packages.
 
 ```bash
 npm uninstall @abimongo/core
-npm install @tenra/core
+npm install @ambiten/core
 ```
 
-Additional packages should move to the Tenra namespace as well.
+Additional packages should move to the Ambiten namespace as well.
 
 ```bash
 npm uninstall @abimongo/logger
-npm install @tenra/logger
+npm install @ambiten/logger
 ```
 
 Adapter packages follow the same structure:
 
 ```bash
-npm install @tenra/express
-npm install @tenra/fastify
-npm install @tenra/graphql
-npm install @tenra/nestjs
-npm install @tenra/lambda
+npm install @ambiten/express
+npm install @ambiten/fastify
+npm install @ambiten/graphql
+npm install @ambiten/nestjs
+npm install @ambiten/lambda
 ```
 
 ## Import migration
 
-Update imports from the Abimongo namespace to the Tenra namespace.
+Update imports from the Abimongo namespace to the Ambiten namespace.
 
 ```Diff
-- import { TenraModel, TenraSchema } from "@abimongo/core";
-+ import { TenraModel, TenraSchema } from "@tenra/core";
+- import { AmbitenModel, AmbitenSchema } from "@abimongo/core";
++ import { AmbitenModel, AmbitenSchema } from "@ambiten/core";
 ```
 
 Logger imports should also move to the new package identity.
 
 ```Diff
 - import { logger } from "@abimongo/logger";
-+ import { logger } from "@tenra/logger";
++ import { logger } from "@ambiten/logger";
 ```
 
 ## Naming migration
@@ -100,20 +100,20 @@ Replace remaining Abimongo naming across the codebase.
 
 ```Diff
 - AbimongoClient
-+ TenraClient
++ AmbitenClient
 ```
 
 ```Diff
 - AbimongoContext
-+ TenraContext
++ AmbitenContext
 ```
 
 ```Diff
 - AbimongoModel
-+ TenraModel
++ AmbitenModel
 ```
 
-Projects that already adopted Tenra-style class naming inside Abimongo packages may only need package-level migration.
+Projects that already adopted Ambiten-style class naming inside Abimongo packages may only need package-level migration.
 
 ## Configuration migration
 
@@ -121,10 +121,10 @@ Rename configuration files where necessary.
 
 ```Diff
 - abimongo.config.json
-+ tenra.config.json
++ Ambiten.config.json
 ```
 
-A standard Tenra configuration continues to define runtime concerns such as database access, tenancy, logging, GraphQL, Redis, or garbage collection.
+A standard Ambiten configuration continues to define runtime concerns such as database access, tenancy, logging, GraphQL, Redis, or garbage collection.
 
 ```JSON
 {
@@ -144,32 +144,32 @@ A standard Tenra configuration continues to define runtime concerns such as data
 
 Older Abimongo applications often centered around direct model or client usage.
 
-Tenra encourages a clearer runtime structure:
+Ambiten encourages a clearer runtime structure:
 
 ```PlainText
-Bootstrap → Adapter → TenraContext → TenraModel → Provider → MongoDB
+Bootstrap → Adapter → AmbitenContext → AmbitenModel → Provider → MongoDB
 ```
 
-For full applications, prefer `TenraBootstrap` or `TenraBootstrapFactory`.
+For full applications, prefer `AmbitenBootstrap` or `AmbitenBootstrapFactory`.
 
 ```ts
-import { TenraBootstrapFactory } from "@tenra/core";
-import { createExpressAdapter } from "@tenra/express";
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+import { createExpressAdapter } from "@ambiten/express";
 
 const adapter = createExpressAdapter();
 
-await TenraBootstrapFactory.create({
+await AmbitenBootstrapFactory.create({
   adapter,
-  config: "./tenra.config.json"
+  config: "./Ambiten.config.json"
 });
 ```
 
-For lower-level or direct usage, initialize TenraClient explicitly.
+For lower-level or direct usage, initialize AmbitenClient explicitly.
 
 ```ts
-import { TenraClient, TenraModel } from "@tenra/core";
+import { AmbitenClient, AmbitenModel } from "@ambiten/core";
 
-const client = new TenraClient({
+const client = new AmbitenClient({
   uri: process.env.MONGODB_URI,
   options: {
     dbName: "my-app"
@@ -178,7 +178,7 @@ const client = new TenraClient({
 
 await client.connect();
 
-const UserModel = new TenraModel({
+const UserModel = new AmbitenModel({
   collectionName: "users",
   schema: userSchema,
   provider: client
@@ -198,7 +198,7 @@ await UserService.create(data, tenantId);
 After
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   { tenantId: "tenant-a" },
   async () => {
     await UserModel.create(data);
@@ -222,7 +222,7 @@ await AuditModel.create(log, { session });
 After
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create(user);
   await AuditModel.create(log);
 });
@@ -269,7 +269,7 @@ Migration should remain incremental.
 2. Update imports
 3. Rename configuration files
 4. Update runtime setup
-5. Move tenant handling into TenraContext
+5. Move tenant handling into AmbitenContext
 6. Replace manual transactions
 7. Introduce instrumentation
 8. Remove remaining Abimongo naming
@@ -279,7 +279,7 @@ This approach reduces operational risk and keeps production systems stable durin
 
 ## Common migration mistakes
 
-The most common issue is mixing @abimongo/* and @tenra/* packages inside the same runtime for long periods.
+The most common issue is mixing @abimongo/* and @ambiten/* packages inside the same runtime for long periods.
 
 That can create duplicate runtime instances, mismatched types, or inconsistent execution behavior.
 
@@ -291,17 +291,17 @@ Migration should simplify infrastructure behavior, not create two parallel runti
 
 ```PlainText
 Abimongo → ODM-oriented execution
-Tenra    → Runtime-oriented execution
+Ambiten    → Runtime-oriented execution
 ```
 
 That is the architectural shift behind the migration.
 
 ## Summary
 
-Migrating from Abimongo to Tenra is a transition from an ODM-focused platform identity to a runtime-driven execution system.
+Migrating from Abimongo to Ambiten is a transition from an ODM-focused platform identity to a runtime-driven execution system.
 
 Existing MongoDB infrastructure can remain unchanged while execution behavior moves into context-aware runtime boundaries.
 
 Abimongo remains the historical foundation.
 
-Tenra is the future-facing runtime platform built on top of that evolution.
+Ambiten is the future-facing runtime platform built on top of that evolution.

@@ -1,13 +1,13 @@
 # Performance Tuning
 
-Performance tuning in Tenra is about understanding the full execution path, not only the MongoDB query.
+Performance tuning in Ambiten is about understanding the full execution path, not only the MongoDB query.
 
 A slow operation may originate from the database, but it may also come from middleware overhead, tenant resolution, cache negotiation, transaction scope, or repeated model execution inside the same request lifecycle.
 
-Tenra approaches performance as a runtime concern rather than a query-only concern. The goal is not simply to make MongoDB faster, but to make the entire execution boundary measurable and predictable.
+Ambiten approaches performance as a runtime concern rather than a query-only concern. The goal is not simply to make MongoDB faster, but to make the entire execution boundary measurable and predictable.
 
 <DocOverviewCards 
-eyebrow="Runtime Performance" title="Tune the execution system, not only the database query." description="Tenra performance work begins with runtime telemetry, then narrows into query shape, middleware overhead, tenant routing, cache behavior, transaction scope, and connection pressure." accent="#E10098"
+eyebrow="Runtime Performance" title="Tune the execution system, not only the database query." description="Ambiten performance work begins with runtime telemetry, then narrows into query shape, middleware overhead, tenant routing, cache behavior, transaction scope, and connection pressure." accent="#E10098"
 :signals='["durationMs", "queriesExecuted", "totalBudgetUsed", "tenantId", "collectionName", "cacheHit"
 ]'
 :cards='[
@@ -28,10 +28,10 @@ eyebrow="Runtime Performance" title="Tune the execution system, not only the dat
 
 ## The execution path
 
-A Tenra operation typically flows through several runtime boundaries:
+A Ambiten operation typically flows through several runtime boundaries:
 
 ```Plain text
-Adapter → TenraContext → TenraModel → Middleware → Provider → TenraClient → MongoDB
+Adapter → AmbitenContext → AmbitenModel → Middleware → Provider → AmbitenClient → MongoDB
 ```
 
 Performance work starts by understanding which part of that path is introducing cost.
@@ -44,7 +44,7 @@ The database may be healthy while middleware performs excessive work, tenant res
 
 Instrumentation should always come before optimization.
 
-Tenra’s runtime-aware telemetry allows performance work to begin with evidence instead of assumptions.
+Ambiten’s runtime-aware telemetry allows performance work to begin with evidence instead of assumptions.
 
 ```ts
 const users = await measureQuery(
@@ -186,7 +186,7 @@ Transactions improve consistency, but they introduce coordination cost.
 Use transactions when multiple writes must succeed or fail together:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await OrderModel.create(order);
   await InventoryModel.updateOne(filter, update);
 });
@@ -195,7 +195,7 @@ await TenraContext.withTransaction(async () => {
 Avoid external latency inside transaction boundaries:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await callExternalPaymentApi();
   await OrderModel.create(order);
 });
@@ -216,7 +216,7 @@ Efficient tenant resolution should:
 - avoid repeated infrastructure negotiation
 - keep routing deterministic
 
-Tenra’s provider model keeps tenant routing outside business logic so infrastructure optimization can evolve independently from application code.
+Ambiten’s provider model keeps tenant routing outside business logic so infrastructure optimization can evolve independently from application code.
 
 ## Use explicit scopes in workers
 
@@ -225,7 +225,7 @@ Background jobs and detached execution flows should establish explicit runtime s
 ```ts
 const tenantProvider = client.withTenant("tenant-a");
 
-const JobModel = new TenraModel({
+const JobModel = new AmbitenModel({
   collectionName: "jobs",
   schema: jobSchema,
   provider: tenantProvider
@@ -295,7 +295,7 @@ Is connection pressure observable?
 
 ## Summary
 
-Performance tuning in Tenra begins at the runtime layer, not only at the database layer.
+Performance tuning in Ambiten begins at the runtime layer, not only at the database layer.
 
 Because execution is instrumented across middleware, context propagation, transactions, tenant routing, provider resolution, and persistence, teams can identify where operational cost actually originates.
 
@@ -307,4 +307,4 @@ That visibility allows optimization work to become more precise, more measurable
 - [Transactions](/core/transactions)
 - [Middleware](/core/middleware)
 - [Multi-Tenancy](/architecture/multi-tenancy)
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)

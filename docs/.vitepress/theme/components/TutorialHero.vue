@@ -3,7 +3,7 @@
     <div class="tutorial-hero-card">
       <div class="tutorial-hero-copy">
         <span class="tutorial-eyebrow">Flagship Tutorial</span>
-        <h1>Build a Document-to-PDF SaaS with Tenra</h1>
+        <h1>Build a Document-to-PDF SaaS with Ambiten</h1>
         <p>
           Build a tenant-aware SaaS workflow with tier-based access, runtime context,
           transaction-safe records, middleware policy, and structured instrumentation.
@@ -24,7 +24,7 @@
         <strong>One execution boundary</strong>
         <p>
           Tenant identity, request metadata, and transaction scope move through
-          TenraContext without manual propagation.
+          AmbitenContext without manual propagation.
         </p>
       </div>
 
@@ -41,7 +41,7 @@
         <span>Operations</span>
         <strong>Observable by design</strong>
         <p>
-          Conversion workflows emit structured telemetry through Tenra’s
+          Conversion workflows emit structured telemetry through Ambiten’s
           instrumentation boundary.
         </p>
       </div>

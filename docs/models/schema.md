@@ -1,21 +1,21 @@
 # Schema
 
-`TenraSchema` defines the structural and behavioral contract for a `TenraModel`.
+`AmbitenSchema` defines the structural and behavioral contract for a `AmbitenModel`.
 
 It does more than describe document shape. A schema governs how data is validated, how persistence behavior is enforced, and how middleware and lifecycle rules participate in runtime execution consistently across the system.
 
-In Tenra, schema is not just about data structure. It is about structure, behavior, and runtime policy operating together.
+In Ambiten, schema is not just about data structure. It is about structure, behavior, and runtime policy operating together.
 
-## What TenraSchema represents
+## What AmbitenSchema represents
 
-A `TenraSchema` defines the persistence contract for a collection boundary.
+A `AmbitenSchema` defines the persistence contract for a collection boundary.
 
 It establishes document structure, validation rules, middleware registration, lifecycle behavior, and runtime-oriented policies that execute around model operations automatically.
 
-Unlike passive schema definitions found in many ODM systems, `TenraSchema` participates directly in runtime execution through middleware pipelines and context-aware behavior.
+Unlike passive schema definitions found in many ODM systems, `AmbitenSchema` participates directly in runtime execution through middleware pipelines and context-aware behavior.
 
 ```ts
-const userSchema = new TenraSchema({
+const userSchema = new AmbitenSchema({
   name: String,
   email: String,
   createdAt: Date
@@ -34,13 +34,13 @@ interface User {
   email: string;
 }
 
-const userSchema = new TenraSchema<User>({
+const userSchema = new AmbitenSchema<User>({
   name: String,
   email: String
 });
 ```
 
-When paired with `TenraModel`, this improves compile-time validation, editor inference, update safety, and operational consistency across the application.
+When paired with `AmbitenModel`, this improves compile-time validation, editor inference, update safety, and operational consistency across the application.
 
 Schemas also act as validation boundaries before persistence occurs:
 
@@ -69,7 +69,7 @@ userSchema.pre("create", async (ctx) => {
 
 This includes validation, normalization, auditing, soft delete enforcement, access shaping, lifecycle policies, and observability enrichment.
 
-Because middleware executes inside `TenraContext`, schema behavior can also become runtime-aware:
+Because middleware executes inside `AmbitenContext`, schema behavior can also become runtime-aware:
 
 ```ts
 userSchema.post("create", async (ctx) => {
@@ -83,7 +83,7 @@ The schema therefore participates in execution context rather than acting only a
 
 <SignalFlow
   aria-label="Schema runtime participation flow"
-  :items='["TenraSchema", "TenraModel", "TenraClient", "MongoDB"]'
+  :items='["AmbitenSchema", "AmbitenModel", "AmbitenClient", "MongoDB"]'
 />
 
 During execution, the schema validates input, middleware executes around the operation, the model coordinates execution behavior, and persistence resolves through the client layer into MongoDB.
@@ -113,25 +113,25 @@ This separation keeps lifecycle behavior consistent without forcing application 
 Schemas are defined once:
 
 ```ts
-const userSchema = new TenraSchema({...});
+const userSchema = new AmbitenSchema({...});
 ```
 
 but their behavior executes dynamically based on the active runtime boundary.
 
 Tenant identity, transaction sessions, request metadata, middleware chains, and execution scope may all change between requests while the schema definition itself remains stable.
 
-This mirrors one of the core architectural principles of Tenra:
+This mirrors one of the core architectural principles of Ambiten:
 
 ```Plain Text
 Static definition.
 Dynamic execution.
 ```
 
-## Relationship with TenraModel
+## Relationship with AmbitenModel
 
 <SignalFlow
   aria-label="Schema and model relationship"
-  :items='["TenraSchema", "TenraModel"]'
+  :items='["AmbitenSchema", "AmbitenModel"]'
 />
 
 The schema defines structure and behavioral rules. The model coordinates execution against the active runtime boundary.
@@ -161,21 +161,21 @@ Runtime supplies context.
 
 ## Design principles
 
-<TenraSchemaPrinciples />
+<AmbitenSchemaPrinciples />
 
 These principles allow schemas to remain structurally stable while still participating in runtime-aware execution across tenants, transactions, middleware chains, and infrastructure boundaries.
 
 ## Summary
 
-TenraSchema is the behavioral contract for persistence in Tenra.
+AmbitenSchema is the behavioral contract for persistence in Ambiten.
 
 It defines not only how documents are structured, but also how persistence behavior should execute, how middleware participates in runtime flows, and how lifecycle policies remain enforced consistently across the system.
 
-By combining structural definition with runtime-aware behavior, Tenra allows applications to keep persistence logic centralized, observable, and operationally coherent without leaking infrastructure concerns into business code.
+By combining structural definition with runtime-aware behavior, Ambiten allows applications to keep persistence logic centralized, observable, and operationally coherent without leaking infrastructure concerns into business code.
 
 ## Related pages
 
-- [TenraModel](/models/tenra-model)
+- [AmbitenModel](/models/ambiten-model)
 - [Defining Models](/models/defining-models)
 - [Context Binding](/models/context-binding)
 - [Middleware](/core/middleware)

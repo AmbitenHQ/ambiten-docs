@@ -1,10 +1,10 @@
 # Aggregate
 
-Aggregation allows Tenra models to execute MongoDB pipelines for advanced filtering, reshaping, grouping, and analytical reads.
+Aggregation allows Ambiten models to execute MongoDB pipelines for advanced filtering, reshaping, grouping, and analytical reads.
 
-In Tenra, aggregation is still part of the runtime. Pipelines can participate in middleware, tenant-aware resolution, transaction scope, streaming execution, and caching behavior without leaving the model layer.
+In Ambiten, aggregation is still part of the runtime. Pipelines can participate in middleware, tenant-aware resolution, transaction scope, streaming execution, and caching behavior without leaving the model layer.
 
-## What aggregation means in Tenra
+## What aggregation means in Ambiten
 
 Aggregation is the execution path used when ordinary reads are no longer expressive enough.
 
@@ -16,7 +16,7 @@ Typical workloads include:
 - transformation-heavy reads
 - staged filtering and reshaping
 
-Unlike isolated driver calls, Tenra aggregates still move through the same runtime model as the rest of the system.
+Unlike isolated driver calls, Ambiten aggregates still move through the same runtime model as the rest of the system.
 
 ## Basic aggregation
 
@@ -73,7 +73,7 @@ await UserModel.aggregate(
 );
 ```
 
-Most request-driven systems should still rely on adapter-managed or `TenraContext`-managed execution rather than manually passing runtime state.
+Most request-driven systems should still rely on adapter-managed or `AmbitenContext`-managed execution rather than manually passing runtime state.
 
 Explicit overrides are mainly useful for workers, maintenance jobs, and controlled infrastructure workflows.
 
@@ -82,7 +82,7 @@ Explicit overrides are mainly useful for workers, maintenance jobs, and controll
 Aggregates can participate in an active transaction boundary:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.aggregate([
     { $match: { active: true } }
   ]);
@@ -203,9 +203,9 @@ Most importantly, treat aggregation as part of the runtime—not as an escape ha
 
 ## Summary
 
-Aggregate operations in Tenra provide a runtime-aware path for advanced MongoDB pipeline execution.
+Aggregate operations in Ambiten provide a runtime-aware path for advanced MongoDB pipeline execution.
 
-By combining pipelines with middleware, context propagation, transaction awareness, streaming, and caching, Tenra keeps analytical reads aligned with the same execution model as the rest of the system instead of turning them into isolated infrastructure code.
+By combining pipelines with middleware, context propagation, transaction awareness, streaming, and caching, Ambiten keeps analytical reads aligned with the same execution model as the rest of the system instead of turning them into isolated infrastructure code.
 
 ## Related pages
 

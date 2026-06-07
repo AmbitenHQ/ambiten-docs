@@ -1,14 +1,14 @@
 # Express Adapter
 
-The Express adapter connects Express request handling to Tenra’s runtime execution model.
+The Express adapter connects Express request handling to Ambiten’s runtime execution model.
 
 It establishes a request-scoped execution boundary before route handlers run, ensuring that tenant identity, request metadata, transaction state, and runtime-aware behavior remain available throughout the request lifecycle.
 
-Once installed, every request executes inside `TenraContext` automatically.
+Once installed, every request executes inside `AmbitenContext` automatically.
 
 ## Why adapters exist
 
-Tenra separates startup, execution, and persistence into distinct runtime layers.
+Ambiten separates startup, execution, and persistence into distinct runtime layers.
 
 ```Plain Text
 Bootstrap → prepares the runtime
@@ -18,7 +18,7 @@ Models    → execute operations
 MongoDB   → performs persistence
 ```
 
-The adapter is the bridge between the external framework and Tenra’s internal execution system.
+The adapter is the bridge between the external framework and Ambiten’s internal execution system.
 
 Without an adapter, applications would need to initialize runtime context manually inside every request flow.
 
@@ -30,7 +30,7 @@ Install the adapter on your Express application:
 
 ```ts
 import express from "express";
-import { createExpressAdapter } from "@tenra/express";
+import { createExpressAdapter } from "@ambiten/express";
 
 const app = express();
 
@@ -45,7 +45,7 @@ await adapter.install(app, {
 });
 ```
 
-Once installed, incoming requests automatically enter the Tenra runtime before reaching route handlers.
+Once installed, incoming requests automatically enter the Ambiten runtime before reaching route handlers.
 
 ## The execution model
 
@@ -60,7 +60,7 @@ Express Middleware
   ↓
 Adapter Runtime
   ↓
-TenraContext
+AmbitenContext
   ↓
 Route Handler
   ↓
@@ -69,7 +69,7 @@ MongoDB
 
 <SignalFlow 
   aria-label="Express adapter execution flow"
-  :items='["HTTP Request", "Express Middleware", "Adapter Runtime", "TenraContext", "Route Handler", "MongoDB"]'
+  :items='["HTTP Request", "Express Middleware", "Adapter Runtime", "AmbitenContext", "Route Handler", "MongoDB"]'
 />
 
 The adapter normalizes the incoming request, initializes runtime state, and ensures downstream execution inherits that state automatically.
@@ -107,10 +107,10 @@ Middleware, instrumentation, and transaction handling also execute inside the sa
 When transaction support is enabled, request execution can participate in transaction-aware workflows automatically.
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@ambiten/core";
 
 app.post("/order", async (_req, res) => {
-  const result = await TenraContext.withTransaction(async () => {
+  const result = await AmbitenContext.withTransaction(async () => {
     const order = await OrderModel.create({
       item: "Starter Kit"
     });
@@ -139,7 +139,7 @@ For example:
 x-tenant-id: tenant-a
 ```
 
-Once resolved, the tenant scope becomes part of TenraContext, allowing downstream model operations to remain tenant-aware automatically.
+Once resolved, the tenant scope becomes part of AmbitenContext, allowing downstream model operations to remain tenant-aware automatically.
 
 ```ts
 await UserModel.find({});
@@ -149,7 +149,7 @@ The model operation stays simple while the runtime resolves the correct tenant b
 
 ## Why Express is the reference model
 
-Express provides the clearest mental model for understanding how Tenra adapters behave.
+Express provides the clearest mental model for understanding how Ambiten adapters behave.
 
 Middleware establishes execution scope once, and all downstream handlers inherit that runtime state automatically.
 
@@ -157,7 +157,7 @@ That same architectural pattern applies across other adapters such as Fastify, N
 
 ## When to use the Express adapter
 
-The Express adapter is appropriate when your application already relies on Express middleware architecture or when you want a straightforward introduction to Tenra’s execution model.
+The Express adapter is appropriate when your application already relies on Express middleware architecture or when you want a straightforward introduction to Ambiten’s execution model.
 
 It is especially useful for:
 
@@ -182,14 +182,14 @@ The important architectural shift is that runtime state is initialized once and 
 
 ## Summary
 
-The Express adapter integrates Express middleware with Tenra’s runtime system.
+The Express adapter integrates Express middleware with Ambiten’s runtime system.
 
-It establishes request-scoped execution boundaries, initializes `TenraContext`, enables tenant-aware and transaction-aware execution, and allows route handlers to remain focused on application behavior instead of infrastructure plumbing.
+It establishes request-scoped execution boundaries, initializes `AmbitenContext`, enables tenant-aware and transaction-aware execution, and allows route handlers to remain focused on application behavior instead of infrastructure plumbing.
 
 ## Related pages
 
 - [Adapters Overview](/adapters/overview)
 - [Usage Patterns](/adapters/usage-patterns)
-- [TenraBootstrap](/advanced/bootstrap-cli)
+- [AmbitenBootstrap](/advanced/bootstrap-cli)
 - [Context](/core/context)
 - [Transactions](/core/transactions)

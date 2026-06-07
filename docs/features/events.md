@@ -1,6 +1,6 @@
 # Events
 
-Events in Tenra expose the runtime as a stream of structured execution signals.
+Events in Ambiten expose the runtime as a stream of structured execution signals.
 
 They are not designed as a lightweight pub/sub helper or a wrapper around emitters. Events exist to describe runtime behavior in a context-aware way, allowing systems to observe what happened, where it happened, and under which execution conditions it occurred.
 
@@ -8,10 +8,10 @@ Because events are emitted inside the runtime itself, they automatically inherit
 
 <DocOverviewCards 
 eyebrow="Runtime Signals"
-title="Events describe what happened inside a known execution context." description="Tenra events are structured runtime records that carry tenant, request, database, collection, duration, and outcome metadata without pushing reporting logic into application code." accent="#E10098" :signals='["Model operations", "Middleware lifecycle", "Transaction flow", "Request scope", "Observer export"
+title="Events describe what happened inside a known execution context." description="Ambiten events are structured runtime records that carry tenant, request, database, collection, duration, and outcome metadata without pushing reporting logic into application code." accent="#E10098" :signals='["Model operations", "Middleware lifecycle", "Transaction flow", "Request scope", "Observer export"
 ]'
 :cards='[
-{ "label": "Context-first", "title": "Metadata travels with the event", "text": "Tenant identity, request scope, and database resolution are inherited from TenraContext automatically." }, { "label": "Structured", "title": "Payloads align with observability systems", "text": "Events correlate naturally with logs, metrics, traces, and audit pipelines instead of becoming loose runtime messages." }, { "label": "Non-blocking", "title": "Signals stay outside the execution path", "text": "Observers can react to runtime activity while the main operation remains focused on persistence and results." }
+{ "label": "Context-first", "title": "Metadata travels with the event", "text": "Tenant identity, request scope, and database resolution are inherited from AmbitenContext automatically." }, { "label": "Structured", "title": "Payloads align with observability systems", "text": "Events correlate naturally with logs, metrics, traces, and audit pipelines instead of becoming loose runtime messages." }, { "label": "Non-blocking", "title": "Signals stay outside the execution path", "text": "Observers can react to runtime activity while the main operation remains focused on persistence and results." }
 ]'
 :flow='[
 { "label": "Boundary", "title": "Operation occurs" },
@@ -23,7 +23,7 @@ title="Events describe what happened inside a known execution context." descript
 
 ## Runtime-aware signaling
 
-Tenra applications execute through a consistent runtime path:
+Ambiten applications execute through a consistent runtime path:
 
 ```text
 Adapter → Context → Model → Middleware → Persistence → Result
@@ -35,7 +35,7 @@ They allow runtime activity to become observable without forcing services, contr
 
 ## What an event represents
 
-A Tenra event is a structured record of runtime activity.
+A Ambiten event is a structured record of runtime activity.
 
 Events can originate from model operations, middleware execution, transaction boundaries, or instrumentation hooks. Because these layers execute inside the same runtime context, every emitted signal remains aligned to the same execution scope.
 
@@ -67,7 +67,7 @@ The important detail is that enrichment happens automatically. Developers do not
 
 ## Event structure
 
-Tenra events are intentionally structured and predictable so they can integrate cleanly with telemetry and audit systems.
+Ambiten events are intentionally structured and predictable so they can integrate cleanly with telemetry and audit systems.
 
 A typical payload may resemble:
 
@@ -155,9 +155,9 @@ Observers react to execution.
 
 ## Summary
 
-Events turn Tenra into an observable runtime system rather than a passive persistence layer.
+Events turn Ambiten into an observable runtime system rather than a passive persistence layer.
 
-By emitting structured, context-aware signals at execution boundaries, Tenra allows teams to trace, audit, analyze, and react to runtime behavior without pushing observability concerns into business logic.
+By emitting structured, context-aware signals at execution boundaries, Ambiten allows teams to trace, audit, analyze, and react to runtime behavior without pushing observability concerns into business logic.
 
 ## Related pages
 

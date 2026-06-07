@@ -1,32 +1,32 @@
 # CLI Init
 
-The Tenra CLI scaffolds a production-ready runtime structure for Tenra applications.
+The Ambiten CLI scaffolds a production-ready runtime structure for Ambiten applications.
 
-Rather than generating isolated starter files, the CLI creates an architecture-aligned project where configuration, bootstrap initialization, adapters, and runtime boundaries are already organized according to Tenra’s execution model.
+Rather than generating isolated starter files, the CLI creates an architecture-aligned system where configuration, runtime initialization, adapters, execution boundaries, and operational infrastructure are already organized according to Ambiten’s runtime model.
 
-The CLI is not part of runtime execution itself.
+The CLI does not execute the runtime itself.
 
-It prepares the system structure that runtime execution will later operate inside.
+It prepares the architectural foundation the runtime will later operate inside.
 
 ## What the CLI scaffolds
 
-The CLI generates a runtime foundation that already follows Tenra’s architectural conventions.
+The CLI generates a runtime-first application structure that already follows Ambiten’s architectural conventions.
 
 That includes:
 
-- configuration-first runtime structure
-- bootstrap initialization wiring
+- configuration-first runtime assembly
+- runtime initialization through `AmbitenBootstrapFactory`
 - adapter-ready application entry points
-- optional GraphQL, Redis, logging, and GC integration
+- optional GraphQL, Redis, logging, and GC infrastructure
 - runtime-aware project organization
 
 The generated structure is designed so applications begin from a coherent operational baseline rather than assembling infrastructure incrementally over time.
 
-At a high level, the generated system is prepared to support:
+At a high level, the generated architecture prepares the system to support:
 
 <SignalFlow
   aria-label="CLI architecture flow"
-  :items='["Bootstrap", "Adapter", "Context", "Models", "MongoDB"]'
+  :items='["Factory", "Adapter", "Context", "Models", "MongoDB"]'
 />
 
 The CLI scaffolds the architecture.
@@ -35,25 +35,25 @@ The runtime executes later.
 ## Quick start
 
 ```ts
-npx tenra init my-app
+npx ambiten init my-app
 ```
 
-This creates a new project directory with runtime configuration, bootstrap wiring, adapter integration, and the foundational project structure already prepared.
+This creates a new project directory with runtime configuration, startup orchestration, adapter integration, and the foundational runtime structure already prepared.
 
 ## Interactive mode
 
 ```bash
-npx tenra init
+npx ambiten init
 ```
 
 When no project name is provided, the CLI enters interactive mode and prompts for runtime capabilities such as multi-tenancy, GraphQL support, Redis integration, logging, garbage collection, and dependency installation.
 
-The purpose of interactive mode is not convenience alone. It allows the generated architecture to align with the operational requirements of the system from the beginning.
+Interactive mode is not only about convenience. It allows the generated architecture to align with the operational requirements of the system from the beginning.
 
 ## Command structure
 
 ```bash
-tenra init [projectName] [options]
+ambiten init [projectName] [options]
 ```
 
 ## Options
@@ -72,7 +72,7 @@ tenra init [projectName] [options]
 ## Example: multi-tenant SaaS scaffold
 
 ```bash
-npx tenra init my-saas \
+npx ambiten init my-saas \
   --multi-tenant \
   --with-graphql \
   --with-redis \
@@ -81,7 +81,7 @@ npx tenra init my-saas \
   --install
 ```
 
-This scaffolds a project aligned with Tenra’s broader runtime capabilities, including tenancy, observability, and operational infrastructure.
+This scaffolds a project aligned with Ambiten’s broader runtime capabilities, including tenancy, observability, and operational infrastructure.
 
 ## Generated project structure
 
@@ -89,13 +89,13 @@ A generated project typically follows a structure similar to:
 
 ```text
 my-app/
-├── tenra.config.json
+├── ambiten.config.json
 ├── package.json
 ├── tsconfig.json
 ├── src/
 │   ├── main.ts
 │   ├── core/
-│   │   └── initTenra.ts
+│   │   └── initAmbiten.ts
 │   ├── models/
 │   ├── utils/
 │   ├── types/
@@ -109,10 +109,10 @@ The structure is intentionally organized around runtime boundaries rather than f
 
 ## Generated runtime configuration
 
-The CLI generates a configuration-first runtime:
+The CLI generates a configuration-first runtime surface.
 
 ```JSON
-tenra.config.json
+ambiten.config.json
 ```
 
 Example:
@@ -133,43 +133,71 @@ Example:
 
 This configuration becomes the primary source of truth for runtime behavior.
 
-Rather than scattering infrastructure configuration across unrelated startup files, Tenra centralizes runtime capabilities into a predictable operational surface.
+Rather than scattering infrastructure configuration across unrelated startup files, Ambiten centralizes runtime capabilities into a predictable operational surface.
 
-## Generated bootstrap layer
+## Generated runtime initialization
 
-The CLI scaffolds a bootstrap entry responsible for runtime initialization and adapter integration.
+The CLI scaffolds a runtime initialization layer powered by `AmbitenBootstrapFactory`.
 
 Example:
 
 ```ts
-import { TenraBootstrapFactory } from "@tenra/core";
-import { createExpressAdapter } from "@tenra/express";
+import { AmbitenBootstrapFactory } from "@ambiten/core";
 
-export async function initTenra() {
-  const adapter = createExpressAdapter();
-
-  return TenraBootstrapFactory.create({
-    adapter,
-    config: "./tenra.config.json"
-  });
+export async function initAmbiten() {
+  return AmbitenBootstrapFactory.create();
 }
 ```
 
-This generated layer initializes the runtime using the project configuration while keeping startup orchestration separate from request execution.
+The generated initialization layer prepares the runtime using the centralized project configuration while keeping startup orchestration separate from execution flow.
 
-The generated structure may later be customized, but the default composition is intentionally aligned with Tenra’s runtime architecture.
+## What the generated runtime initializes
 
-## Application entry point
+<BootstrapCapabilitiesOverview />
 
-The CLI also scaffolds the application entry boundary:
+## Generated application entry point
+
+The CLI also scaffolds the application entry boundary.
+
+Example:
 
 ```ts
-src/main.ts
+import express from "express";
+import { initAmbiten } from "./core/initAmbiten";
+import { createExpressAdapter } from "@ambiten/adapter-express";
+
+async function main() {
+  const app = express();
+
+  const runtime = await initAmbiten();
+
+  await runtime.registerMultiTenancy();
+
+  const adapter = createExpressAdapter();
+
+  await adapter.install(app, {
+    tenancy: {
+      header: "x-tenant-id",
+      fallback: "default"
+    }
+  });
+
+  app.listen(3000);
+}
+
+main();
 ```
 
-This layer connects the initialized runtime to the surrounding server or execution environment.
+This structure intentionally separates:
 
-The generated structure keeps startup orchestration, adapter integration, and request execution clearly separated.
+```text
+Runtime startup
+→ framework integration
+→ execution boundaries
+→ request execution
+```
+
+The generated runtime composition may later be customized, but the default structure is intentionally aligned with Ambiten’s execution architecture.
 
 ## Configuration-first architecture
 
@@ -177,7 +205,7 @@ The CLI intentionally promotes configuration-driven runtime assembly.
 
 Example:
 
-```JSON
+```json
 {
   "multiTenant": {
     "enabled": true
@@ -190,9 +218,9 @@ Example:
 
 This allows runtime capabilities to evolve without restructuring application code.
 
-As systems grow, configuration-first architecture improves consistency across environments, deployment pipelines, and teams.
+As systems grow, configuration-first runtime architecture improves consistency across environments, deployment pipelines, and teams.
 
-### Running the generated project
+## Running the generated project
 
 ```bash
 cd my-app
@@ -202,20 +230,20 @@ npm run dev
 
 Once initialized, the generated project already contains the runtime structure required for development.
 
-## Relationship with TenraBootstrap
+## Relationship with AmbitenBootstrapFactory
 
-The CLI and TenraBootstrap solve different problems.
+The CLI and AmbitenBootstrapFactory solve different problems.
 
-```Plain Text
-CLI              → scaffolds architecture
-TenraBootstrap   → initializes runtime infrastructure
-Adapters         → establish request boundaries
-TenraContext     → carries execution state
+```text
+CLI                    → scaffolds architecture
+AmbitenBootstrapFactory  → prepares the runtime
+Adapters               → establish execution boundaries
+AmbitenContext           → carries execution state
 ```
 
-The CLI generates the bootstrap layer automatically so projects begin with a consistent runtime structure from the first commit.
+The CLI generates the runtime initialization layer automatically so projects begin with a consistent runtime structure from the first commit.
 
-`TenraBootstrap` then becomes responsible for runtime initialization when the application actually starts.
+`AmbitenBootstrapFactory` then becomes responsible for preparing the runtime when the application actually starts.
 
 ## Architectural position
 
@@ -224,16 +252,14 @@ The CLI exists before runtime execution begins.
 Conceptually:
 
 ```text
-CLI → Scaffold → Bootstrap → Adapter → Context → Models → MongoDB
+CLI → Scaffold → Factory → Adapter → Context → Models → MongoDB
 ```
 
 <SignalFlow 
-  aria-label="CLI runtime architecture relationship" 
-  :items='["CLI", "Scaffold", "Bootstrap", "Adapter", "Context", "Models", "MongoDB"]'
- />
+aria-label="CLI runtime architecture relationship" :items='["CLI", "Scaffold", "Factory", "Adapter", "Context", "Models", "MongoDB"]' />
 
 The CLI generates the structure.
-Bootstrap initializes the runtime.
+The factory prepares the runtime.
 Adapters establish execution boundaries.
 Context carries runtime state.
 Models execute operations.
@@ -245,18 +271,18 @@ Dependencies are not installed automatically unless requested.
 To install dependencies during generation:
 
 ```bash
-npx tenra init my-app --install
+npx ambiten init my-app --install
 ```
 
 Typical generated dependencies include:
 
-- @tenra/core
+- @ambiten/core
 - mongodb
 - selected adapter packages
 - optional GraphQL dependencies
 - optional Redis dependencies
 
-The exact dependency surface depends on the chosen runtime capabilities.
+The exact dependency surface depends on the selected runtime capabilities.
 
 ## Recommended usage
 
@@ -270,9 +296,9 @@ It is especially valuable for:
 - operationally sensitive production environments
 - teams standardizing runtime architecture
 
-Smaller scripts, isolated experiments, or low-level infrastructure tooling may not require a generated runtime structure.
+Smaller scripts, isolated experiments, or lower-level infrastructure tooling may not require a generated runtime structure.
 
-In those cases, direct TenraClient usage is often simpler.
+In those cases, direct `AmbitenClient` usage is often simpler.
 
 ## Best practices
 
@@ -280,8 +306,8 @@ Generated runtime structure should generally remain stable unless the applicatio
 
 For generated projects, prefer modifying:
 
-```JSON
-tenra.config.json
+```json
+ambiten.config.json
 ```
 
 rather than rewriting initialization behavior manually.
@@ -290,21 +316,21 @@ Keeping runtime configuration centralized improves operational consistency and r
 
 ## Troubleshooting
 
-### CLI not prompting
+CLI not prompting
 
 Ensure the terminal supports interactive input and confirm that command flags are not bypassing prompts automatically.
 
-### ESM or module errors
+## ESM or module errors
 
 If errors such as:
 
-```sh
+```bash
 ERR_REQUIRE_ESM
 ```
 
 appear during startup, confirm that runtime tooling and dependencies are aligned to the same module system.
 
-### Missing dependencies
+## Missing dependencies
 
 If dependencies were not installed automatically during scaffolding:
 
@@ -314,15 +340,15 @@ npm install
 
 ## Summary
 
-The Tenra CLI scaffolds architecture, not runtime execution.
+The Ambiten CLI scaffolds architecture, not runtime execution.
 
-It generates a configuration-first system where bootstrap orchestration, adapters, runtime boundaries, and operational capabilities are already aligned with Tenra’s execution model.
+It generates a configuration-first system where runtime initialization, adapters, execution boundaries, and operational capabilities are already aligned with Ambiten’s execution model.
 
 From the first generated project, applications begin with a runtime structure designed for scalable, context-aware, and operationally coherent systems.
 
 ## Related pages
 
-- [TenraBootstrap](/advanced/bootstrap-cli)
+- [AmbitenBootstrap](/advanced/bootstrap-cli)
 - [Adapters Overview](/adapters/overview)
 - [Multi-Tenancy](/architecture/multi-tenancy)
 - [Runtime Execution Flow](/architecture/runtime-execution-flow)

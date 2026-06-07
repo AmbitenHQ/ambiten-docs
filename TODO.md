@@ -2,7 +2,7 @@
 
 1. [x] Homepage
 2. [x] Introduction
-3. [x] Why Tenra
+3. [x] Why Ambiten
 4. [x] Architecture Whitepaper
 5. [x] Runtime Execution Flow
 6. [x] Execution Guarantee
@@ -13,12 +13,12 @@
 11. [x] Transactions
 12. [x] Middleware
 13. [x] Instrumentation
-14. [x] TenraModel
+14. [x] AmbitenModel
 15. [x] Defining Models
 16. [x] Context Binding
 17. [x] Schema
 18. [x] Provider Contract
-19. [x] TenraClient
+19. [x] AmbitenClient
 20. [x] API Overview
 21. [x] Advanced Usage
 22. [x] Bootstrap CLI
@@ -40,7 +40,7 @@
 38. [x] Update (CRUD)
 39. [x] Aggregate (CRUD)
 40. [x] Migration Overview
-41. [x] Abimongo to tenra
+41. [x] Abimongo to ambiten
 42. [x] Deployment Guide
 43. [x] Mission & Roadmap
 44. [x] Tutorials Overview

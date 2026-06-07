@@ -5,7 +5,7 @@
         <span class="middleware-eyebrow">Runtime Middleware Layer</span>
         <h3>Policy-driven execution around every model operation</h3>
         <p>
-          Middleware is Tenra’s execution governance layer. It allows validation,
+          Middleware is Ambiten’s execution governance layer. It allows validation,
           auditing, access shaping, normalization, and observability behavior to run
           consistently around persistence operations without leaking those concerns
           into application logic.
@@ -32,7 +32,7 @@
 
       <div class="middleware-pillar">
         <span class="middleware-eyebrow">Runtime Awareness</span>
-        <strong>Execute inside TenraContext</strong>
+        <strong>Execute inside AmbitenContext</strong>
         <p>
           Middleware resolves tenant identity, request metadata, active sessions, and
           operation state from the same runtime boundary as the model operation.

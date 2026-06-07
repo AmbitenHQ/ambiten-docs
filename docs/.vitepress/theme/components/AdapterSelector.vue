@@ -13,36 +13,36 @@ const adapters: Adapter[] = [
   {
     id: "express",
     label: "Express",
-    packageName: "@tenra/adapter-express",
+    packageName: "@ambiten/adapter-express",
     description: "Use this for traditional Node.js HTTP services built around Express routing and middleware.",
     useCase: "Best when your application already uses Express as its primary API runtime."
   },
   {
     id: "fastify",
     label: "Fastify",
-    packageName: "@tenra/adapter-fastify",
+    packageName: "@ambiten/adapter-fastify",
     description: "Use this for high-performance HTTP services built on Fastify's plugin and request lifecycle model.",
     useCase: "Best when you want a faster, plugin-oriented server runtime."
   },
   {
     id: "nestjs",
     label: "NestJS",
-    packageName: "@tenra/adapter-nestjs",
-    description: "Use this when Tenra needs to integrate with NestJS modules, providers, and dependency injection.",
+    packageName: "@ambiten/adapter-nestjs",
+    description: "Use this when Ambiten needs to integrate with NestJS modules, providers, and dependency injection.",
     useCase: "Best for structured backend applications using NestJS conventions."
   },
   {
     id: "graphql",
     label: "GraphQL",
-    packageName: "@tenra/adapter-graphql",
-    description: "Use this for resolver-driven execution where Tenra should participate directly in GraphQL request flows.",
+    packageName: "@ambiten/adapter-graphql",
+    description: "Use this for resolver-driven execution where Ambiten should participate directly in GraphQL request flows.",
     useCase: "Best for GraphQL APIs built with Apollo, Yoga, or similar frameworks."
   },
   {
     id: "lambda",
     label: "AWS Lambda",
-    packageName: "@tenra/adapter-lambda",
-    description: "Use this for serverless and event-driven deployments where Tenra runs inside Lambda execution environments.",
+    packageName: "@ambiten/adapter-lambda",
+    description: "Use this for serverless and event-driven deployments where Ambiten runs inside Lambda execution environments.",
     useCase: "Best for serverless architectures that still need consistent context and runtime behavior."
   }
 ];

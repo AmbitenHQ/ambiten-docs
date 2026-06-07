@@ -5,7 +5,7 @@
         <span class="advanced-usage-eyebrow">Production Patterns</span>
         <h3>Operational guidance for moving from working code to durable runtime systems</h3>
         <p>
-          Advanced Tenra usage is not about hidden APIs. It is about composing the runtime
+          Advanced Ambiten usage is not about hidden APIs. It is about composing the runtime
           deliberately under real workload pressure: tenant strategy, transaction scope,
           worker execution, observability, and infrastructure discipline.
         </p>
@@ -44,7 +44,7 @@
         <span class="advanced-usage-eyebrow">Readiness</span>
         <strong>Operational visibility matters as much as correctness</strong>
         <p>
-          A production-grade Tenra system must be measurable, traceable, and tunable
+          A production-grade Ambiten system must be measurable, traceable, and tunable
           under load—not merely functionally correct.
         </p>
       </div>

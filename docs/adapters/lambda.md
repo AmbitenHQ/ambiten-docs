@@ -1,8 +1,8 @@
 # Lambda Adapter
 
-The Lambda adapter integrates Tenra into AWS Lambda by wrapping the handler itself rather than attaching to a request middleware chain.
+The Lambda adapter integrates Ambiten into AWS Lambda by wrapping the handler itself rather than attaching to a request middleware chain.
 
-In serverless environments, the handler is the execution boundary. The adapter establishes runtime scope before the handler executes so every invocation runs inside a fully initialized `TenraContext`.
+In serverless environments, the handler is the execution boundary. The adapter establishes runtime scope before the handler executes so every invocation runs inside a fully initialized `AmbitenContext`.
 
 This allows Lambda-based systems to preserve the same runtime guarantees as Express, Fastify, GraphQL, or NestJS environments while remaining aligned with AWS Lambda’s stateless execution model.
 
@@ -11,7 +11,7 @@ This allows Lambda-based systems to preserve the same runtime guarantees as Expr
 Wrap the Lambda handler with `createLambdaAdapter(...)`.
 
 ```ts
-import { createLambdaAdapter } from "@tenra/lambda";
+import { createLambdaAdapter } from "@ambiten/lambda";
 
 export const handler = createLambdaAdapter(
   async (event) => {
@@ -31,7 +31,7 @@ export const handler = createLambdaAdapter(
 );
 ```
 
-The wrapper normalizes the invocation, initializes runtime context, and ensures the handler executes inside the active Tenra runtime boundary.
+The wrapper normalizes the invocation, initializes runtime context, and ensures the handler executes inside the active Ambiten runtime boundary.
 
 ## How the adapter works
 
@@ -39,9 +39,9 @@ Unlike traditional HTTP servers, AWS Lambda does not expose a persistent middlew
 
 The adapter therefore integrates directly around the handler execution path.
 
-Internally, the adapter normalizes headers, paths, methods, cookies, and runtime metadata into a `TenraRequestLike` structure, invokes the adapter runtime, initializes `TenraContext`, and then executes the original handler inside that scope.
+Internally, the adapter normalizes headers, paths, methods, cookies, and runtime metadata into a `AmbitenRequestLike` structure, invokes the adapter runtime, initializes `AmbitenContext`, and then executes the original handler inside that scope.
 
-This ensures Lambda execution behaves consistently with every other Tenra runtime.
+This ensures Lambda execution behaves consistently with every other Ambiten runtime.
 
 ## Execution flow
 
@@ -49,7 +49,7 @@ The execution lifecycle remains structurally identical to other adapters even th
 
 <SignalFlow 
    aria-label="Lambda adapter execution flow"
-   :items='["Lambda Event", "Adapter Wrapper", "Adapter Runtime", "TenraContext", "Handler", "MongoDB"]'
+   :items='["Lambda Event", "Adapter Wrapper", "Adapter Runtime", "AmbitenContext", "Handler", "MongoDB"]'
 />
 
 The Lambda runtime provides the invocation event, the adapter establishes execution scope, and the handler executes with full runtime awareness.
@@ -75,7 +75,7 @@ Tenant resolution, context initialization, instrumentation, and middleware parti
 
 Each Lambda invocation creates a fresh execution scope.
 
-TenraContext is initialized per invocation, tenant identity is resolved from the incoming event metadata, and model execution remains fully context-aware throughout the handler lifecycle.
+AmbitenContext is initialized per invocation, tenant identity is resolved from the incoming event metadata, and model execution remains fully context-aware throughout the handler lifecycle.
 
 Because Lambda execution is stateless, runtime scope never leaks between invocations even when infrastructure resources such as MongoDB connections are reused internally.
 
@@ -83,13 +83,13 @@ This isolation is essential for correctness in concurrent serverless workloads.
 
 ## Transaction-aware execution
 
-Transactions work inside Lambda the same way they do in every other Tenra runtime.
+Transactions work inside Lambda the same way they do in every other Ambiten runtime.
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@ambiten/core";
 
 export const handler = createLambdaAdapter(async () => {
-  return TenraContext.withTransaction(async () => {
+  return AmbitenContext.withTransaction(async () => {
     const user = await UserModel.create({
       name: "Alice"
     });
@@ -139,14 +139,14 @@ The adapter establishes execution scope once, and all downstream operations inhe
 
 ## Summary
 
-The Lambda adapter bridges AWS Lambda’s event model with Tenra’s runtime system.
+The Lambda adapter bridges AWS Lambda’s event model with Ambiten’s runtime system.
 
-It normalizes invocation execution into a consistent runtime boundary, initializes `TenraContext` for every request, preserves tenant-aware and transaction-aware execution, and allows serverless handlers to behave identically to traditional web runtimes without introducing infrastructure boilerplate.
+It normalizes invocation execution into a consistent runtime boundary, initializes `AmbitenContext` for every request, preserves tenant-aware and transaction-aware execution, and allows serverless handlers to behave identically to traditional web runtimes without introducing infrastructure boilerplate.
 
 ## Related pages
 
 - [Adapters Overview](/adapters/overview)
 - [Usage Patterns](/adapters/usage-patterns)
-- [TenraBootstrap](/advanced/bootstrap-cli)
+- [AmbitenBootstrap](/advanced/bootstrap-cli)
 - [Context](/core/context)
 - [Transactions](/core/transactions)

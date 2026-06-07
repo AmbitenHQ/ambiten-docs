@@ -1,30 +1,30 @@
 # Multi-Tenancy
 
-Multi-tenancy is a foundational runtime capability in Tenra.
+Multi-tenancy is a foundational runtime capability in Ambiten.
 
 It is not implemented as a query convention layered on top of application code. It is enforced through the runtime itself.
 
 That distinction defines the architecture.
 
-This page explains how Tenra preserves tenant isolation within an execution boundary. If you are looking for how execution state propagates through asynchronous operations, see [Context Binding](/models/context-binding).
+This page explains how Ambiten preserves tenant isolation within an execution boundary. If you are looking for how execution state propagates through asynchronous operations, see [Context Binding](/models/context-binding).
 
 <MultiTenancyOverview />
 
-## Multi-tenancy in Tenra
+## Multi-tenancy in Ambiten
 
 Multi-tenancy allows a single runtime environment to serve multiple tenants while preserving strict execution isolation between them.
 
-In Tenra, a tenant is not treated as a simple identifier attached to queries. A tenant defines an execution boundary. Depending on system design, that boundary may influence database resolution, collection scope, transaction continuity, middleware behavior, instrumentation metadata, and infrastructure routing.
+In Ambiten, a tenant is not treated as a simple identifier attached to queries. A tenant defines an execution boundary. Depending on system design, that boundary may influence database resolution, collection scope, transaction continuity, middleware behavior, instrumentation metadata, and infrastructure routing.
 
 Once a tenant boundary is established, execution remains scoped to that tenant for the lifetime of the runtime context unless explicitly overridden.
 
 This model intentionally moves tenancy concerns out of business logic and into runtime coordination.
 
-## The Tenra model
+## The Ambiten model
 
-Tenra implements context-driven multi-tenancy.
+Ambiten implements context-driven multi-tenancy.
 
-Tenant identity is resolved at the system boundary, stored within `TenraContext`, and enforced through provider-aware infrastructure resolution. `TenraModel` operations execute inside that scope automatically without requiring tenant identifiers to be manually threaded through service calls or query helpers.
+Tenant identity is resolved at the system boundary, stored within `AmbitenContext`, and enforced through provider-aware infrastructure resolution. `AmbitenModel` operations execute inside that scope automatically without requiring tenant identifiers to be manually threaded through service calls or query helpers.
 
 ```ts
 await UserModel.find({});
@@ -36,10 +36,10 @@ The operation remains tenant-aware even though no tenant information appears ins
 
 <SignalFlow
   aria-label="Multi-tenancy execution flow"
-  :items='["Incoming request", "Tenant resolution", "TenraContext", "Model operation", "TenraClient", "MongoDB"]'
+  :items='["Incoming request", "Tenant resolution", "AmbitenContext", "Model operation", "AmbitenClient", "MongoDB"]'
 />
 
-Execution enters the runtime through an adapter or execution boundary. The adapter resolves tenant identity before runtime context initialization begins. Once the boundary is active, TenraContext stores the tenant scope and all subsequent runtime-aware components resolve infrastructure through that context automatically.
+Execution enters the runtime through an adapter or execution boundary. The adapter resolves tenant identity before runtime context initialization begins. Once the boundary is active, AmbitenContext stores the tenant scope and all subsequent runtime-aware components resolve infrastructure through that context automatically.
 
 Application logic continues executing normally while providers resolve the correct tenant-aware infrastructure bindings underneath the runtime.
 
@@ -56,7 +56,7 @@ x-tenant-id: tenantA
 The resolved tenant is then bound into the runtime context:
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   {
     tenantId: 'tenantA'
   },
@@ -88,7 +88,7 @@ await UserModel.find({});
 
 The model coordinates execution behavior while the provider resolves infrastructure bindings associated with the active tenant context.
 
-This separation of responsibility is central to Tenra’s architecture. Models remain focused on execution pipelines, middleware coordination, and schema-aware behavior, while providers remain responsible for tenant-aware infrastructure resolution.
+This separation of responsibility is central to Ambiten’s architecture. Models remain focused on execution pipelines, middleware coordination, and schema-aware behavior, while providers remain responsible for tenant-aware infrastructure resolution.
 
 **Conceptually:**
 
@@ -102,7 +102,7 @@ Provider = tenant isolation
 Tenant resolution itself is implemented through a resolver layer.
 
 ```ts
-const client = new TenraClient({
+const client = new AmbitenClient({
   uri: "mongodb://127.0.0.1:27017",
   tenantResolver: {
     async getClient(tenantId) {
@@ -124,7 +124,7 @@ This is the only layer where tenancy resolution logic should exist. Centralizing
 
 ## Isolation strategies
 
-Tenra supports multiple tenancy strategies, although they do not provide equivalent operational guarantees.
+Ambiten supports multiple tenancy strategies, although they do not provide equivalent operational guarantees.
 
 ### Database-per-tenant
 
@@ -158,7 +158,7 @@ The simplest model uses shared collections with tenant filtering:
 
 Although easy to implement initially, this strategy creates the highest risk of accidental cross-tenant leakage because correctness depends heavily on application discipline and consistent filtering behavior.
 
-Tenra supports this model, but does not treat it as equivalent to runtime-scoped tenant isolation.
+Ambiten supports this model, but does not treat it as equivalent to runtime-scoped tenant isolation.
 
 ## Runtime guarantees
 
@@ -182,21 +182,6 @@ This pattern is useful for background workers, scheduled jobs, maintenance tooli
 
 Even outside HTTP execution, tenant scope remains explicit and deterministic.
 
-<!-- ## Multi-tenant model execution
-
-Normal application code stays simple:
-
-```ts
-await UserModel.find({});
-await UserModel.create(data);
-```
-
-Tenant scope is resolved automatically.
-
-This is intentional.
-
-The system enforces isolation so developers do not have to repeat it. -->
-
 ## Middleware integration
 
 Middleware executes inside the active tenant boundary.
@@ -214,7 +199,7 @@ Because middleware participates in the runtime context, systems such as auditing
 Transactions remain tenant-bound throughout execution.
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create(data);
 });
 ```
@@ -249,7 +234,7 @@ the runtime should fail immediately rather than continue with ambiguous infrastr
 
 In practice, this means tenant identity should be validated at the adapter boundary, overrides should remain tightly controlled, and fallback behavior should only exist when explicitly intended by the system architecture.
 
-## What Tenra prevents
+## What Ambiten prevents
 
 A properly configured multi-tenant runtime prevents an entire category of infrastructure failures that commonly emerge in manually coordinated systems.
 
@@ -263,24 +248,24 @@ Tenancy logic should remain centralized inside the `tenantResolver`, and systems
 
 Most importantly, tenant identity should be treated as infrastructure state rather than business-domain data.
 
-That distinction is fundamental to Tenra’s runtime model.
+That distinction is fundamental to Ambiten’s runtime model.
 
 ## Mental model
 
 <SignalFlow
   aria-label="Multi-tenancy mental model"
-  :items='["Adapter", "TenraContext", "TenraModel", "Provider", "MongoDB"]'
+  :items='["Adapter", "AmbitenContext", "AmbitenModel", "Provider", "MongoDB"]'
 />
 
-The adapter resolves tenant identity, `TenraContext` stores the active boundary, the model coordinates execution, the provider enforces infrastructure isolation, and MongoDB persists against the resolved tenant scope.
+The adapter resolves tenant identity, `AmbitenContext` stores the active boundary, the model coordinates execution, the provider enforces infrastructure isolation, and MongoDB persists against the resolved tenant scope.
 
 Tenant-aware execution becomes a runtime property rather than an application convention.
 
 ## Summary
 
-Multi-tenancy in Tenra is runtime-enforced, context-driven, and provider-resolved.
+Multi-tenancy in Ambiten is runtime-enforced, context-driven, and provider-resolved.
 
-By treating tenant identity as part of the execution boundary rather than part of query construction, Tenra allows systems to scale across tenants without pushing isolation logic into business code.
+By treating tenant identity as part of the execution boundary rather than part of query construction, Ambiten allows systems to scale across tenants without pushing isolation logic into business code.
 
 The result is a runtime architecture where tenant isolation remains predictable, enforceable, and safe by default.
 
@@ -289,5 +274,5 @@ The result is a runtime architecture where tenant isolation remains predictable,
 - [Context](/core/context)
 - [Context Binding](/models/context-binding)
 - [Provider Contract](/models/provider-contract)
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)
 - [Runtime Execution Flow](/architecture/runtime-execution-flow)

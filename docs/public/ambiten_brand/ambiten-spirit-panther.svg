@@ -1,0 +1,138 @@
+<svg width="1200" height="1200" viewBox="0 0 1200 1200" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Ambiten Spirit Panther Mark</title>
+  <desc id="desc">A simplified vector panther spirit mark with runtime boundary rings and telemetry nodes.</desc>
+  <defs>
+    <linearGradient id="gold" x1="260" y1="140" x2="940" y2="1030" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFE4A3"/>
+      <stop offset="0.42" stop-color="#C99135"/>
+      <stop offset="1" stop-color="#F7D37A"/>
+    </linearGradient>
+    <linearGradient id="goldSoft" x1="350" y1="220" x2="870" y2="980" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFF1C2"/>
+      <stop offset="1" stop-color="#B47A25"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="600" y1="210" x2="600" y2="1010" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#111B29"/>
+      <stop offset="0.52" stop-color="#050B14"/>
+      <stop offset="1" stop-color="#02050A"/>
+    </linearGradient>
+    <filter id="softShadow" x="120" y="120" width="960" height="960" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="26" stdDeviation="28" flood-color="#000000" flood-opacity="0.42"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="1200" fill="#050914"/>
+
+  <!-- Runtime boundary ring -->
+  <g stroke="url(#gold)" stroke-width="22" stroke-linecap="round" opacity="0.96">
+    <path d="M318 244C402 181 500 148 600 148C700 148 798 181 882 244"/>
+    <path d="M949 352C1010 437 1040 520 1040 612C1040 716 1005 815 942 897"/>
+    <path d="M882 973C798 1036 700 1068 600 1068C500 1068 402 1036 318 973"/>
+    <path d="M258 897C195 815 160 716 160 612C160 520 190 437 251 352"/>
+  </g>
+
+  <!-- Telemetry nodes -->
+  <g fill="url(#goldSoft)">
+    <circle cx="600" cy="126" r="15"/>
+    <circle cx="1058" cy="600" r="14"/>
+    <circle cx="600" cy="1092" r="15"/>
+    <circle cx="142" cy="600" r="14"/>
+    <rect x="587" y="1000" width="26" height="70" rx="13"/>
+  </g>
+
+  <!-- Panther mark -->
+  <g filter="url(#softShadow)">
+    <!-- Outer head silhouette -->
+    <path d="M600 202
+      C656 204 713 223 755 256
+      C795 227 848 194 900 218
+      C929 231 942 263 934 294
+      C925 330 904 370 889 410
+      C928 478 946 558 938 632
+      C925 755 852 866 750 930
+      C703 959 651 976 600 980
+      C549 976 497 959 450 930
+      C348 866 275 755 262 632
+      C254 558 272 478 311 410
+      C296 370 275 330 266 294
+      C258 263 271 231 300 218
+      C352 194 405 227 445 256
+      C487 223 544 204 600 202Z" fill="url(#ink)"/>
+
+    <!-- Gold outline accents -->
+    <path d="M445 256C405 227 352 194 300 218C271 231 258 263 266 294C275 330 296 370 311 410" stroke="url(#gold)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M755 256C795 227 848 194 900 218C929 231 942 263 934 294C925 330 904 370 889 410" stroke="url(#gold)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M318 430C282 514 278 616 309 704C348 815 442 916 557 950" stroke="url(#gold)" stroke-width="12" stroke-linecap="round" opacity="0.88"/>
+    <path d="M882 430C918 514 922 616 891 704C852 815 758 916 643 950" stroke="url(#gold)" stroke-width="12" stroke-linecap="round" opacity="0.88"/>
+
+    <!-- Central muzzle / bridge -->
+    <path d="M600 290
+      C568 350 546 424 541 506
+      C535 600 555 684 600 742
+      C645 684 665 600 659 506
+      C654 424 632 350 600 290Z" fill="#0A1220" opacity="0.98"/>
+    <path d="M600 742C576 770 548 793 516 808C541 856 573 884 600 884C627 884 659 856 684 808C652 793 624 770 600 742Z" fill="#050A13"/>
+
+    <!-- Nose -->
+    <path d="M537 678C565 654 635 654 663 678C657 713 634 735 600 737C566 735 543 713 537 678Z" fill="url(#goldSoft)"/>
+    <path d="M600 737V808" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+    <path d="M600 808C566 834 527 831 497 806" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+    <path d="M600 808C634 834 673 831 703 806" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+
+    <!-- Eyes -->
+    <path d="M386 482C431 430 500 417 546 448C512 455 482 470 457 496C430 524 408 526 386 482Z" fill="url(#gold)"/>
+    <path d="M814 482C769 430 700 417 654 448C688 455 718 470 743 496C770 524 792 526 814 482Z" fill="url(#gold)"/>
+    <path d="M421 481C456 455 497 455 524 474C491 496 456 507 421 481Z" fill="#06101E"/>
+    <path d="M779 481C744 455 703 455 676 474C709 496 744 507 779 481Z" fill="#06101E"/>
+    <circle cx="476" cy="480" r="18" fill="#F8CF62"/>
+    <circle cx="724" cy="480" r="18" fill="#F8CF62"/>
+    <circle cx="481" cy="475" r="7" fill="#FFF5D1"/>
+    <circle cx="729" cy="475" r="7" fill="#FFF5D1"/>
+
+    <!-- Eye flame lines -->
+    <path d="M379 520C413 565 450 590 505 594" stroke="url(#gold)" stroke-width="15" stroke-linecap="round"/>
+    <path d="M821 520C787 565 750 590 695 594" stroke="url(#gold)" stroke-width="15" stroke-linecap="round"/>
+    <path d="M405 423C441 397 494 388 540 407" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+    <path d="M795 423C759 397 706 388 660 407" stroke="url(#gold)" stroke-width="10" stroke-linecap="round" opacity="0.9"/>
+
+    <!-- Spots / runtime nodes on face -->
+    <g fill="#152034">
+      <ellipse cx="485" cy="302" rx="28" ry="16" transform="rotate(24 485 302)"/>
+      <ellipse cx="715" cy="302" rx="28" ry="16" transform="rotate(-24 715 302)"/>
+      <ellipse cx="430" cy="340" rx="31" ry="17" transform="rotate(-24 430 340)"/>
+      <ellipse cx="770" cy="340" rx="31" ry="17" transform="rotate(24 770 340)"/>
+      <ellipse cx="515" cy="384" rx="24" ry="14" transform="rotate(60 515 384)"/>
+      <ellipse cx="685" cy="384" rx="24" ry="14" transform="rotate(-60 685 384)"/>
+      <ellipse cx="365" cy="590" rx="21" ry="13" transform="rotate(28 365 590)"/>
+      <ellipse cx="835" cy="590" rx="21" ry="13" transform="rotate(-28 835 590)"/>
+      <ellipse cx="397" cy="650" rx="21" ry="13" transform="rotate(28 397 650)"/>
+      <ellipse cx="803" cy="650" rx="21" ry="13" transform="rotate(-28 803 650)"/>
+    </g>
+    <g fill="url(#goldSoft)" opacity="0.92">
+      <ellipse cx="535" cy="326" rx="14" ry="9" transform="rotate(55 535 326)"/>
+      <ellipse cx="665" cy="326" rx="14" ry="9" transform="rotate(-55 665 326)"/>
+      <ellipse cx="361" cy="676" rx="13" ry="22" transform="rotate(-30 361 676)"/>
+      <ellipse cx="839" cy="676" rx="13" ry="22" transform="rotate(30 839 676)"/>
+      <ellipse cx="327" cy="626" rx="10" ry="18" transform="rotate(-25 327 626)"/>
+      <ellipse cx="873" cy="626" rx="10" ry="18" transform="rotate(25 873 626)"/>
+      <ellipse cx="395" cy="720" rx="10" ry="18" transform="rotate(-25 395 720)"/>
+      <ellipse cx="805" cy="720" rx="10" ry="18" transform="rotate(25 805 720)"/>
+    </g>
+
+    <!-- Whiskers -->
+    <g stroke="url(#gold)" stroke-width="7" stroke-linecap="round" opacity="0.86">
+      <path d="M505 724C440 708 375 710 304 746"/>
+      <path d="M511 762C432 764 361 788 282 836"/>
+      <path d="M522 799C446 827 386 866 322 920"/>
+      <path d="M695 724C760 708 825 710 896 746"/>
+      <path d="M689 762C768 764 839 788 918 836"/>
+      <path d="M678 799C754 827 814 866 878 920"/>
+    </g>
+
+    <!-- small muzzle dots -->
+    <g fill="#0F1727">
+      <circle cx="520" cy="720" r="8"/><circle cx="495" cy="737" r="7"/><circle cx="470" cy="754" r="6"/>
+      <circle cx="680" cy="720" r="8"/><circle cx="705" cy="737" r="7"/><circle cx="730" cy="754" r="6"/>
+    </g>
+  </g>
+</svg>

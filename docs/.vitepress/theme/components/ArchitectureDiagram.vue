@@ -19,7 +19,7 @@
       <span class="architecture-band-label">Adapter Layer</span>
       <div class="architecture-band-grid single">
         <div class="architecture-node architecture-node-featured">
-          Normalize request or event into Tenra runtime execution
+          Normalize request or event into Ambiten runtime execution
         </div>
       </div>
     </div>
@@ -28,7 +28,7 @@
 
     <!-- Context -->
     <div class="architecture-band architecture-band-context">
-      <span class="architecture-band-label">TenraContext</span>
+      <span class="architecture-band-label">AmbitenContext</span>
       <div class="architecture-band-grid three-up">
         <div class="architecture-node">Tenant Scope</div>
         <div class="architecture-node">Request Metadata</div>
@@ -40,9 +40,9 @@
 
     <!-- Runtime -->
     <div class="architecture-band architecture-band-core">
-      <span class="architecture-band-label">Tenra Runtime</span>
+      <span class="architecture-band-label">Ambiten Runtime</span>
       <div class="architecture-band-grid two-up">
-        <div class="architecture-node">TenraModel</div>
+        <div class="architecture-node">AmbitenModel</div>
         <div class="architecture-node">Schema + Middleware</div>
         <div class="architecture-node">Policy Enforcement</div>
         <div class="architecture-node">Transaction Propagation</div>
@@ -67,7 +67,7 @@
       <span class="architecture-band-label">Client Layer</span>
       <div class="architecture-band-grid single">
         <div class="architecture-node architecture-node-featured">
-          TenraClient (driver bridge, connection, session management)
+          AmbitenClient (driver bridge, connection, session management)
         </div>
       </div>
     </div>

@@ -1,10 +1,10 @@
 # Middleware
 
-Middleware is Tenra’s runtime policy layer.
+Middleware is Ambiten’s runtime policy layer.
 
 It governs model execution as operations move through the runtime pipeline, allowing validation, access control, auditing, observability, and transformation logic to be defined once and enforced consistently across the system.
 
-Rather than scattering infrastructure behavior across services and controllers, Tenra centralizes these concerns into the execution layer itself.
+Rather than scattering infrastructure behavior across services and controllers, Ambiten centralizes these concerns into the execution layer itself.
 
 ## Why middleware exists
 
@@ -14,7 +14,7 @@ Writes may require auditing and normalization. Reads may need tenant-aware filte
 
 Without middleware, these behaviors become fragmented across handlers, services, and transport layers. Over time, duplication increases, enforcement becomes inconsistent, and operational correctness depends on developer discipline rather than runtime guarantees.
 
-Tenra solves this by treating middleware as part of the execution architecture.
+Ambiten solves this by treating middleware as part of the execution architecture.
 
 ## Runtime execution model
 
@@ -45,7 +45,7 @@ beforeAggregate
 afterAggregate
 ```
 
-In practice, Tenra exposes schema-level hooks:
+In practice, Ambiten exposes schema-level hooks:
 
 ```ts
 schema.pre("create", handler);
@@ -81,7 +81,7 @@ ctx.collectionName
 ctx.meta
 ```
 
-This context combines operation state, execution metadata, and runtime information resolved from `TenraContext`.
+This context combines operation state, execution metadata, and runtime information resolved from `AmbitenContext`.
 
 Because middleware executes inside the active runtime boundary, it automatically participates in tenant-aware and transaction-aware execution.
 
@@ -178,7 +178,7 @@ Transaction integration
 Middleware operates inside transaction boundaries automatically.
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create(data);
 });
 ```
@@ -199,26 +199,26 @@ Effective middleware should remain focused, composable, and infrastructure-orien
 
 Middleware works best when it governs cross-cutting execution concerns such as validation, access shaping, auditing, observability, normalization, or lifecycle enforcement rather than embedding full domain workflows inside hooks.
 
-Runtime state should be resolved through `TenraContext`, not through global state or manual parameter propagation.
+Runtime state should be resolved through `AmbitenContext`, not through global state or manual parameter propagation.
 
 ## Relationship with runtime
 
 <SignalFlow
   aria-label="Middleware runtime relationship"
-  :items='["Adapter", "TenraContext", "Middleware", "TenraModel", "MongoDB"]'
+  :items='["Adapter", "AmbitenContext", "Middleware", "AmbitenModel", "MongoDB"]'
 />
 
-The adapter establishes the execution boundary, `TenraContext` stores runtime state, middleware governs execution behavior, models coordinate persistence, and MongoDB executes the finalized operation.
+The adapter establishes the execution boundary, `AmbitenContext` stores runtime state, middleware governs execution behavior, models coordinate persistence, and MongoDB executes the finalized operation.
 
 Each layer owns a distinct responsibility inside the runtime architecture.
 
-## What differentiates Tenra middleware
+## What differentiates Ambiten middleware
 
 Traditional ODM middleware systems are typically lifecycle-oriented but only partially runtime-aware.
 
-Tenra extends middleware into the execution layer itself.
+Ambiten extends middleware into the execution layer itself.
 
-| Capability                | Traditional ODM         | Tenra                |
+| Capability                | Traditional ODM         | Ambiten                |
 | ------------------------- | ----------------------- | -------------------- |
 | Context awareness         | Limited                 | Full runtime context |
 | Tenant awareness          | Manual                  | Runtime-native       |
@@ -228,7 +228,7 @@ Tenra extends middleware into the execution layer itself.
 
 ## Summary
 
-Middleware in Tenra is not just a hook system attached to persistence operations.
+Middleware in Ambiten is not just a hook system attached to persistence operations.
 
 It is a runtime-level execution layer that allows policies, observability, validation, and infrastructure-aware behavior to remain centralized, composable, and consistent across the system.
 

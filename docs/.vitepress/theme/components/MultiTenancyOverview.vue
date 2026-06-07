@@ -5,7 +5,7 @@
         <span class="multi-tenancy-eyebrow">Tenant Runtime</span>
         <h3>Resolve tenant scope once. Enforce it across the entire execution chain.</h3>
         <p>
-          Tenra treats tenant identity as a runtime boundary. Once resolved, execution remains scoped to that tenant across models, middleware, transactions, and observability without requiring additional infrastructure coordination.
+          Ambiten treats tenant identity as a runtime boundary. Once resolved, execution remains scoped to that tenant across models, middleware, transactions, and observability without requiring additional infrastructure coordination.
         </p>
       </div>
 
@@ -22,7 +22,7 @@
         <strong>Boundary Resolution</strong>
         <p>
           Tenant identity is extracted at the system boundary and bound into
-          <code>TenraContext</code>, establishing the execution scope.
+          <code>AmbitenContext</code>, establishing the execution scope.
         </p>
       </div>
 
@@ -53,7 +53,7 @@
 
       <div class="multi-tenancy-flow-step">
         <span>Context Binding</span>
-        <strong>Execution scope bound to TenraContext</strong>
+        <strong>Execution scope bound to AmbitenContext</strong>
       </div>
 
       <div class="multi-tenancy-flow-arrow">→</div>

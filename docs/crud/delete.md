@@ -1,10 +1,10 @@
 # Delete
 
-Delete operations remove documents or transition them into a deleted state through the Tenra model layer.
+Delete operations remove documents or transition them into a deleted state through the Ambiten model layer.
 
-In Tenra, deletion is treated as a runtime lifecycle concern rather than a simple destructive action. Depending on system policy, a delete operation may permanently remove a record or convert it into a recoverable soft-deleted state while still participating in middleware, tenant-aware execution, and transaction boundaries.
+In Ambiten, deletion is treated as a runtime lifecycle concern rather than a simple destructive action. Depending on system policy, a delete operation may permanently remove a record or convert it into a recoverable soft-deleted state while still participating in middleware, tenant-aware execution, and transaction boundaries.
 
-Tenra supports `deleteOne`, `deleteMany`, `findOneAndDelete`, soft delete workflows, explicit hard delete execution, and restore flows for recoverable records.
+Ambiten supports `deleteOne`, `deleteMany`, `findOneAndDelete`, soft delete workflows, explicit hard delete execution, and restore flows for recoverable records.
 
 ## The role of deletion in the runtime
 
@@ -105,7 +105,7 @@ In a standard delete flow:
 - post hooks can observe the outcome
 - the result returns in a normalized form
 
-This keeps deletion behavior aligned with the same runtime model used throughout Tenra.
+This keeps deletion behavior aligned with the same runtime model used throughout Ambiten.
 
 ## Middleware around delete operations
 
@@ -128,14 +128,14 @@ Because middleware executes inside the runtime boundary, delete behavior stays c
 Delete operations automatically participate in the active transaction scope:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.deleteOne({
     email: "alice@example.com"
   });
 });
 ```
 
-Within that boundary, the operation reuses the active session from `TenraContext`, ensuring rollback remains consistent if the wider workflow fails.
+Within that boundary, the operation reuses the active session from `AmbitenContext`, ensuring rollback remains consistent if the wider workflow fails.
 
 This is especially important when deletion is part of a larger coordinated write process.
 
@@ -207,7 +207,7 @@ await UserModel.restoreOne({
 Delete inside a transaction
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.deleteOne({
     email: "alice@example.com"
   });
@@ -222,9 +222,9 @@ When deletion participates in a larger write sequence, use transactions so rollb
 
 ## Summary
 
-Delete operations in Tenra are runtime-aware lifecycle boundaries rather than isolated removal calls.
+Delete operations in Ambiten are runtime-aware lifecycle boundaries rather than isolated removal calls.
 
-By supporting both soft delete and hard delete execution, Tenra allows systems to balance recoverability, operational safety, retention policy, and tenant-aware consistency without pushing those concerns into application logic.
+By supporting both soft delete and hard delete execution, Ambiten allows systems to balance recoverability, operational safety, retention policy, and tenant-aware consistency without pushing those concerns into application logic.
 
 ## Related pages
 

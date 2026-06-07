@@ -1,25 +1,25 @@
 # Installation
 
-Install the Tenra runtime and the adapter layer that matches your application environment.
+Install the Ambiten runtime and the adapter layer that matches your application environment.
 
-Tenra is framework-agnostic by design. The core runtime remains consistent across Express, Fastify, GraphQL, NestJS, and serverless architectures, while adapters integrate the execution model into the surrounding framework lifecycle.
+Ambiten is framework-agnostic by design. The core runtime remains consistent across Express, Fastify, GraphQL, NestJS, and serverless architectures, while adapters integrate the execution model into the surrounding framework lifecycle.
 
 ## Prerequisites
 
-Before installing Tenra, ensure your environment provides:
+Before installing Ambiten, ensure your environment provides:
 
 - Node.js 18+
 - npm, pnpm, or yarn
 - a reachable MongoDB deployment
 
-Tenra operates directly on top of the official MongoDB driver, so the runtime expects an accessible MongoDB instance during initialization.
+Ambiten operates directly on top of the official MongoDB driver, so the runtime expects an accessible MongoDB instance during initialization.
 
 ## Install the core runtime
 
 Install the core runtime package:
 
 ```bash
-npm install @tenra/core
+npm install @ambiten/core
 ```
 
 The core package contains the execution runtime, context system, model layer, middleware pipeline, transaction coordination, and provider infrastructure used throughout the framework.
@@ -30,7 +30,7 @@ Most applications also install an adapter package corresponding to their runtime
 
 <AdapterSelector />
 
-Adapters connect framework lifecycles to the Tenra runtime boundary. They are responsible for request normalization, context initialization, tenant resolution, and execution scoping.
+Adapters connect framework lifecycles to the Ambiten runtime boundary. They are responsible for request normalization, context initialization, tenant resolution, and execution scoping.
 
 The execution model itself remains unchanged across runtimes. Only the integration boundary differs.
 
@@ -38,7 +38,7 @@ Additional adapter details are available in [Adapters Overview](/adapters/overvi
 
 ## Environment configuration
 
-At minimum, Tenra requires a MongoDB connection string and database name.
+At minimum, Ambiten requires a MongoDB connection string and database name.
 
 Example .env configuration:
 
@@ -51,7 +51,7 @@ These values are typically consumed during runtime bootstrap or provider initial
 
 ## Minimal runtime configuration
 
-Applications using the Tenra bootstrap flow can generate configuration automatically through the CLI.
+Applications using the Ambiten bootstrap flow can generate configuration automatically through the CLI.
 
 A minimal configuration typically looks like this:
 
@@ -79,4 +79,4 @@ Because these concerns are coordinated by the runtime itself, application servic
 
 ### Next step
 
-Continue to [Quick Start](/getting-started/quick-start) to scaffold a working Tenra application and follow a complete request lifecycle from adapter ingress to MongoDB execution.
+Continue to [Quick Start](/getting-started/quick-start) to scaffold a working Ambiten application and follow a complete request lifecycle from adapter ingress to MongoDB execution.

@@ -1,196 +1,129 @@
-# TenraBootstrap
+# AmbitenBootstrapFactory
 
-`TenraBootstrap` is the startup orchestration layer for a Tenra-powered system.
+`AmbitenBootstrapFactory` is the public startup entry point for a Ambiten-powered system.
 
-It prepares the runtime before any request, worker, GraphQL resolver, queue consumer, or serverless invocation begins execution. Database connectivity, multi-tenancy, logging, Redis integration, GraphQL capabilities, garbage collection, and runtime configuration are assembled here so the application starts from a coherent operational state rather than constructing infrastructure dynamically during execution.
+It creates and initializes the Ambiten runtime before requests, workers, GraphQL resolvers, queue consumers, scheduled tasks, or serverless invocations begin execution. Database connectivity, multi-tenancy, logging, Redis integration, GraphQL capabilities, garbage collection, and runtime services are assembled into a coherent operational boundary before application execution starts.
 
-Bootstrap does not execute requests. That responsibility belongs to adapters and the runtime execution layer.
+The underlying `AmbitenBootstrap` implementation is internal. Applications should interact with the runtime returned by `AmbitenBootstrapFactory`.
 
-```Plain Text
-Bootstrap prepares the runtime.
+```text
+Factory prepares the runtime.
 Adapters connect the runtime to execution entry points.
 ```
 
-## Why Bootstrap exists
+## Why the factory exists
 
-As systems evolve, startup logic often becomes fragmented across unrelated files and lifecycle hooks. Database initialization may happen in one location, Redis in another, tenancy registration elsewhere, and adapter wiring inside framework-specific bootstrap code.
+As systems evolve, startup orchestration often becomes fragmented across unrelated files and framework hooks. Database initialization may happen in one location, Redis setup in another, tenancy registration elsewhere, and adapter wiring inside framework-specific entry points.
 
-The result is usually inconsistent startup behavior, duplicated configuration logic, and infrastructure that becomes harder to reason about under production pressure.
+`AmbitenBootstrapFactory` centralizes that startup phase into one supported public API. When the application begins accepting execution, the runtime has already been prepared, connected, and internally aligned.
 
-`TenraBootstrap` centralizes this initialization phase into a single operational boundary. When execution begins, the runtime is already prepared, connected, and internally consistent.
-
-Conceptually, the distinction looks like this:
-
-```text
-Without Bootstrap → Infrastructure assembles itself during execution
-With Bootstrap    → Infrastructure is prepared before execution begins
+```PlainText
+Without Factory → Infrastructure assembles during execution
+With Factory    → Infrastructure is prepared before execution
 ```
+
+The factory model also simplifies the public API surface by exposing a single startup contract rather than requiring applications to manually construct internal runtime orchestrators.
 
 ## Runtime responsibility model
 
-Tenra intentionally separates startup orchestration from request execution.
+Ambiten separates startup orchestration from execution flow.
 
 ```text
-TenraBootstrap → prepares infrastructure and runtime services
-Adapter         → establishes request or invocation boundaries
-TenraContext    → carries execution state
-TenraModel      → executes operations
+AmbitenBootstrapFactory → creates and initializes the runtime
+AmbitenRuntime          → exposes initialized runtime services
+Adapter               → establishes request or invocation boundaries
+AmbitenContext          → carries execution state
+AmbitenModel            → executes operations
 ```
 
-This separation keeps runtime behavior predictable.
+The runtime is initialized once during startup. Adapters operate at framework boundaries. Models execute inside the active context established downstream.
 
-Bootstrap runs once during application startup. Adapters execute per request or invocation. Models operate inside the active execution boundary established downstream.
+This separation keeps runtime behavior predictable and operationally consistent.
 
 ## Basic initialization
 
-A bootstrap instance may be created with an adapter:
+Most applications start Ambiten through the factory.
 
 ```ts
-import express from "express";
-import { TenraBootstrap } from "@tenra/core";
-import { createExpressAdapter } from "@tenra/express";
+import { AmbitenBootstrapFactory } from "@ambiten/core";
 
-const app = express();
-const adapter = createExpressAdapter();
-
-const bootstrap = new TenraBootstrap(adapter);
-
-await bootstrap.initialize("./tenra.config.json");
-
-await bootstrap.registerMultiTenancy(app);
-
-app.listen(3000);
+export async function initAmbiten() {
+  return AmbitenBootstrapFactory.create();
+}
 ```
 
-The constructor accepts runtime integration surfaces such as adapters, while configuration is supplied during `initialize(...)`.
-
-## Configuration sources
-
-Most production applications initialize from a generated configuration file:
+The returned runtime exposes the initialized services and lifecycle methods needed by the application.
 
 ```ts
-await bootstrap.initialize("./tenra.config.json");
+const runtime = await initAmbiten();
+
+const client = runtime.getMongoClient();
+const logger = runtime.getLogger();
+const model = runtime.getModel();
+const schema = runtime.getSchema();
 ```
 
-Direct configuration objects are also supported:
+## Configuration
+
+When no configuration is passed, Ambiten resolves the default `ambiten.config.json` file automatically.
 
 ```ts
-await bootstrap.initialize({
-  connection: {
-    uri: "mongodb://localhost:27017/my-app",
-    options: {
-      dbName: "my-app"
-    }
-  },
-  multiTenant: {
-    enabled: true,
-    tenants: {
-      tenantA: "mongodb://localhost:27017/tenantA"
+const runtime = await AmbitenBootstrapFactory.create();
+```
+
+A configuration path may also be supplied explicitly.
+
+```ts
+const runtime = await AmbitenBootstrapFactory.create({
+  config: "./ambiten.config.json"
+});
+```
+
+For tests, embedded runtimes, or custom orchestration layers, a configuration object may be passed directly.
+
+```ts
+const runtime = await AmbitenBootstrapFactory.create({
+  config: {
+    connection: {
+      uri: "mongodb://localhost:27017/my-app",
+      options: {
+        dbName: "my-app"
+      }
+    },
+    multiTenant: {
+      enabled: true,
+      tenants: {
+        tenantA: "mongodb://localhost:27017/tenantA"
+      }
     }
   }
 });
 ```
 
-This approach is useful for tests, isolated runtimes, custom orchestration layers, or applications that intentionally avoid filesystem-based configuration.
+Generated applications should normally keep runtime configuration inside `ambiten.config.json` so startup behavior remains consistent across environments.
 
-For CLI-generated projects, the generated tenra.config.json should remain the primary source of startup configuration so initialization behavior stays consistent across environments.
-
-## Factory-based startup
-
-Most applications should prefer the factory API because it creates, initializes, and returns a ready runtime boundary in one step.
-
-```ts
-import { TenraBootstrapFactory } from "@tenra/core";
-import { createExpressAdapter } from "@tenra/express";
-
-const adapter = createExpressAdapter();
-
-const bootstrap = await TenraBootstrapFactory.create({
-  adapter,
-  config: "./tenra.config.json"
-});
-```
-
-If the application uses the default generated configuration path, the config argument may be omitted:
-
-```ts
-const bootstrap = await TenraBootstrapFactory.create({
-  adapter
-});
-```
-
-The factory API reduces startup duplication and keeps initialization composition explicit.
-
-## CLI-generated projects
-
-Projects generated through the Tenra CLI already include a runtime configuration file:
-
-```bash
-npx tenra init my-app
-```
-
-Example:
-
-```JSON
-{
-  "connection": {
-    "uri": "mongodb://localhost:27017/my-app"
-  },
-  "multiTenant": {
-    "enabled": true
-  },
-  "graphql": {
-    "enabled": false
-  }
-}
-```
-
-A typical startup entry point may look like this:
-
-```ts
-import { TenraBootstrapFactory } from "@tenra/core";
-import { createExpressAdapter } from "@tenra/express";
-
-const adapter = createExpressAdapter();
-
-export async function startTenra() {
-  return TenraBootstrapFactory.create({
-    adapter,
-    config: "./tenra.config.json"
-  });
-}
-```
-
-In generated applications, configuration should generally remain centralized in the config file rather than duplicated inside runtime initialization code.
-
-## What Bootstrap initializes
+## What the factory initializes
 
 <BootstrapCapabilitiesOverview />
 
 ## Adapter integration
 
-Bootstrap and adapters are intentionally separate concerns.
-
-```Plain Text
-Bootstrap → prepares the runtime
-Adapter   → binds the runtime to a framework
-```
-
-Example:
+Adapters are installed where the real framework application exists. The factory prepares Ambiten; the adapter binds Ambiten execution to Express, Fastify, NestJS, GraphQL, Lambda, workers, or other runtime boundaries.
 
 ```ts
+import express from "express";
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+import { createExpressAdapter } from "@ambiten/adapter-express";
+
+const app = express();
+app.use(express.json());
+
+const runtime = await AmbitenBootstrapFactory.create();
+
+await runtime.registerMultiTenancy();
+
 const adapter = createExpressAdapter();
-const bootstrap = new TenraBootstrap(adapter);
 
-await bootstrap.initialize("./tenra.config.json");
-await bootstrap.registerMultiTenancy(app);
-```
-
-`registerMultiTenancy(app)` allows Bootstrap to wire tenancy configuration and adapter integration directly into the application.
-
-Applications that prefer manual adapter installation may still configure the adapter independently:
-
-```ts
 await adapter.install(app, {
   tenancy: {
     header: "x-tenant-id",
@@ -198,98 +131,78 @@ await adapter.install(app, {
   },
   enableTransactions: true
 });
+
+app.listen(3000);
 ```
 
-The runtime model remains the same either way.
+This separation is intentional. Ambiten registers tenant infrastructure during startup, while adapters resolve request-bound tenant and execution context at runtime.
 
-## Relationship with TenraClient
+## Runtime lifecycle
 
-`TenraClient` and `TenraBootstrap` solve different problems.
+A typical startup lifecycle looks like this:
 
-`TenraClient` provides lower-level infrastructure access, database resolution, sessions, and tenant-aware MongoDB interaction. `TenraBootstrap` prepares the operational runtime that surrounds those capabilities.
+<BootstrapLifecycleFlow />
 
-Conceptually:
-
-```sh
-TenraBootstrap → startup orchestration
-TenraClient    → infrastructure resolution
-Adapter         → request integration
-TenraContext    → execution state
-```
-
-Use `TenraBootstrap` when assembling a full application runtime. Use `TenraClient` directly when you need focused infrastructure access without broader application orchestration.
+Once the runtime is ready, adapters can begin establishing execution context for incoming requests, jobs, or invocations.
 
 ## Lifecycle hooks
 
-Bootstrap exposes lifecycle hooks for operational visibility:
+The returned runtime exposes lifecycle hooks for operational visibility.
 
 ```ts
-bootstrap.onConnect(() => {
+runtime.onConnect(() => {
   console.log("Runtime ready");
 });
 
-bootstrap.onError((err) => {
-  console.error("Startup failed:", err);
+runtime.onError((error) => {
+  console.error("Runtime startup failed:", error);
 });
 ```
 
-These hooks are commonly used for readiness diagnostics, startup telemetry, deployment coordination, and post-initialization tasks.
+These hooks are useful for readiness diagnostics, deployment coordination, and runtime telemetry.
 
-## Shutdown behavior
+## Shutdown
 
-Applications should shut down initialized resources gracefully:
-
-```ts
-await bootstrap.shutdown();
-```
-
-Shutdown closes managed infrastructure such as MongoDB and Redis connections when available.
-
-This is especially important in containerized deployments, worker environments, and graceful termination flows.
-
-## Transaction readiness
-
-Bootstrap prepares the runtime for transaction participation, but adapters activate transaction handling at execution time.
+Applications should shut down the runtime gracefully.
 
 ```ts
-await adapter.install(app, {
-  enableTransactions: true
-});
+await runtime.shutdown();
 ```
 
-Transactional execution then occurs inside runtime context:
+Shutdown closes managed infrastructure such as MongoDB providers, Redis clients, logging transports, runtime schedulers, and internal services when available.
 
-```ts
-await TenraContext.withTransaction(async () => {
-  await UserModel.create(data);
-});
+## Relationship with AmbitenClient
+
+`AmbitenClient` provides lower-level MongoDB infrastructure access. `AmbitenBootstrapFactory` prepares the full application runtime around that infrastructure.
+
+```text
+AmbitenBootstrapFactory → startup orchestration
+AmbitenClient           → database infrastructure access
+Adapter               → framework execution boundary
+AmbitenContext          → execution state
 ```
 
-This separation keeps startup concerns independent from request execution behavior.
-
-## When to use Bootstrap
-
-TenraBootstrap is most valuable when building full applications with shared runtime infrastructure, multi-tenancy, logging, Redis integration, GraphQL support, or standardized startup behavior across multiple services.
-
-Smaller scripts, isolated workers, lightweight tooling, or test utilities often do not require a full bootstrap boundary. In those cases, using `TenraClient` directly is usually the simpler approach.
+Use `AmbitenBootstrapFactory` when building a complete Ambiten application. Use `AmbitenClient` directly when a smaller script or isolated tool only needs database infrastructure access.
 
 ## Best practices
 
-Initialize Bootstrap once during application startup and keep request handling responsibilities inside adapters and runtime execution layers.
+Initialize the runtime once during application startup.
 
-For generated projects, prefer centralized configuration through `tenra.config.json` rather than scattering runtime configuration across multiple startup files.
+Keep framework wiring inside the application entry point where the real app instance exists.
 
-Use the factory API for consistent startup composition, and avoid duplicating generated configuration objects in application code unless intentionally overriding runtime behavior.
+Use `registerMultiTenancy()` to register tenant infrastructure, then use adapters to resolve tenant and request context during execution.
+
+Avoid manually constructing internal bootstrap classes. `AmbitenBootstrapFactory` is the supported public startup API.
 
 ## Summary
 
-`TenraBootstrap` is the startup orchestration layer for Tenra applications.
+AmbitenBootstrapFactory is the public startup boundary for Ambiten applications.
 
-It prepares database infrastructure, tenancy configuration, logging, Redis integration, GraphQL capabilities, garbage collection, and runtime readiness before execution begins. By separating startup orchestration from runtime execution, Tenra keeps operational initialization predictable while allowing request handling, context propagation, and model execution to remain focused and consistent.
+It prepares the runtime before execution begins, while adapters connect that prepared runtime to framework-specific entry points. This keeps startup orchestration predictable, adapter integration clean, and model execution focused on the active runtime context.
 
 ## Related pages
 
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)
 - [Context](/core/context)
 - [Adapters Overview](/adapters/overview)
 - [Multi-Tenancy](/architecture/multi-tenancy)

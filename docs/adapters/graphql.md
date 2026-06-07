@@ -1,19 +1,19 @@
 # GraphQL Adapter
 
-The GraphQL adapter integrates Tenra through context factories rather than middleware or lifecycle hooks.
+The GraphQL adapter integrates Ambiten through context factories rather than middleware or lifecycle hooks.
 
-Instead of attaching to an HTTP middleware chain, it establishes runtime scope directly inside GraphQL execution so every resolver runs within a fully initialized `TenraContext`.
+Instead of attaching to an HTTP middleware chain, it establishes runtime scope directly inside GraphQL execution so every resolver runs within a fully initialized `AmbitenContext`.
 
 This allows GraphQL resolvers to remain focused on application behavior while tenant resolution, transaction state, instrumentation, and execution metadata are handled by the runtime automatically.
 
 ## Integration model
 
-Tenra provides context factories for GraphQL runtimes such as Apollo Server and GraphQL Yoga.
+Ambiten provides context factories for GraphQL runtimes such as Apollo Server and GraphQL Yoga.
 
 ### Apollo Server
 
 ```ts
-import { createApolloContextFactory } from "@tenra/graphql";
+import { createApolloContextFactory } from "@ambiten/graphql";
 
 const context = createApolloContextFactory({
   tenancy: {
@@ -26,7 +26,7 @@ const context = createApolloContextFactory({
 ### GraphQL Yoga
 
 ```ts
-import { createYogaContextFactory } from "@tenra/graphql";
+import { createYogaContextFactory } from "@ambiten/graphql";
 
 const context = createYogaContextFactory({
   tenancy: {
@@ -36,11 +36,11 @@ const context = createYogaContextFactory({
 });
 ```
 
-Once configured, every GraphQL operation enters the Tenra runtime before resolver execution begins.
+Once configured, every GraphQL operation enters the Ambiten runtime before resolver execution begins.
 
 ## Extending GraphQL context
 
-Application-specific values can still be added cleanly alongside Tenra’s runtime context.
+Application-specific values can still be added cleanly alongside Ambiten’s runtime context.
 
 ```ts
 const context = createApolloContextFactory(
@@ -65,9 +65,9 @@ GraphQL execution differs from Express or Fastify because there is no shared mid
 
 Instead, the context factory becomes the runtime entry point.
 
-At execution time, the adapter extracts request-like metadata from the GraphQL runtime, normalizes it into a TenraRequestLike structure, initializes runtime scope through the adapter runtime, and establishes `TenraContext` before resolvers execute.
+At execution time, the adapter extracts request-like metadata from the GraphQL runtime, normalizes it into a AmbitenRequestLike structure, initializes runtime scope through the adapter runtime, and establishes `AmbitenContext` before resolvers execute.
 
-This ensures resolver execution follows the same runtime contract as every other Tenra adapter.
+This ensures resolver execution follows the same runtime contract as every other Ambiten adapter.
 
 ## Execution flow
 
@@ -80,7 +80,7 @@ Context Factory
   ↓
 Adapter Runtime
   ↓
-TenraContext
+AmbitenContext
   ↓
 Resolver
   ↓
@@ -89,7 +89,7 @@ MongoDB
 
 <SignalFlow
   aria-label="GraphQL adapter execution flow"
-  :items='["GraphQL Request", "Context Factory", "Adapter Runtime", "TenraContext", "Resolver", "MongoDB"]'
+  :items='["GraphQL Request", "Context Factory", "Adapter Runtime", "AmbitenContext", "Resolver", "MongoDB"]'
 />
 
 The GraphQL runtime continues orchestrating resolver execution while the adapter ensures runtime scope exists consistently across the request lifecycle.
@@ -122,7 +122,7 @@ Those responsibilities already exist inside the runtime boundary.
 
 With the GraphQL adapter in place, every operation creates a new execution scope automatically.
 
-Tenant identity can be resolved from request metadata, TenraContext remains available across resolver execution, and model operations participate in the same request-aware lifecycle consistently.
+Tenant identity can be resolved from request metadata, AmbitenContext remains available across resolver execution, and model operations participate in the same request-aware lifecycle consistently.
 
 Middleware, instrumentation, and transaction handling also execute inside that same runtime boundary, which keeps GraphQL behavior aligned with HTTP and serverless environments.
 
@@ -131,12 +131,12 @@ Middleware, instrumentation, and transaction handling also execute inside that s
 Mutations can participate in transactions exactly the same way as HTTP handlers.
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@ambiten/core";
 
 const resolvers = {
   Mutation: {
     createUser: async (_p, args) => {
-      return TenraContext.withTransaction(async () => {
+      return AmbitenContext.withTransaction(async () => {
         const user = await UserModel.create(args.input);
 
         await AuditModel.create({
@@ -159,7 +159,7 @@ GraphQL execution is resolver-driven rather than middleware-driven.
 
 In Express or Fastify, runtime scope can be established through request hooks or middleware chains. In GraphQL, the context factory is the only reliable execution boundary shared across resolvers.
 
-That is why Tenra integrates through context creation rather than transport-layer middleware.
+That is why Ambiten integrates through context creation rather than transport-layer middleware.
 
 The runtime model remains the same even though the execution lifecycle differs.
 
@@ -167,7 +167,7 @@ The runtime model remains the same even though the execution lifecycle differs.
 
 The GraphQL adapter is designed for resolver-driven applications that need runtime-aware execution without pushing infrastructure coordination into resolver code.
 
-It is especially useful for systems that require tenant-aware execution, transaction-capable mutations, structured instrumentation, and operational consistency between GraphQL services and other Tenra runtimes.
+It is especially useful for systems that require tenant-aware execution, transaction-capable mutations, structured instrumentation, and operational consistency between GraphQL services and other Ambiten runtimes.
 
 ## Mental model
 
@@ -185,14 +185,14 @@ Once execution enters the runtime, models and middleware behave the same way the
 
 ## Summary
 
-The GraphQL adapter connects resolver execution to Tenra’s runtime system.
+The GraphQL adapter connects resolver execution to Ambiten’s runtime system.
 
-It establishes execution scope through context factories, initializes TenraContext, enables tenant-aware and transaction-aware execution, and allows resolvers to remain focused on application behavior instead of infrastructure coordination.
+It establishes execution scope through context factories, initializes AmbitenContext, enables tenant-aware and transaction-aware execution, and allows resolvers to remain focused on application behavior instead of infrastructure coordination.
 
 ## Related pages
 
 - [Adapters Overview](/adapters/overview)
 - [Usage Patterns](/adapters/usage-patterns)
-- [TenraBootstrap](/advanced/bootstrap-cli)
+- [AmbitenBootstrap](/advanced/bootstrap-cli)
 - [Context](/core/context)
 - [Transactions](/core/transactions)

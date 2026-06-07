@@ -1,16 +1,16 @@
 # One Request Flow
 
-This page follows a single request through the Tenra runtime from the framework boundary to MongoDB.
+This page follows a single request through the Ambiten runtime from the framework boundary to MongoDB.
 
 Its purpose is to show how adapters, context propagation, models, providers, and infrastructure resolution work together as one execution system rather than as isolated utilities.
 
 ## The execution model
 
-Every request inside Tenra follows the same architectural path regardless of framework or deployment environment.
+Every request inside Ambiten follows the same architectural path regardless of framework or deployment environment.
 
 <SignalFlow
   aria-label="One request core flow"
-  :items='["Request", "Adapter", "TenraContext", "TenraModel", "Provider", "TenraClient", "MongoDB"]'
+  :items='["Request", "Adapter", "AmbitenContext", "AmbitenModel", "Provider", "AmbitenClient", "MongoDB"]'
 />
 
 The transport layer may change, but the runtime model remains consistent.
@@ -34,13 +34,13 @@ app.get("/users", async (_req, res) => {
 });
 ```
 
-At the application layer, the operation appears simple. Underneath that call, however, Tenra is coordinating tenant resolution, execution state, provider resolution, middleware, and persistence behavior automatically.
+At the application layer, the operation appears simple. Underneath that call, however, Ambiten is coordinating tenant resolution, execution state, provider resolution, middleware, and persistence behavior automatically.
 
 ### Request ingress
 
 Execution begins at the adapter boundary.
 
-The adapter integrates with the host framework and transforms framework-specific requests into Tenra’s runtime execution model.
+The adapter integrates with the host framework and transforms framework-specific requests into Ambiten’s runtime execution model.
 
 ```ts
 createExpressAdapter().install(app, {
@@ -65,10 +65,10 @@ This tenant identity does not travel manually through services or model calls. I
 
 ### Context initialization
 
-Tenra establishes a scoped execution boundary using TenraContext.
+Ambiten establishes a scoped execution boundary using AmbitenContext.
 
 ```ts
-TenraContext.run(
+AmbitenContext.run(
   {
     tenantId: "tenant-a",
     requestId: "req-123"
@@ -98,11 +98,11 @@ await UserModel.find({}, { tenantId, requestId, session });
 
 The runtime already owns the active execution state.
 
-This separation is one of the primary architectural goals of Tenra: application logic should not become responsible for infrastructure coordination.
+This separation is one of the primary architectural goals of Ambiten: application logic should not become responsible for infrastructure coordination.
 
 ### Model execution
 
-TenraModel receives the operation and transforms it into a context-aware execution.
+AmbitenModel receives the operation and transforms it into a context-aware execution.
 
 During this stage, the runtime may validate input through schema rules, execute middleware pipelines, attach instrumentation metadata, participate in active transactions, and prepare query execution state before infrastructure resolution occurs.
 
@@ -129,7 +129,7 @@ This separation keeps execution responsibilities deterministic and composable.
 
 ### Client and database access
 
-When TenraClient acts as the provider, it resolves the correct MongoDB infrastructure for the active tenant boundary.
+When AmbitenClient acts as the provider, it resolves the correct MongoDB infrastructure for the active tenant boundary.
 
 For a tenant-aware request, execution typically follows this shape:
 
@@ -170,7 +170,7 @@ When execution completes, the runtime scope is released automatically.
 
 ## Why this architecture matters
 
-This execution model allows Tenra to centralize infrastructure coordination while keeping application code stable and portable.
+This execution model allows Ambiten to centralize infrastructure coordination while keeping application code stable and portable.
 
 Tenant isolation, transaction participation, middleware execution, provider resolution, instrumentation, and runtime metadata propagation all remain attached to the execution boundary rather than becoming responsibilities of individual services or handlers.
 
@@ -180,7 +180,7 @@ As a result, the same model operation:
 await UserModel.find({});
 ```
 
-can execute consistently across Express, Fastify, NestJS, GraphQL, AWS Lambda, or background workers running inside `TenraContext.run(...)`.
+can execute consistently across Express, Fastify, NestJS, GraphQL, AWS Lambda, or background workers running inside `AmbitenContext.run(...)`.
 
 The runtime environment changes. The execution model does not.
 
@@ -189,11 +189,11 @@ The runtime environment changes. The execution model does not.
 ```text
 You define the operation.
 
-Tenra supplies the execution boundary.
+Ambiten supplies the execution boundary.
 ```
 
 ## Summary
 
-A request in Tenra is not merely a framework handler calling MongoDB.
+A request in Ambiten is not merely a framework handler calling MongoDB.
 
 It is a runtime-managed execution lifecycle where adapters, context propagation, models, providers, middleware, infrastructure resolution, and persistence operate together inside a single coordinated execution boundary.

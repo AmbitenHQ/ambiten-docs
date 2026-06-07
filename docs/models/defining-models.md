@@ -1,10 +1,10 @@
 # Defining Models
 
-This page explains how models are declared, configured, and organized in Tenra applications.
+This page explains how models are declared, configured, and organized in Ambiten applications.
 
-If you are looking for the architectural role of models inside the runtime, see [TenraModel](/models/tenra-model)
+If you are looking for the architectural role of models inside the runtime, see [AmbitenModel](/models/ambiten-model)
 
-In Tenra, a model defines the operational boundary for a collection. It combines a schema contract, a collection definition, and a provider strategy into a reusable execution surface that can participate in runtime-aware execution automatically.
+In Ambiten, a model defines the operational boundary for a collection. It combines a schema contract, a collection definition, and a provider strategy into a reusable execution surface that can participate in runtime-aware execution automatically.
 
 The goal of model definition is long-term stability. Model structure should remain predictable even as execution context, tenant scope, transaction state, and infrastructure change dynamically at runtime.
 
@@ -13,11 +13,11 @@ The goal of model definition is long-term stability. Model structure should rema
 A model is typically defined with three core elements: a collection boundary, a schema, and a provider.
 
 ```ts
-import { TenraModel } from "@tenra/core";
+import { AmbitenModel } from "@ambiten/core";
 import { userSchema } from "./user.schema";
 import { db } from "../infrastructure/database";
 
-export const UserModel = new TenraModel({
+export const UserModel = new AmbitenModel({
   collectionName: "users",
   schema: userSchema,
   provider: db
@@ -40,12 +40,12 @@ The collection itself is resolved inside the active database and tenant scope at
 
 The schema defines document structure, validation behavior, middleware hooks, and lifecycle rules.
 
-Tenra supports plain schema definitions, but `TenraSchema` is the recommended production approach because it integrates more naturally with middleware execution, runtime validation, and type inference.
+Ambiten supports plain schema definitions, but `AmbitenSchema` is the recommended production approach because it integrates more naturally with middleware execution, runtime validation, and type inference.
 
 ```ts
-import { TenraSchema } from "@tenra/core";
+import { AmbitenSchema } from "@ambiten/core";
 
-export const userSchema = new TenraSchema({
+export const userSchema = new AmbitenSchema({
   name: String,
   email: String
 });
@@ -61,9 +61,9 @@ The provider determines how infrastructure is resolved during model execution.
 provider: db
 ```
 
-Unlike traditional ODMs that assume a global database connection, Tenra allows providers to remain dynamic and runtime-aware.
+Unlike traditional ODMs that assume a global database connection, Ambiten allows providers to remain dynamic and runtime-aware.
 
-This design is fundamental to Tenra’s architecture. Infrastructure resolution can adapt per request, per tenant, or per execution boundary without requiring models to be redefined.
+This design is fundamental to Ambiten’s architecture. Infrastructure resolution can adapt per request, per tenant, or per execution boundary without requiring models to be redefined.
 
 ## Static vs dynamic providers
 
@@ -76,18 +76,18 @@ provider: db
 As systems evolve toward multi-tenancy, request-scoped execution, or distributed infrastructure, providers can become runtime-aware:
 
 ```ts
-provider: () => TenraContext.getProvider()
+provider: () => AmbitenContext.getProvider()
 ```
 
 In this model, infrastructure resolution occurs during execution rather than application boot time.
 
 The model definition remains stable while the runtime determines the active database, tenant scope, transaction session, and infrastructure environment automatically.
 
-This separation is one of the reasons Tenra adapts cleanly to multi-tenant and distributed systems.
+This separation is one of the reasons Ambiten adapts cleanly to multi-tenant and distributed systems.
 
 ## Type-safe execution
 
-Tenra models support TypeScript generics for strongly typed operations.
+Ambiten models support TypeScript generics for strongly typed operations.
 
 ```ts
 interface User {
@@ -95,7 +95,7 @@ interface User {
   email: string;
 }
 
-export const UserModel = new TenraModel<User>({
+export const UserModel = new AmbitenModel<User>({
   collectionName: "users",
   schema: userSchema,
   provider: db
@@ -123,7 +123,7 @@ await UserModel.find({});
 
 At runtime, the model automatically participates in the active execution boundary. Tenant identity, database scope, transaction sessions, middleware behavior, and request metadata are resolved from the runtime context rather than manually passed into every operation.
 
-This is one of the core architectural shifts in Tenra:
+This is one of the core architectural shifts in Ambiten:
 
 ```Plain Text
 Static model definition.
@@ -163,7 +163,7 @@ One of the most common architectural mistakes is manually propagating runtime st
 await UserModel.find({}, { tenantId, session });
 ```
 
-In normal request-bound execution, runtime state should come from TenraContext automatically:
+In normal request-bound execution, runtime state should come from AmbitenContext automatically:
 
 ```ts
 await UserModel.find({});
@@ -192,13 +192,13 @@ Runtime supplies context.
 
 The model layer follows a small set of runtime-oriented architectural principles.
 
-<TenraModelPrinciples />
+<AmbitenModelPrinciples />
 
 These principles keep model definitions stable while allowing execution behavior to adapt dynamically across tenants, runtimes, sessions, and infrastructure environments.
 
 ## Summary
 
-Defining models in Tenra is intentionally explicit.
+Defining models in Ambiten is intentionally explicit.
 
 A model combines collection definition, schema behavior, provider strategy, and type-safe execution into a stable operational boundary that can participate in runtime-aware execution automatically.
 
@@ -206,7 +206,7 @@ This structure allows applications to keep persistence logic stable while the ru
 
 ### See also
 
-- [TenraModel](/models/tenra-model)
+- [AmbitenModel](/models/ambiten-model)
 - [Context Binding](/models/context-binding)
 - [Provider Contract](/models/provider-contract)
 - [Middleware](/core/middleware)

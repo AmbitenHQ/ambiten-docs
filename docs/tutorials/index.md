@@ -1,6 +1,6 @@
 # Tutorials
 
-Learn Tenra by building real systems instead of isolated examples.
+Learn Ambiten by building real systems instead of isolated examples.
 
 Tutorials are designed to show how the runtime behaves across complete application workflows: context propagation, middleware execution, transactions, tenant isolation, instrumentation, and operational boundaries working together inside one system.
 
@@ -8,7 +8,7 @@ Tutorials are designed to show how the runtime behaves across complete applicati
 
 ## Why tutorials exist
 
-Tenra is not only a collection of APIs.
+Ambiten is not only a collection of APIs.
 
 It is a runtime system.
 
@@ -55,7 +55,7 @@ This tutorial walks through a complete multi-tenant SaaS application with tenant
 
 The system includes real operational concerns such as usage limits, upgrade flows, runtime policy enforcement, and request-scoped execution behavior.
 
-Instead of treating Tenra as an isolated data layer, the tutorial demonstrates how the runtime coordinates the entire execution path.
+Instead of treating Ambiten as an isolated data layer, the tutorial demonstrates how the runtime coordinates the entire execution path.
 
 → [Start tutorial](/tutorials/pdf-saas)
 
@@ -63,7 +63,7 @@ Instead of treating Tenra as an isolated data layer, the tutorial demonstrates h
 
 Most tutorials on the web focus on calling APIs.
 
-Tenra tutorials focus on execution architecture.
+Ambiten tutorials focus on execution architecture.
 
 The emphasis is on runtime boundaries, operational correctness, scalability, and system behavior under production conditions rather than only showing how to invoke methods.
 
@@ -79,13 +79,13 @@ They are especially useful if you want to:
 - understand request-scoped execution
 - study multi-tenant runtime behavior
 - see how instrumentation and middleware interact
-- learn how Tenra behaves under realistic architectural conditions
+- learn how Ambiten behaves under realistic architectural conditions
 
 For lower-level API details, use the core documentation and reference sections.
 
 ## Summary
 
-Tutorials are where the Tenra runtime becomes concrete.
+Tutorials are where the Ambiten runtime becomes concrete.
 
 They demonstrate how context propagation, middleware, transactions, instrumentation, and tenant-aware execution combine to support real production-style systems instead of isolated code samples.
 

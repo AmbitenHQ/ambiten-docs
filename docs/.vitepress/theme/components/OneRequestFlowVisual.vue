@@ -10,7 +10,7 @@
     <div class="one-request-flow-card">
       <span class="one-request-flow-step">Stage 2</span>
       <strong>Adapter</strong>
-      <p>The framework request is normalized into Tenra’s runtime shape.</p>
+      <p>The framework request is normalized into Ambiten’s runtime shape.</p>
     </div>
     <div class="one-request-flow-connector" aria-hidden="true"></div>
 
@@ -23,7 +23,7 @@
 
     <div class="one-request-flow-card">
       <span class="one-request-flow-step">Stage 4</span>
-      <strong>TenraContext</strong>
+      <strong>AmbitenContext</strong>
       <p>A scoped execution boundary is created for the current async flow.</p>
     </div>
     <div class="one-request-flow-connector" aria-hidden="true"></div>
@@ -37,7 +37,7 @@
 
     <div class="one-request-flow-card">
       <span class="one-request-flow-step">Stage 6</span>
-      <strong>TenraModel</strong>
+      <strong>AmbitenModel</strong>
       <p>The model receives the operation and binds it to the active runtime scope.</p>
     </div>
     <div class="one-request-flow-connector" aria-hidden="true"></div>
@@ -58,7 +58,7 @@
 
     <div class="one-request-flow-card">
       <span class="one-request-flow-step">Stage 9</span>
-      <strong>TenraClient</strong>
+      <strong>AmbitenClient</strong>
       <p>The provider implementation bridges execution into the MongoDB driver.</p>
     </div>
     <div class="one-request-flow-connector" aria-hidden="true"></div>

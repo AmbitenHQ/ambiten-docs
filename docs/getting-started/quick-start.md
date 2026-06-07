@@ -1,15 +1,15 @@
 # Quick Start
 
-This guide walks through the fastest path to a working Tenra application.
+This guide walks through the fastest path to a working Ambiten application.
 
 In a few minutes, you will scaffold a runtime-aware project with MongoDB connectivity, framework integration, and a structured execution layer ready for development.
 
 ## Initialize a project
 
-Create a new Tenra application using the CLI:
+Create a new Ambiten application using the CLI:
 
 ```bash
-npx tenra init my-app
+npx ambiten init my-app
 ```
 
 The initializer guides you through runtime configuration, adapter selection, and optional capabilities such as GraphQL support, logging, and multi-tenancy.
@@ -32,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Once the runtime starts, you have a fully operational Tenra application with a configured execution layer and MongoDB integration.
+Once the runtime starts, you have a fully operational Ambiten application with a configured execution layer and MongoDB integration.
 
 ## Generated project structure
 
@@ -40,18 +40,18 @@ The CLI scaffolds a minimal but production-oriented structure similar to:
 
 ```sh
 my-app/
-  tenra.config.json
+  ambiten.config.json
   src/
     main.ts
     core/
-      initTenra.ts
+      initAmbiten.ts
 ```
 
 The generated bootstrap layer establishes the runtime foundation and centralizes infrastructure initialization.
 
 ## Runtime configuration
 
-Tenra projects are configured through tenra.config.json.
+Ambiten projects are configured through ambiten.config.json.
 
 A minimal configuration looks like this:
 
@@ -71,10 +71,10 @@ This configuration defines the database connection and establishes the initial r
 
 ## How application startup works
 
-Most Tenra applications initialize through a bootstrap entry point:
+Most Ambiten applications initialize through a bootstrap entry point:
 
 ```ts
-import { run } from "./core/initTenra";
+import { run } from "./core/initAmbiten";
 
 const app = await run();
 ```
@@ -90,23 +90,23 @@ Models define the operational boundary between your application and persistence 
 A minimal model definition looks like this:
 
 ```ts
-import { TenraModel } from "@tenra/core";
+import { AmbitenModel } from "@ambiten/core";
 
-export const UserModel = new TenraModel({
+export const UserModel = new AmbitenModel({
   collectionName: "users",
   schema: userSchema,
   provider: db
 });
 ```
 
-Once registered, the model automatically participates in Tenra’s runtime execution system, including middleware, context propagation, instrumentation, and transaction-aware operations.
+Once registered, the model automatically participates in Ambiten’s runtime execution system, including middleware, context propagation, instrumentation, and transaction-aware operations.
 
 ## Enable additional runtime capabilities
 
 The CLI can scaffold optional runtime features during initialization:
 
 ```bash
-npx tenra init my-app --with-graphql --multi-tenant --logger
+npx ambiten init my-app --with-graphql --multi-tenant --logger
 ```
 
 You can also evolve the generated configuration manually as your architecture grows.

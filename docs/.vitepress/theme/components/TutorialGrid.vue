@@ -14,7 +14,7 @@ const tutorials = [
     status: "Planned",
     href: "",
     summary:
-      "Expose Tenra models through GraphQL while preserving context propagation, middleware behavior, and resolver-safe execution.",
+      "Expose Ambiten models through GraphQL while preserving context propagation, middleware behavior, and resolver-safe execution.",
     accent: "graphql",
     metrics: ["Resolver context", "Execution flow", "Policy enforcement"]
   },

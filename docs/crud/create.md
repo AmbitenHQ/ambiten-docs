@@ -1,14 +1,14 @@
 # Create
 
-Create operations insert new documents through the Tenra model layer.
+Create operations insert new documents through the Ambiten model layer.
 
 At the surface, creation looks like a simple model call. Inside the runtime, it can still participate in schema validation, middleware execution, tenant-aware infrastructure resolution, transaction session propagation, instrumentation, and result normalization.
 
 That makes create operations more than raw insert calls. They are runtime-aware write boundaries.
 
-## What create means in Tenra
+## What create means in Ambiten
 
-A create operation enters the same execution model as every other Tenra operation.
+A create operation enters the same execution model as every other Ambiten operation.
 
 The model receives the document, the schema can validate and shape it, middleware can apply write policies, the provider resolves the active database scope, and MongoDB performs the insert using the correct runtime context.
 
@@ -27,7 +27,7 @@ await UserModel.create({
 });
 ```
 
-In a normal runtime flow, Tenra can validate the document, run create middleware, resolve tenant and database scope, insert the document, run post-create behavior, and return the persisted result.
+In a normal runtime flow, Ambiten can validate the document, run create middleware, resolve tenant and database scope, insert the document, run post-create behavior, and return the persisted result.
 
 The important point is that the application code does not need to coordinate each of those steps manually.
 
@@ -51,7 +51,7 @@ A typical result may look like this:
 
 This kind of override is useful for controlled execution paths such as background processing, scripted data creation, tenant-specific maintenance jobs, or operational tooling.
 
-In request-driven application code, explicit runtime options should not be the default. Most application flows should rely on context established by adapters or `TenraContext`.
+In request-driven application code, explicit runtime options should not be the default. Most application flows should rely on context established by adapters or `AmbitenContext`.
 
 ## Context-aware creation
 
@@ -66,21 +66,21 @@ await UserModel.create(
 
 This kind of override is useful for controlled execution paths such as background processing, scripted data creation, tenant-specific maintenance jobs, or operational tooling.
 
-In request-driven application code, explicit runtime options should not be the default. Most application flows should rely on context established by adapters or `TenraContext`.
+In request-driven application code, explicit runtime options should not be the default. Most application flows should rely on context established by adapters or `AmbitenContext`.
 
 ## Transaction-aware creation
 
 Create operations automatically participate in the active transaction when one exists.
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@ambiten/core";
 
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create({ name: "Alice" });
 });
 ```
 
-Inside that transaction boundary, the active session is resolved from `TenraContext` and reused by the create operation. If another operation in the same workflow fails, rollback behavior remains consistent across the entire unit of work.
+Inside that transaction boundary, the active session is resolved from `AmbitenContext` and reused by the create operation. If another operation in the same workflow fails, rollback behavior remains consistent across the entire unit of work.
 
 This matters because creation is often part of a larger workflow, not an isolated write.
 
@@ -139,7 +139,7 @@ await UserModel.create({ name: "Alice" });
 
 A single model call can resolve the active tenant, the correct database, the correct provider scope, and the active transaction session without exposing those details to the caller.
 
-This is one of the core ways Tenra reduces infrastructure plumbing in multi-tenant systems.
+This is one of the core ways Ambiten reduces infrastructure plumbing in multi-tenant systems.
 
 ## Common write patterns
 
@@ -155,7 +155,7 @@ await UserModel.create({
 Creation inside a transaction is used when the write belongs to a larger all-or-nothing workflow:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create({ name: "Alice" });
   await AuditLogModel.create({ action: "USER_CREATED" });
 });
@@ -173,7 +173,7 @@ await UserModel.bulkInsert([
 Explicit runtime scope is useful outside request-managed execution:
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   {
     tenantId: "tenant-a",
     requestId: "seed-001"
@@ -198,7 +198,7 @@ Use bulk insertion for controlled high-volume write paths instead of looping ove
 
 ## Summary
 
-Create operations in Tenra are runtime-aware writes.
+Create operations in Ambiten are runtime-aware writes.
 
 They participate in the same context, middleware, validation, tenant resolution, and transaction model as the rest of the system.
 

@@ -1,4 +1,5 @@
 import DefaultTheme from "vitepress/theme";
+import Layout from "./Layout.vue";
 import AdapterSelector from "./components/AdapterSelector.vue";
 import ArchitectureDiagram from "./components/ArchitectureDiagram.vue";
 import AdvancedUsageOverview from "./components/AdvancedUsageOverview.vue";
@@ -9,29 +10,36 @@ import DeleteOperationFlow from "./components/DeleteOperationFlow.vue";
 import DirectorDashboardPreview from "./components/DirectorDashboardPreview.vue";
 import DocOverviewCards from "./components/DocOverviewCards.vue";
 import HomepageCodePanel from "./components/HomepageCodePanel.vue";
+import HomepageLoggerSection from "./components/HomepageLoggerSection.vue";
+import HomepageSpiritOverlay from "./components/HomepageSpiritOverlay.vue";
 import InstrumentationOverview from "./components/InstrumentationOverview.vue";
 import MiddlewareLifecycleOverview from "./components/MiddlewareLifecycleOverview.vue";
 import MultiTenancyOverview from "./components/MultiTenancyOverview.vue";
 import OneRequestFlowVisual from "./components/OneRequestFlowVisual.vue";
+import PackageManagerTabs from "./components/PackageManagerTabs.vue";
 import ProviderContractPrinciples from "./components/ProviderContractPrinciples.vue";
 import ReadOperationFlow from "./components/ReadOperationFlow.vue";
+import LoggerArchitecturePrinciples from "./components/LoggerArchitecturePrinciples.vue";
+import LoggerPipelineFlow from "./components/LoggerPipelineFlow.vue";
 import RuntimeExecutionVisualFlow from "./components/RuntimeExecutionVisualFlow.vue";
 import RuntimeAdapterGrid from "./components/RuntimeAdapterGrid.vue";
 import SignalFlow from "./components/SignalFlow.vue";
 import SoftDeleteOverview from "./components/SoftDeleteOverview.vue";
-import TenraModelConceptMap from "./components/TenraModelConceptMap.vue";
-import TenraModelPrinciples from "./components/TenraModelPrinciples.vue";
-import TenraModelRuntimeFlow from "./components/TenraModelRuntimeFlow.vue";
-import TenraSchemaPrinciples from "./components/TenraSchemaPrinciples.vue";
+import AmbitenModelConceptMap from "./components/AmbitenModelConceptMap.vue";
+import AmbitenModelPrinciples from "./components/AmbitenModelPrinciples.vue";
+import AmbitenModelRuntimeFlow from "./components/AmbitenModelRuntimeFlow.vue";
+import AmbitenSchemaPrinciples from "./components/AmbitenSchemaPrinciples.vue";
 import TransactionLifecycleOverview from "./components/TransactionLifecycleOverview.vue";
 import TutorialGrid from "./components/TutorialGrid.vue";
 import UpdateOperationFlow from "./components/UpdateOperationFlow.vue";
 import TutorialHero from "./components/TutorialHero.vue";
 import BootstrapCapabilitiesOverview from "./components/BootstrapCapabilitiesOverview.vue";
+import BootstrapLifecycleFlow from "./components/BootstrapLifecycleFlow.vue";
 import "./custom.css";
 
 export default {
   extends: DefaultTheme,
+  Layout,
   enhanceApp({ app }) {
     app.component("AdapterSelector", AdapterSelector);
     app.component("AdvancedUsageOverview", AdvancedUsageOverview);
@@ -43,24 +51,30 @@ export default {
     app.component("DirectorDashboardPreview", DirectorDashboardPreview);
     app.component("DocOverviewCards", DocOverviewCards);
     app.component("HomepageCodePanel", HomepageCodePanel);
+    app.component("HomepageLoggerSection", HomepageLoggerSection);
+    app.component("HomepageSpiritOverlay", HomepageSpiritOverlay);
     app.component("InstrumentationOverview", InstrumentationOverview);
     app.component("MiddlewareLifecycleOverview", MiddlewareLifecycleOverview);
     app.component("MultiTenancyOverview", MultiTenancyOverview);
     app.component("OneRequestFlowVisual", OneRequestFlowVisual);
+    app.component("PackageManagerTabs", PackageManagerTabs);
     app.component("ProviderContractPrinciples", ProviderContractPrinciples);
     app.component("ReadOperationFlow", ReadOperationFlow);
+    app.component("LoggerArchitecturePrinciples", LoggerArchitecturePrinciples);
+    app.component("LoggerPipelineFlow", LoggerPipelineFlow);
     app.component("RuntimeExecutionVisualFlow", RuntimeExecutionVisualFlow);
     app.component("RuntimeAdapterGrid", RuntimeAdapterGrid);
     app.component("SignalFlow", SignalFlow);
     app.component("SoftDeleteOverview", SoftDeleteOverview);
-    app.component("TenraModelConceptMap", TenraModelConceptMap);
-    app.component("TenraModelPrinciples", TenraModelPrinciples);
-    app.component("TenraModelRuntimeFlow", TenraModelRuntimeFlow);
-    app.component("TenraSchemaPrinciples", TenraSchemaPrinciples);
+    app.component("AmbitenModelConceptMap", AmbitenModelConceptMap);
+    app.component("AmbitenModelPrinciples", AmbitenModelPrinciples);
+    app.component("AmbitenModelRuntimeFlow", AmbitenModelRuntimeFlow);
+    app.component("AmbitenSchemaPrinciples", AmbitenSchemaPrinciples);
     app.component("TransactionLifecycleOverview", TransactionLifecycleOverview);
     app.component("TutorialGrid", TutorialGrid);
     app.component("UpdateOperationFlow", UpdateOperationFlow);
     app.component("TutorialHero", TutorialHero);
     app.component("BootstrapCapabilitiesOverview", BootstrapCapabilitiesOverview);
+    app.component("BootstrapLifecycleFlow", BootstrapLifecycleFlow);
   }
 };

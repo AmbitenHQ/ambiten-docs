@@ -5,7 +5,7 @@
         <span class="instrumentation-eyebrow">Runtime Observability</span>
         <h3>Full-lifecycle telemetry across execution boundaries</h3>
         <p>
-          Tenra instruments the complete execution lifecycle, from adapter ingress
+          Ambiten instruments the complete execution lifecycle, from adapter ingress
           and middleware execution to provider resolution, transaction scope,
           persistence, and telemetry emission.
         </p>
@@ -63,7 +63,7 @@
 
       <div class="instrumentation-flow-step">
         <span>Execution Scope</span>
-        <strong>TenraContext</strong>
+        <strong>AmbitenContext</strong>
       </div>
       <div class="instrumentation-flow-arrow" aria-hidden="true">→</div>
 

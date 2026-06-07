@@ -1,13 +1,13 @@
 # Adapters Overview
 
-Adapters are the ingress layer of the Tenra runtime.
+Adapters are the ingress layer of the Ambiten runtime.
 
-They connect external frameworks and execution environments to Tenra’s context-driven execution model by establishing a consistent runtime boundary before application logic begins executing.
+They connect external frameworks and execution environments to Ambiten’s context-driven execution model by establishing a consistent runtime boundary before application logic begins executing.
 
 Adapters do not replace frameworks.
 They normalize them into the same execution system.
 
-Whether execution starts in Express, Fastify, GraphQL, NestJS, or AWS Lambda, the runtime behavior remains consistent once the request enters Tenra.
+Whether execution starts in Express, Fastify, GraphQL, NestJS, or AWS Lambda, the runtime behavior remains consistent once the request enters Ambiten.
 
 ## Why adapters exist
 
@@ -25,7 +25,7 @@ Adapters are intentionally small.
 
 They do not execute business logic or persistence operations. Their responsibility is to establish runtime scope correctly before execution continues downstream.
 
-At runtime, an adapter normalizes incoming requests or events, resolves request and tenant metadata, initializes TenraContext, optionally enables transaction-aware execution, and then returns control to the framework lifecycle.
+At runtime, an adapter normalizes incoming requests or events, resolves request and tenant metadata, initializes AmbitenContext, optionally enables transaction-aware execution, and then returns control to the framework lifecycle.
 
 Once the execution boundary exists, models, middleware, instrumentation, and transactions behave consistently across environments.
 
@@ -34,24 +34,24 @@ Once the execution boundary exists, models, middleware, instrumentation, and tra
 Regardless of framework, execution follows the same conceptual path:
 
 ```PlainText
-Framework → Adapter → Adapter Runtime → TenraContext → Models → MongoDB
+Framework → Adapter → Adapter Runtime → AmbitenContext → Models → MongoDB
 ```
 
 <SignalFlow 
 aria-label="Shared adapter runtime flow" 
-:items='["Framework", "Adapter", "Adapter Runtime", "TenraContext", "Core", "MongoDB"]' 
+:items='["Framework", "Adapter", "Adapter Runtime", "AmbitenContext", "Core", "MongoDB"]' 
 />
 
 The framework handles transport and lifecycle semantics.
 The adapter establishes runtime scope.
-TenraContext carries execution state.
+AmbitenContext carries execution state.
 Models and middleware consume that state during execution.
 
-This separation is what allows Tenra applications to remain portable without rewriting model or persistence logic for each environment.
+This separation is what allows Ambiten applications to remain portable without rewriting model or persistence logic for each environment.
 
 ## Supported adapters
 
-Tenra currently supports:
+Ambiten currently supports:
 
 | Runtime    | Integration style        |
 | ---------- | ------------------------ |
@@ -113,11 +113,11 @@ Adapters preserve that boundary cleanly.
 
 ## Summary
 
-Adapters are the ingress boundary into the Tenra runtime.
+Adapters are the ingress boundary into the Ambiten runtime.
 
 They normalize framework-specific execution into a shared context-aware model, initialize runtime scope, resolve tenant identity, and prepare transaction-aware execution before application logic begins.
 
-This is what allows Tenra applications to remain portable, predictable, and operationally consistent across multiple runtimes.
+This is what allows Ambiten applications to remain portable, predictable, and operationally consistent across multiple runtimes.
 
 ## Related pages
 

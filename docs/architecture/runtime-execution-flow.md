@@ -1,12 +1,12 @@
 # Runtime Execution Flow
 
-This document describes how Tenra executes an operation from entry to persistence.
+This document describes how Ambiten executes an operation from entry to persistence.
 
 It connects the major components of the runtime into a single execution path so you can understand how context, models, providers, and infrastructure interact during execution.
 
 ## Core idea
 
-A Tenra execution follows a consistent runtime sequence:
+A Ambiten execution follows a consistent runtime sequence:
 
 <SignalFlow
   aria-label="Runtime core flow"
@@ -38,17 +38,17 @@ adapter.install(app, {
 
 ### 3. Context initialization
 
-After normalization, the adapter initializes the execution boundary through `TenraContext.run()`.
+After normalization, the adapter initializes the execution boundary through `AmbitenContext.run()`.
 
 ```ts
-TenraContext.run(...)
+AmbitenContext.run(...)
 ```
 
 This establishes the active runtime scope, including values such as `tenantId`, `requestId`, database overrides, and optional transaction sessions. The boundary remains active throughout asynchronous execution until control exits the runtime scope.
 
 #### Context resolution model
 
-Runtime-aware components do not receive execution state through direct parameter passing. Instead, state is resolved implicitly from the active `TenraContext` boundary during execution.
+Runtime-aware components do not receive execution state through direct parameter passing. Instead, state is resolved implicitly from the active `AmbitenContext` boundary during execution.
 
 This allows models, providers, middleware, and instrumentation systems to remain infrastructure-independent while still participating in tenant-aware and transaction-aware execution.
 
@@ -66,7 +66,7 @@ Application logic executes without manually forwarding tenant identifiers, sessi
 
 ### 5. Model execution
 
-When an operation reaches `TenraModel`, the runtime begins transforming the request into a context-aware execution pipeline. The model validates schema input, executes registered middleware, prepares execution metadata, and coordinates the operation lifecycle before infrastructure resolution begins.
+When an operation reaches `AmbitenModel`, the runtime begins transforming the request into a context-aware execution pipeline. The model validates schema input, executes registered middleware, prepares execution metadata, and coordinates the operation lifecycle before infrastructure resolution begins.
 
 At this stage, the operation still remains infrastructure-independent.
 
@@ -84,7 +84,7 @@ Because provider resolution is context-aware, infrastructure decisions remain de
 
 ### 7. Client execution
 
-After provider resolution completes, `TenraClient` translates the finalized operation into MongoDB driver calls.
+After provider resolution completes, `AmbitenClient` translates the finalized operation into MongoDB driver calls.
 
 ```ts
 db.collection("users").find(...)
@@ -96,7 +96,7 @@ At this point, execution has moved fully from runtime coordination into persiste
 
 The MongoDB driver executes the finalized operation against the resolved persistence target.
 
-Tenra intentionally maintains a high-fidelity relationship with the MongoDB driver rather than masking database behavior behind opaque abstractions.
+Ambiten intentionally maintains a high-fidelity relationship with the MongoDB driver rather than masking database behavior behind opaque abstractions.
 
 ### 9. Post-processing
 
@@ -143,7 +143,7 @@ Given the same execution boundary and resolution rules, the same operation resol
 
 ## Why this matters
 
-This execution architecture allows Tenra to eliminate infrastructure plumbing from application code while preserving deterministic runtime behavior. Tenant isolation can be enforced consistently, transaction continuity can propagate safely across asynchronous execution, and application models can remain stable across multiple runtime environments without requiring infrastructure rewrites.
+This execution architecture allows Ambiten to eliminate infrastructure plumbing from application code while preserving deterministic runtime behavior. Tenant isolation can be enforced consistently, transaction continuity can propagate safely across asynchronous execution, and application models can remain stable across multiple runtime environments without requiring infrastructure rewrites.
 
 The result is a runtime model that scales operational complexity without forcing that complexity into the business domain.
 
@@ -159,6 +159,6 @@ The runtime provides it.
 
 - [Architecture Overview](/architecture/whitepaper)
 - [Context](/core/context)
-- [TenraModel](/models/defining-models)
+- [AmbitenModel](/models/defining-models)
 - [Provider Contract](/models/provider-contract)
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)

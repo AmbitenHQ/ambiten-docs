@@ -1,6 +1,6 @@
 # Advanced Usage
 
-Advanced usage in Tenra begins when the runtime becomes part of broader platform architecture rather than a simple application dependency.
+Advanced usage in Ambiten begins when the runtime becomes part of broader platform architecture rather than a simple application dependency.
 
 At this stage, the system is no longer concerned only with CRUD operations or isolated request handling. The focus shifts toward transaction orchestration, tenant isolation strategy, worker execution, observability, scaling discipline, and operational correctness across distributed runtime boundaries.
 
@@ -8,11 +8,11 @@ These patterns are especially relevant for multi-tenant SaaS platforms, high-thr
 
 <AdvancedUsageOverview />
 
-## What “advanced” means in Tenra
+## What “advanced” means in Ambiten
 
 Advanced usage is not about obscure APIs or complicated abstractions.
 
-It is about understanding how Tenra’s runtime model behaves when applications become more concurrent, more distributed, and more operationally sensitive.
+It is about understanding how Ambiten’s runtime model behaves when applications become more concurrent, more distributed, and more operationally sensitive.
 
 At that point, architectural decisions around context propagation, transaction scope, tenant isolation, instrumentation, and runtime boundaries become significantly more important than individual method calls.
 
@@ -20,12 +20,12 @@ The runtime itself becomes part of the system architecture.
 
 ## Transaction orchestration
 
-Tenra already provides automatic transaction propagation through `TenraContext.withTransaction(...)`, but advanced systems require a more deliberate understanding of transaction boundaries and execution behavior.
+Ambiten already provides automatic transaction propagation through `AmbitenContext.withTransaction(...)`, but advanced systems require a more deliberate understanding of transaction boundaries and execution behavior.
 
 A standard transaction flow remains intentionally simple:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create({ name: "Alice" });
   await OrderModel.create({ user: "Alice" });
 });
@@ -52,7 +52,7 @@ For most application-level execution, the runtime-managed transaction boundary r
 
 ## Multi-tenancy as architecture
 
-Multi-tenancy is one of the most consequential design decisions in any Tenra-based system.
+Multi-tenancy is one of the most consequential design decisions in any Ambiten-based system.
 
 The chosen isolation strategy directly affects operational safety, scalability, infrastructure cost, observability, and long-term maintainability.
 
@@ -85,7 +85,7 @@ Once execution leaves the standard request lifecycle, context handling becomes a
 Inside adapter-managed requests, runtime boundaries are established automatically. Outside those flows, context must be created deliberately.
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   {
     tenantId: "tenant-a",
     requestId: "manual-ctx"
@@ -112,7 +112,7 @@ A worker should establish its own execution scope intentionally:
 
 ```ts
 async function processJob(job) {
-  await TenraContext.run(
+  await AmbitenContext.run(
     {
       tenantId: job.tenantId,
       requestId: `job-${job.id}`
@@ -141,7 +141,7 @@ In these cases, execution may occur after the original context boundary has alre
 
 ## Performance and scaling discipline
 
-Advanced Tenra usage also requires operational discipline around infrastructure efficiency.
+Advanced Ambiten usage also requires operational discipline around infrastructure efficiency.
 
 Runtime coherence does not remove the need for strong MongoDB operational practices.
 
@@ -160,7 +160,7 @@ await UserModel.find(
 
 Efficient projections, intentional indexing, measurable aggregation pipelines, and tenant-aware workload analysis remain critical for high-throughput systems.
 
-Tenra improves execution consistency. It does not eliminate the realities of distributed database performance.
+Ambiten improves execution consistency. It does not eliminate the realities of distributed database performance.
 
 ## Observability and diagnostics
 
@@ -180,7 +180,7 @@ await measureQuery(
 Runtime-aware logging also becomes more meaningful when correlated with tenant and request scope:
 
 ```ts
-const ctx = TenraContext.get();
+const ctx = AmbitenContext.get();
 
 console.log({
   tenant: ctx?.tenantId,
@@ -233,7 +233,7 @@ Without this propagation, distributed systems quickly lose observability coheren
 
 ## Production readiness
 
-Production readiness in Tenra is primarily about execution discipline.
+Production readiness in Ambiten is primarily about execution discipline.
 
 Context boundaries should be established consistently. Tenant resolution should be validated under real workloads. Transaction boundaries should remain intentional rather than indiscriminate. Background workers should establish explicit execution scope. Instrumentation should include tenant and request metadata. Infrastructure ownership and connection lifecycles should remain operationally stable.
 
@@ -249,15 +249,15 @@ Middleware enforces policy.
 Instrumentation exposes behavior.
 ```
 
-Advanced Tenra systems emerge when these layers work together coherently rather than independently.
+Advanced Ambiten systems emerge when these layers work together coherently rather than independently.
 
 ## Summary
 
-Advanced usage in Tenra is ultimately about runtime architecture.
+Advanced usage in Ambiten is ultimately about runtime architecture.
 
 As systems scale across tenants, requests, services, workers, and infrastructure boundaries, execution correctness becomes increasingly dependent on consistent runtime behavior rather than isolated application code.
 
-Tenra’s architecture is designed to preserve that consistency through context-aware execution, runtime-scoped transactions, centralized policy enforcement, tenant-aware infrastructure resolution, and structured observability.
+Ambiten’s architecture is designed to preserve that consistency through context-aware execution, runtime-scoped transactions, centralized policy enforcement, tenant-aware infrastructure resolution, and structured observability.
 
 The larger the system becomes, the more important those guarantees become.
 
@@ -266,6 +266,6 @@ The larger the system becomes, the more important those guarantees become.
 - [Context](/core/context)
 - [Transactions](/core/transactions)
 - [Instrumentation](/core/instrumentation)
-- [TenraBootstrap](/advanced/bootstrap-cli)
+- [AmbitenBootstrap](/advanced/bootstrap-cli)
 - [CLI Init](/advanced/cli-init)
 - [Architecture](/architecture/whitepaper)

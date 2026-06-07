@@ -1,15 +1,15 @@
-# TenraCache
+# AmbitenCache
 
-TenraCache is the runtime-aware caching layer for Tenra.
+AmbitenCache is the runtime-aware caching layer for Ambiten.
 
 It extends tenant isolation, execution context, and operational safety into the cache boundary so applications can use shared cache infrastructure without leaking data across tenants or scattering cache rules throughout the codebase.
 
-Unlike traditional cache helpers that rely on manual string composition, TenraCache derives cache scope directly from the active runtime context.
+Unlike traditional cache helpers that rely on manual string composition, AmbitenCache derives cache scope directly from the active runtime context.
 
 <DocOverviewCards 
 eyebrow="Tenant-Aware Cache" 
 title="Cache keys inherit runtime scope instead of relying on manual string discipline." 
-description="TenraCache binds cache operations to tenant identity, namespaces, TTL policy, serialization safety, and observable cache behavior." accent="#16a37b"
+description="AmbitenCache binds cache operations to tenant identity, namespaces, TTL policy, serialization safety, and observable cache behavior." accent="#16a37b"
 :signals='["Prefix", "Tenant ID", "Namespace", "Key", "TTL", "Hit / miss"]' 
 :cards='[ { "label": "Isolation", "title": "Tenant identity becomes part of every key", "text": "Shared Redis infrastructure can still maintain strict tenant separation through runtime-aware key resolution." }, { "label": "Safety", "title": "Invalid payloads fail safely", "text": "Unreadable cache values are treated as misses and invalidated automatically instead of crashing application flow." }, { "label": "Performance", "title": "Wrap simplifies repeated fetch logic", "text": "The check-fetch-set lifecycle becomes one consistent runtime-aware operation." }
 ]'
@@ -27,7 +27,7 @@ const key = `tenant-a:users:${userId}`;
 
 This approach becomes fragile as systems scale because isolation depends entirely on developer discipline.
 
-TenraCache moves this responsibility into the runtime itself. Cache operations automatically inherit tenant scope from TenraContext, allowing application code to remain simple while cache boundaries stay predictable.
+AmbitenCache moves this responsibility into the runtime itself. Cache operations automatically inherit tenant scope from AmbitenContext, allowing application code to remain simple while cache boundaries stay predictable.
 
 ```ts
 await cache.set("dashboard-stats", stats);
@@ -47,7 +47,7 @@ The final key is derived from runtime context, explicit overrides, and cache con
 
 | Component | Default   | Purpose                    |
 | --------- | --------- | -------------------------- |
-| Prefix    | `Tenra`   | Global cache namespace     |
+| Prefix    | `Ambiten`   | Global cache namespace     |
 | Tenant ID | `default` | Runtime tenant isolation   |
 | Namespace | `cache`   | Logical grouping           |
 | Key       | —         | Unique resource identifier |
@@ -89,10 +89,10 @@ This reduces repeated cache boilerplate while keeping cache behavior consistent 
 
 ## Tenant-aware execution
 
-By default, TenraCache resolves tenant scope from the active runtime context.
+By default, AmbitenCache resolves tenant scope from the active runtime context.
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   {
     tenantId: "tenant-a"
   },
@@ -115,7 +115,7 @@ await cache.get("config", {
 
 ## Serialization safety
 
-TenraCache handles serialization automatically using JSON encoding.
+AmbitenCache handles serialization automatically using JSON encoding.
 
 If cached data becomes corrupted or unreadable, the runtime treats it as a cache miss instead of allowing invalid payloads to break execution flow.
 
@@ -131,13 +131,13 @@ Single-key invalidation is supported directly:
 await cache.invalidate("dashboard-stats");
 ```
 
-For broader invalidation patterns, TenraCache supports pattern-based invalidation using Redis SCAN semantics instead of KEYS, avoiding blocking behavior in production environments.
+For broader invalidation patterns, AmbitenCache supports pattern-based invalidation using Redis SCAN semantics instead of KEYS, avoiding blocking behavior in production environments.
 
 This allows tenant-aware cache cleanup without degrading Redis performance under load.
 
 ## Observability
 
-Cache operations participate in Tenra’s instrumentation model.
+Cache operations participate in Ambiten’s instrumentation model.
 
 Operations such as:
 
@@ -154,7 +154,7 @@ This makes it possible to observe cache efficiency at the tenant, namespace, or 
 
 ## Runtime behavior
 
-TenraCache is designed around three operational principles.
+AmbitenCache is designed around three operational principles.
 
 Isolation remains automatic because tenant scope is part of key resolution rather than an optional convention. Failure remains recoverable because unreadable values degrade into misses instead of request failures. Observability remains consistent because cache behavior participates in the same runtime telemetry model as models and middleware.
 
@@ -162,7 +162,7 @@ The result is a cache layer that behaves like part of the runtime rather than an
 
 ## Recommended usage
 
-TenraCache works best for stable, frequently read data such as:
+AmbitenCache works best for stable, frequently read data such as:
 
 - dashboards
 - configuration
@@ -184,13 +184,13 @@ Runtime enforces consistency.
 
 ## Summary
 
-TenraCache extends Tenra’s runtime architecture into the caching layer.
+AmbitenCache extends Ambiten’s runtime architecture into the caching layer.
 
 By combining tenant-aware key resolution, runtime-scoped execution, serialization safety, and observable cache behavior, it allows applications to use shared cache infrastructure safely without leaking operational complexity into business logic.
 
 ### Related Pages
 
-- [TenraContext](/core/context)
+- [AmbitenContext](/core/context)
 - [Instrumentation & Observability](/core/instrumentation)
 - [Multi-Tenant Strategies](/architecture/multi-tenancy)
 - [Perfomance Tuning](/advanced/performance-tuning)

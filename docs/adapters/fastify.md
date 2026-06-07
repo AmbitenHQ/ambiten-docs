@@ -1,10 +1,10 @@
 # Fastify Adapter
 
-The Fastify adapter connects Fastify’s request lifecycle to the Tenra runtime.
+The Fastify adapter connects Fastify’s request lifecycle to the Ambiten runtime.
 
 It establishes a request-scoped execution boundary before route handlers run, ensuring that tenant identity, runtime metadata, transaction state, and context-aware execution remain available throughout the request lifecycle.
 
-Once installed, every request automatically executes inside `TenraContext`.
+Once installed, every request automatically executes inside `AmbitenContext`.
 
 ## Integration model
 
@@ -12,7 +12,7 @@ Install the adapter on your Fastify instance:
 
 ```ts
 import Fastify from "fastify";
-import { createFastifyAdapter } from "@tenra/fastify";
+import { createFastifyAdapter } from "@ambiten/fastify";
 
 const app = Fastify();
 
@@ -27,13 +27,13 @@ await adapter.install(app, {
 });
 ```
 
-After installation, incoming requests enter the Tenra runtime before reaching route handlers.
+After installation, incoming requests enter the Ambiten runtime before reaching route handlers.
 
 ## How the adapter works
 
 The Fastify adapter integrates through Fastify’s lifecycle hook system, typically at the preHandler stage.
 
-At runtime, the adapter normalizes the incoming request, initializes execution scope through the adapter runtime, establishes TenraContext, and then returns control to Fastify’s handler lifecycle.
+At runtime, the adapter normalizes the incoming request, initializes execution scope through the adapter runtime, establishes AmbitenContext, and then returns control to Fastify’s handler lifecycle.
 
 This ensures that downstream execution already has access to:
 
@@ -55,7 +55,7 @@ preHandler Hook
   ↓
 Adapter Runtime
   ↓
-TenraContext
+AmbitenContext
   ↓
 Route Handler
   ↓
@@ -64,7 +64,7 @@ MongoDB
 
 <SignalFlow
   aria-label="Fastify adapter execution flow"
-  :items='["Fastify Request", "preHandler Hook", "Adapter Runtime", "TenraContext", "Route Handler", "MongoDB"]'
+  :items='["Fastify Request", "preHandler Hook", "Adapter Runtime", "AmbitenContext", "Route Handler", "MongoDB"]'
 />
 
 Fastify continues handling transport and routing while the adapter prepares runtime scope before application logic begins executing.
@@ -95,7 +95,7 @@ The handler stays focused on domain behavior while the runtime handles context p
 
 With the adapter installed, every request executes inside a fully initialized runtime scope.
 
-Tenant identity can be resolved before handler execution begins, `TenraContext` remains available throughout asynchronous execution, and model operations participate in the same request-aware lifecycle consistently.
+Tenant identity can be resolved before handler execution begins, `AmbitenContext` remains available throughout asynchronous execution, and model operations participate in the same request-aware lifecycle consistently.
 
 Middleware, instrumentation, and transactions also execute inside that same scope, which keeps runtime behavior coherent across handlers and services.
 
@@ -104,7 +104,7 @@ Middleware, instrumentation, and transactions also execute inside that same scop
 When transaction support is enabled, request execution can participate in transaction-aware workflows automatically.
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await OrderModel.create(order);
 
   await InventoryModel.updateOne(
@@ -116,9 +116,9 @@ await TenraContext.withTransaction(async () => {
 
 The active session propagates automatically through the request lifecycle without requiring manual session handling between operations.
 
-## Why Fastify fits well with Tenra
+## Why Fastify fits well with Ambiten
 
-Fastify’s hook-driven lifecycle aligns naturally with Tenra’s execution model.
+Fastify’s hook-driven lifecycle aligns naturally with Ambiten’s execution model.
 
 The adapter can establish runtime scope early in the request lifecycle while preserving Fastify’s performance-oriented architecture and plugin ecosystem.
 
@@ -153,14 +153,14 @@ Once execution enters the runtime, models and middleware behave the same way the
 
 ## Summary
 
-The Fastify adapter integrates Fastify’s lifecycle with Tenra’s runtime execution model.
+The Fastify adapter integrates Fastify’s lifecycle with Ambiten’s runtime execution model.
 
-It establishes request-scoped execution boundaries, initializes `TenraContext`, enables tenant-aware and transaction-aware execution, and allows route handlers to remain focused on application behavior instead of infrastructure coordination.
+It establishes request-scoped execution boundaries, initializes `AmbitenContext`, enables tenant-aware and transaction-aware execution, and allows route handlers to remain focused on application behavior instead of infrastructure coordination.
 
 ## Related pages
 
 - [Adapters Overview](/adapters/overview)
 - [Usage Patterns](/adapters/usage-patterns)
-- [TenraBootstrap](/advanced/bootstrap-cli)
+- [AmbitenBootstrap](/advanced/bootstrap-cli)
 - [Context](/core/context)
 - [Transactions](/core/transactions)

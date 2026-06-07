@@ -1,6 +1,6 @@
 <template>
-  <article class="tenra-alt-surface-code homepage-code-panel">
-    <span class="tenra-alt-kicker">Runtime Experience</span>
+  <article class="ambiten-alt-surface-code homepage-code-panel">
+    <span class="ambiten-alt-kicker">Runtime Experience</span>
     <div class="homepage-code-panel-body">
       <slot />
     </div>

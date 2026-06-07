@@ -1,10 +1,10 @@
 # Update
 
-Update operations modify existing documents through the Tenra model layer.
+Update operations modify existing documents through the Ambiten model layer.
 
-In Tenra, an update is not treated as an isolated mutation call. It still participates in middleware, runtime context, tenant-aware infrastructure resolution, and transaction boundaries, which keeps write behavior consistent across applications, workers, and distributed systems.
+In Ambiten, an update is not treated as an isolated mutation call. It still participates in middleware, runtime context, tenant-aware infrastructure resolution, and transaction boundaries, which keeps write behavior consistent across applications, workers, and distributed systems.
 
-Tenra supports `updateOne`, `findOneAndUpdate`, upsert-style execution, middleware-aware mutations, and transaction-aware writes.
+Ambiten supports `updateOne`, `findOneAndUpdate`, upsert-style execution, middleware-aware mutations, and transaction-aware writes.
 
 ## The role of updates in the runtime
 
@@ -15,7 +15,7 @@ An update operation usually combines two things:
 
 At runtime, the operation can still pass through validation, middleware, context resolution, session binding, and result normalization before MongoDB executes the final mutation.
 
-That keeps update behavior aligned with the rest of the Tenra runtime rather than reducing writes to disconnected database calls.
+That keeps update behavior aligned with the rest of the Ambiten runtime rather than reducing writes to disconnected database calls.
 
 ## Updating a document
 
@@ -84,7 +84,7 @@ await UserModel.updateOne(
 );
 ```
 
-In most application flows, runtime state should still come from adapters or `TenraContext` rather than being threaded manually through every call.
+In most application flows, runtime state should still come from adapters or `AmbitenContext` rather than being threaded manually through every call.
 
 Explicit overrides are generally more appropriate for scripts, maintenance workflows, and controlled background execution.
 
@@ -108,7 +108,7 @@ Because middleware executes inside the runtime boundary, mutation rules remain c
 Update operations automatically participate in the active transaction scope:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.updateOne(
     { email: "alice@example.com" },
     { $set: { name: "Updated" } }
@@ -116,7 +116,7 @@ await TenraContext.withTransaction(async () => {
 });
 ```
 
-Within that boundary, the update reuses the active session from `TenraContext`, ensuring rollback behavior remains consistent if the wider workflow fails.
+Within that boundary, the update reuses the active session from `AmbitenContext`, ensuring rollback behavior remains consistent if the wider workflow fails.
 
 This is especially important when multiple writes must succeed or fail together.
 
@@ -177,7 +177,7 @@ await UserModel.findOneAndUpsert(
 Update inside a transaction
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.updateOne(
     { email: "alice@example.com" },
     { $set: { name: "Updated" } }
@@ -193,7 +193,7 @@ When updates participate in a broader workflow, use transactions so rollback beh
 
 ## Summary
 
-Update operations in Tenra are runtime-aware mutation boundaries that participate in middleware, context propagation, tenant-safe infrastructure resolution, and transaction-aware execution.
+Update operations in Ambiten are runtime-aware mutation boundaries that participate in middleware, context propagation, tenant-safe infrastructure resolution, and transaction-aware execution.
 
 That makes updates more than simple write calls. They become controlled mutation paths that remain predictable, observable, and operationally safe as systems scale in complexity.
 

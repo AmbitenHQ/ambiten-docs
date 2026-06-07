@@ -16,7 +16,7 @@
 
     <div class="runtime-visual-card">
       <span class="runtime-visual-step">Stage 3</span>
-      <strong>TenraContext</strong>
+      <strong>AmbitenContext</strong>
       <p>The execution scope is created and ambient state becomes available.</p>
     </div>
     <div class="runtime-visual-connector" aria-hidden="true"></div>
@@ -30,7 +30,7 @@
 
     <div class="runtime-visual-card">
       <span class="runtime-visual-step">Stage 5</span>
-      <strong>TenraModel</strong>
+      <strong>AmbitenModel</strong>
       <p>Validation, middleware, and operation coordination are applied.</p>
     </div>
     <div class="runtime-visual-connector" aria-hidden="true"></div>
@@ -44,7 +44,7 @@
 
     <div class="runtime-visual-card">
       <span class="runtime-visual-step">Stage 7</span>
-      <strong>TenraClient</strong>
+      <strong>AmbitenClient</strong>
       <p>The runtime bridges the operation to the MongoDB driver.</p>
     </div>
     <div class="runtime-visual-connector" aria-hidden="true"></div>

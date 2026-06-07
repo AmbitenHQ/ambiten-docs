@@ -1,12 +1,12 @@
 # Director Observability Dashboard
 
-Director is Tenra’s operational control plane for tenant-aware runtime systems.
+Director is Ambiten’s operational control plane for tenant-aware runtime systems.
 
 It consumes the structured telemetry emitted by instrumentation, transactions, middleware, and runtime context, then transforms that execution data into operational insight teams can act on.
 
 <DirectorDashboardPreview />
 
-> The current dashboard preview represents an early operational concept built on top of Tenra’s runtime telemetry model.
+>Director is shown here as a product preview. The dashboard represents the operational signals Ambiten is designed to expose from runtime instrumentation, tenant context, query metadata, and transaction activity.
 
 ## Why Director exists
 
@@ -16,7 +16,7 @@ Teams may already have logs, metrics, traces, and infrastructure dashboards, yet
 
 Director exists to bridge that gap.
 
-Instead of treating observability as a disconnected monitoring concern, Director treats runtime behavior itself as a structured operational signal. It exposes how execution behaves inside Tenra rather than only how servers or databases behave underneath it.
+Instead of treating observability as a disconnected monitoring concern, Director treats runtime behavior itself as a structured operational signal. It exposes how execution behaves inside Ambiten rather than only how servers or databases behave underneath it.
 
 ## Runtime telemetry model
 
@@ -51,7 +51,7 @@ Instead of treating observability as a disconnected monitoring concern, Director
   ]'
 />
 
-Director is built around the telemetry Tenra already emits internally. Runtime activity becomes measurable because execution boundaries already understand tenant identity, request scope, transaction state, and middleware participation.
+Director is built around the telemetry Ambiten already emits internally. Runtime activity becomes measurable because execution boundaries already understand tenant identity, request scope, transaction state, and middleware participation.
 
 Example payload:
 
@@ -108,7 +108,7 @@ The purpose is not only to record failure, but to expose unstable execution beha
 
 ## Product positioning
 
-Director represents the operational intelligence layer built on top of Tenra’s runtime foundation.
+Director represents the operational intelligence layer built on top of Ambiten’s runtime foundation.
 
 The core runtime remains focused on execution primitives such as context propagation, models, adapters, middleware, transactions, and instrumentation. Director extends that foundation into operational visibility, runtime analytics, request budgeting, and execution governance.
 
@@ -120,7 +120,7 @@ Director naturally aligns with future operational and governance-focused bundles
 
 The Insights Bundle focuses on runtime analytics, tenant cost visibility, quotas, and operational alerts. The Safety Bundle focuses on audit trails, evidence collection, policy enforcement, and compliance reporting.
 
-Together, these systems move Tenra beyond traditional ODM tooling and toward runtime governance and operational intelligence.
+Together, these systems move Ambiten beyond traditional ODM tooling and toward runtime governance and operational intelligence.
 
 ## Deployment architecture
 
@@ -129,7 +129,7 @@ Director is designed to support both hosted and self-hosted deployment models.
 The runtime itself remains deployment-agnostic. It only needs to emit structured telemetry through a stable exporter contract.
 
 ```text
-Tenra Runtime
+Ambiten Runtime
       ↓
 Telemetry Exporter
       ↓
@@ -148,13 +148,13 @@ Director is not intended to become a generic metrics dashboard.
 
 It is designed as an execution intelligence layer for tenant-aware runtime systems.
 
-The focus is on exposing runtime correctness, execution integrity, tenant operational behavior, transaction stability, and request-level cost visibility through the same execution model Tenra already understands internally.
+The focus is on exposing runtime correctness, execution integrity, tenant operational behavior, transaction stability, and request-level cost visibility through the same execution model Ambiten already understands internally.
 
 That distinction is what separates Director from traditional infrastructure monitoring systems.
 
 ## Summary
 
-Director transforms Tenra’s runtime telemetry into operational visibility teams can reason about.
+Director transforms Ambiten’s runtime telemetry into operational visibility teams can reason about.
 
 By combining tenant-aware execution data, transaction integrity, request scope, and structured instrumentation, Director allows teams to understand how applications behave under real production conditions rather than only how infrastructure behaves underneath them.
 

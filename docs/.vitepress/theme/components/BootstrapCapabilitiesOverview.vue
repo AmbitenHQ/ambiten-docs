@@ -42,7 +42,7 @@
       <h3>Schema and resolver capability assembly</h3>
       <p>
         Prepares GraphQL integration layers before execution begins so resolver
-        flows participate cleanly in the Tenra runtime model.
+        flows participate cleanly in the Ambiten runtime model.
       </p>
     </div>
 

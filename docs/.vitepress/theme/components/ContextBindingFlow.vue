@@ -21,8 +21,8 @@
         <h3>Adapter or runtime helper establishes context</h3>
       </div>
       <p>
-        Tenra creates the execution boundary through an adapter-managed lifecycle
-        or an explicit <code>TenraContext.run(...)</code> scope.
+        Ambiten creates the execution boundary through an adapter-managed lifecycle
+        or an explicit <code>AmbitenContext.run(...)</code> scope.
       </p>
       <div class="context-binding-flow-chips">
         <span>Express</span>
@@ -40,7 +40,7 @@
     <div class="context-binding-flow-stage context-binding-flow-stage-context">
       <div class="context-binding-flow-head">
         <span class="context-binding-flow-eyebrow">Ambient State</span>
-        <h3>TenraContext preserves active execution state</h3>
+        <h3>AmbitenContext preserves active execution state</h3>
       </div>
       <div class="context-binding-flow-grid">
         <div class="context-binding-flow-token">tenantId</div>
@@ -59,7 +59,7 @@
     <div class="context-binding-flow-stage context-binding-flow-stage-model">
       <div class="context-binding-flow-head">
         <span class="context-binding-flow-eyebrow">Model Execution</span>
-        <h3>TenraModel consumes the bound runtime scope</h3>
+        <h3>AmbitenModel consumes the bound runtime scope</h3>
       </div>
       <p>
         Model operations inherit tenant, database, session, request, middleware,

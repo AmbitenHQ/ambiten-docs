@@ -3,7 +3,7 @@
     <div class="transaction-hero-card">
       <div class="transaction-hero-copy">
         <span class="transaction-eyebrow">Transaction Model</span>
-        <h3>Atomic execution coordinated through TenraContext</h3>
+        <h3>Atomic execution coordinated through AmbitenContext</h3>
         <p>
           Transactions are managed inside the runtime boundary so nested model
           operations can participate in one consistent MongoDB session without
@@ -34,7 +34,7 @@
         <strong>Sessions remain bound to the active runtime scope</strong>
         <p>
           Once a transaction starts, downstream model calls resolve and reuse the
-          same session automatically through <code>TenraContext</code>.
+          same session automatically through <code>AmbitenContext</code>.
         </p>
       </div>
 
@@ -61,7 +61,7 @@
       <div class="transaction-flow-arrow" aria-hidden="true">→</div>
       <div class="transaction-flow-step">
         <span>Scope</span>
-        <strong>Session bound to TenraContext</strong>
+        <strong>Session bound to AmbitenContext</strong>
       </div>
       <div class="transaction-flow-arrow" aria-hidden="true">→</div>
       <div class="transaction-flow-step">

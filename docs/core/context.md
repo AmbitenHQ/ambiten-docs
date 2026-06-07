@@ -1,12 +1,12 @@
 # Context
 
-TenraContext is the execution backbone of Tenra’s runtime architecture.
+AmbitenContext is the execution backbone of Ambiten’s runtime architecture.
 
 It provides request-scoped ambient state across asynchronous execution boundaries, allowing models, middleware, providers, and runtime services to resolve tenant identity, transaction state, database scope, and execution metadata without forcing those values through every function call.
 
-This capability is what allows Tenra to scale from simple CRUD applications into transaction-aware, multi-tenant systems while keeping application code operationally clean.
+This capability is what allows Ambiten to scale from simple CRUD applications into transaction-aware, multi-tenant systems while keeping application code operationally clean.
 
-This page explains how Tenra carries execution state through the runtime. If you are looking for how models consume that state, see [Context Binding](/models/context-binding).
+This page explains how Ambiten carries execution state through the runtime. If you are looking for how models consume that state, see [Context Binding](/models/context-binding).
 
 ## Why context exists
 
@@ -22,9 +22,9 @@ await UserModel.create(data, {
 
 As systems grow, this pattern becomes increasingly fragile. Tenant handling becomes inconsistent, transaction boundaries become difficult to preserve, nested services start forwarding infrastructure state manually, and application code gradually turns into coordination plumbing.
 
-Tenra solves this by moving execution state into a runtime-managed boundary.
+Ambiten solves this by moving execution state into a runtime-managed boundary.
 
-With TenraContext, the same operation becomes:
+With AmbitenContext, the same operation becomes:
 
 ```ts
 await UserModel.create(data);
@@ -34,9 +34,9 @@ The runtime already knows which tenant is active, which database should be resol
 
 Infrastructure concerns stop flowing through the application layer and become part of the runtime itself.
 
-## What `TenraContext` provides
+## What `AmbitenContext` provides
 
-TenraContext stores execution-scoped state that remains available throughout the lifecycle of a request or runtime operation.
+AmbitenContext stores execution-scoped state that remains available throughout the lifecycle of a request or runtime operation.
 
 Typical values include:
 
@@ -48,7 +48,7 @@ Once the boundary is established, every runtime-aware component resolves state f
 
 ## Execution model
 
-Tenra’s context system is built on top of Node.js AsyncLocalStorage.
+Ambiten’s context system is built on top of Node.js AsyncLocalStorage.
 
 This allows execution state to propagate automatically across asynchronous calls while remaining isolated per request boundary.
 
@@ -66,18 +66,18 @@ This elevates context from a convenience helper into a core architectural primit
 
 At a high level:
 
-At a high level, an adapter or runtime helper establishes the execution boundary, `TenraContext` stores runtime state, application logic executes inside that scope, and models plus providers resolve infrastructure using the active context before MongoDB executes the final operation.
+At a high level, an adapter or runtime helper establishes the execution boundary, `AmbitenContext` stores runtime state, application logic executes inside that scope, and models plus providers resolve infrastructure using the active context before MongoDB executes the final operation.
 
 ## Basic API
 
 ### Creating a context boundary
 
-Use `TenraContext.run(...)` to establish an execution scope manually:
+Use `AmbitenContext.run(...)` to establish an execution scope manually:
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@ambiten/core";
 
-await TenraContext.run(
+await AmbitenContext.run(
   {
     tenantId: "tenant-a",
     requestId: "req-123"
@@ -97,7 +97,7 @@ Once established, the boundary remains active across the entire asynchronous exe
 Use `get()` to retrieve the current runtime scope:
 
 ```ts
-const ctx = TenraContext.get();
+const ctx = AmbitenContext.get();
 
 console.log(ctx?.tenantId);
 console.log(ctx?.requestId);
@@ -109,10 +109,10 @@ This is frequently used inside middleware, observability tooling, instrumentatio
 
 One of the most important responsibilities of context is transaction continuity.
 
-TenraContext allows transaction sessions to propagate automatically across nested model operations:
+AmbitenContext allows transaction sessions to propagate automatically across nested model operations:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create({ name: "Alice" });
   await OrderModel.create({ item: "Starter Kit" });
 });
@@ -124,7 +124,7 @@ This enables reliable transaction composition without forcing session objects th
 
 ## What belongs in context
 
-TenraContext is designed for execution state, not domain data.
+AmbitenContext is designed for execution state, not domain data.
 
 Typical context contents include tenant identity, request identifiers, database overrides, transaction sessions, runtime metadata, and instrumentation state.
 
@@ -134,7 +134,7 @@ The purpose of context is to describe how execution behaves, not what the busine
 
 ## Adapter integration
 
-In most applications, `TenraContext.run(...)` is never called manually during request handling.
+In most applications, `AmbitenContext.run(...)` is never called manually during request handling.
 
 Adapters establish the runtime boundary automatically.
 
@@ -142,7 +142,7 @@ Conceptually, the flow resembles:
 
 ```ts
 app.use((req, _res, next) => {
-  TenraContext.run(
+  AmbitenContext.run(
     {
       tenantId: req.headers["x-tenant-id"],
       requestId: generateRequestId()
@@ -152,7 +152,7 @@ app.use((req, _res, next) => {
 });
 ```
 
-In production systems, Tenra adapters coordinate this through the adapter runtime layer.
+In production systems, Ambiten adapters coordinate this through the adapter runtime layer.
 
 This is what allows identical model code to execute consistently across Express, Fastify, NestJS, GraphQL runtimes, AWS Lambda functions, and background workers without each environment having to reinvent execution propagation.
 
@@ -160,20 +160,20 @@ This is what allows identical model code to execute consistently across Express,
 
 Without a runtime context layer, services frequently become infrastructure carriers responsible for forwarding sessions, tenant identifiers, database references, and request metadata.
 
-With `TenraContext`, those concerns move into the runtime.
+With `AmbitenContext`, those concerns move into the runtime.
 
 The result is a cleaner architectural separation between business behavior and execution infrastructure.
 
 Services become easier to compose, transaction handling becomes more reliable, tenant enforcement becomes centralized, and observability gains structured execution metadata without additional plumbing.
 
-This shift is one of the primary reasons Tenra scales more cleanly as systems grow in complexity.
+This shift is one of the primary reasons Ambiten scales more cleanly as systems grow in complexity.
 
 ## Common runtime patterns
 
 ### Multi-tenant execution
 
 ```ts
-const ctx = TenraContext.get();
+const ctx = AmbitenContext.get();
 
 console.log(ctx?.tenantId);
 ```
@@ -183,7 +183,7 @@ Tenant-aware execution depends on the active tenant boundary remaining available
 ### Logging and observability
 
 ```ts
-const ctx = TenraContext.get();
+const ctx = AmbitenContext.get();
 
 logger.info("User created", {
   requestId: ctx?.requestId
@@ -195,7 +195,7 @@ Because request metadata propagates automatically, logs and traces can remain fu
 ### Auditing
 
 ```ts
-const ctx = TenraContext.get();
+const ctx = AmbitenContext.get();
 
 await AuditLogModel.create({
   requestId: ctx?.requestId
@@ -205,7 +205,7 @@ await AuditLogModel.create({
 ### Conditional runtime behavior
 
 ```ts
-const ctx = TenraContext.get();
+const ctx = AmbitenContext.get();
 
 if (ctx?.tenantId === "admin") {
   // privileged runtime path
@@ -216,7 +216,7 @@ if (ctx?.tenantId === "admin") {
 
 Context only exists inside the execution boundary that created it.
 
-For request-driven systems, boundaries should be established through adapters. For standalone execution flows, use `TenraContext.run(...`) or runtime helpers such as transaction wrappers.
+For request-driven systems, boundaries should be established through adapters. For standalone execution flows, use `AmbitenContext.run(...`) or runtime helpers such as transaction wrappers.
 
 Normal request-bound operations should rely on runtime propagation rather than manual infrastructure overrides.
 
@@ -253,24 +253,24 @@ In most cases, the issue is related to execution boundaries rather than database
 ## Relationship with the runtime
 
 <SignalFlow 
-aria-label="TenraContext runtime relationship" :items='["Adapter", "TenraContext", "TenraModel", "TenraClient", "MongoDB"]' />
+aria-label="AmbitenContext runtime relationship" :items='["Adapter", "AmbitenContext", "AmbitenModel", "AmbitenClient", "MongoDB"]' />
 
-Within the runtime architecture, adapters establish execution boundaries, TenraContext stores execution state, models consume that state, providers resolve infrastructure bindings, and MongoDB executes the finalized operation.
+Within the runtime architecture, adapters establish execution boundaries, AmbitenContext stores execution state, models consume that state, providers resolve infrastructure bindings, and MongoDB executes the finalized operation.
 
 Each layer remains isolated in responsibility while participating in the same execution flow.
 
 ## Summary
 
-TenraContext is one of the foundational primitives of Tenra’s architecture.
+AmbitenContext is one of the foundational primitives of Ambiten’s architecture.
 
 It enables isolated, ambient, and transaction-aware execution state across asynchronous boundaries, allowing multi-tenancy, observability, and infrastructure coordination to exist without polluting business logic.
 
-Rather than forcing application code to carry runtime state manually, Tenra moves execution awareness into the runtime itself.
+Rather than forcing application code to carry runtime state manually, Ambiten moves execution awareness into the runtime itself.
 
 ## Related pages
 
 - [Context Binding](/models/context-binding)
 - [Transactions](/core/transactions)
 - [Middleware](/core/middleware)
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)
 - [Architecture](/architecture/whitepaper)

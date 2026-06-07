@@ -1,6 +1,6 @@
 <TutorialHero />
 
-This tutorial builds a tenant-aware document-to-PDF SaaS application designed to demonstrate how Tenra behaves as a runtime system under real product workflows.
+This tutorial builds a tenant-aware document-to-PDF SaaS application designed to demonstrate how Ambiten behaves as a runtime system under real product workflows.
 
 Rather than focusing only on CRUD operations, the tutorial shows how context propagation, transactions, middleware, instrumentation, and tenant isolation work together inside a production-style architecture.
 
@@ -25,13 +25,13 @@ Request
   ↓
 Express Adapter
   ↓
-TenraContext
+AmbitenContext
   ↓
 Tier Policy
   ↓
-TenraModel
+AmbitenModel
   ↓
-Provider / TenraClient
+Provider / AmbitenClient
   ↓
 MongoDB
 ```
@@ -41,7 +41,7 @@ The route handlers stay focused on product behavior while the runtime coordinate
 ## Install and scaffold
 
 ```bash
-npx tenra init pdf-saas --multi-tenant --logger --install
+npx ambiten init pdf-saas --multi-tenant --logger --install
 
 cd pdf-saas
 
@@ -68,10 +68,10 @@ src/
 
 ```ts
 // src/core/db.ts
-import { TenraClient } from "@tenra/core";
+import { AmbitenClient } from "@ambiten/core";
 
 export async function dbDriver() {
-  const client = new TenraClient({
+  const client = new AmbitenClient({
     uri: process.env.MONGODB_URI,
     options: {
       dbName: "pdf-saas"
@@ -90,7 +90,7 @@ In production systems, the client should usually be initialized once and reused 
 
 ```ts
 // src/models/user.model.ts
-import { TenraSchema, TenraModel } from "@tenra/core";
+import { AmbitenSchema, AmbitenModel } from "@ambiten/core";
 import { dbDriver } from "../core/db";
 
 export type UserTier =
@@ -105,7 +105,7 @@ export interface User {
   createdAt: Date;
 }
 
-export const userSchema = new TenraSchema<User>({
+export const userSchema = new AmbitenSchema<User>({
   email: String,
   tier: String,
   paid: Boolean,
@@ -115,7 +115,7 @@ export const userSchema = new TenraSchema<User>({
 export async function createUserModel() {
   const provider = await dbDriver();
 
-  return new TenraModel<User>({
+  return new AmbitenModel<User>({
     collectionName: "users",
     schema: userSchema,
     provider
@@ -130,9 +130,9 @@ The model remains focused on domain behavior while runtime scope is resolved dyn
 ```ts
 // src/models/conversion.model.ts
 import {
-  TenraSchema,
-  TenraModel
-} from "@tenra/core";
+  AmbitenSchema,
+  AmbitenModel
+} from "@ambiten/core";
 
 import { dbDriver } from "../core/db";
 import type { UserTier } from "./user.model";
@@ -146,7 +146,7 @@ export interface Conversion {
 }
 
 export const conversionSchema =
-  new TenraSchema<Conversion>({
+  new AmbitenSchema<Conversion>({
     userId: String,
     fileName: String,
     status: String,
@@ -172,7 +172,7 @@ conversionSchema.pre(
 export async function createConversionModel() {
   const provider = await dbDriver();
 
-  return new TenraModel<Conversion>({
+  return new AmbitenModel<Conversion>({
     collectionName: "conversions",
     schema: conversionSchema,
     provider
@@ -213,13 +213,13 @@ This policy layer stays intentionally small so product rules remain isolated fro
 import express from "express";
 import multer from "multer";
 
-import { createExpressAdapter } from "@tenra/express";
+import { createExpressAdapter } from "@ambiten/express";
 
 import {
-  TenraBootstrapFactory,
-  TenraContext,
+  AmbitenBootstrapFactory,
+  AmbitenContext,
   measureQuery
-} from "@tenra/core";
+} from "@ambiten/core";
 
 import { createUserModel } from "./models/user.model";
 
@@ -238,9 +238,9 @@ app.use(express.json());
 const adapter =
   createExpressAdapter();
 
-await TenraBootstrapFactory.create({
+await AmbitenBootstrapFactory.create({
   adapter,
-  config: "./tenra.config.json"
+  config: "./ambiten.config.json"
 });
 
 await adapter.install(app, {
@@ -322,7 +322,7 @@ app.post(
       await createConversionModel();
 
     const conversion =
-      await TenraContext.withTransaction(
+      await AmbitenContext.withTransaction(
         async () => {
           const user =
             await UserModel.findOne({
@@ -389,11 +389,11 @@ app.post(
 
 When `/convert` executes, the Express adapter establishes the runtime boundary and resolves tenant identity from the incoming request.
 
-`TenraContext` stores request-scoped metadata, the transaction boundary becomes active, and both models execute inside the same runtime scope.
+`AmbitenContext` stores request-scoped metadata, the transaction boundary becomes active, and both models execute inside the same runtime scope.
 
 Middleware validates tenant state, instrumentation records structured telemetry, and the provider resolves the correct database connection before MongoDB persists the conversion record.
 
-The route remains focused on product behavior while Tenra coordinates execution concerns underneath it.
+The route remains focused on product behavior while Ambiten coordinates execution concerns underneath it.
 
 ### Example request
 
@@ -405,17 +405,17 @@ Content-Type: multipart/form-data
 
 ## What this tutorial demonstrates
 
-This tutorial demonstrates how Tenra’s runtime model keeps infrastructure behavior centralized while application code stays focused on workflow logic.
+This tutorial demonstrates how Ambiten’s runtime model keeps infrastructure behavior centralized while application code stays focused on workflow logic.
 
 | Capability | Runtime boundary |
 |---|---|
 | Adapter integration | Express adapter |
-| Context propagation | `TenraContext` |
+| Context propagation | `AmbitenContext` |
 | Tenant isolation | `x-tenant-id` |
 | Transactions | `withTransaction()` |
 | Middleware policy | `conversionSchema.pre("create")` |
 | Instrumentation | `measureQuery()` |
-| Provider resolution | `TenraClient` |
+| Provider resolution | `AmbitenClient` |
 
 ## Production extensions
 
@@ -425,7 +425,7 @@ Because execution boundaries are already established through context, middleware
 
 ## Summary
 
-This tutorial demonstrates Tenra inside a realistic SaaS workflow rather than a simplified CRUD example.
+This tutorial demonstrates Ambiten inside a realistic SaaS workflow rather than a simplified CRUD example.
 
 Tenant isolation, transactions, middleware, provider resolution, and instrumentation all remain aligned through the runtime while application code stays focused on the product itself.
 

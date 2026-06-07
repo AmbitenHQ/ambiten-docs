@@ -1,14 +1,14 @@
 # Migration
 
-Migration to Tenra is not a rewrite. It is a transition from manually coordinated infrastructure behavior to a runtime-driven execution model.
+Migration to Ambiten is not a rewrite. It is a transition from manually coordinated infrastructure behavior to a runtime-driven execution model.
 
 The goal is to preserve existing collections, business logic, and operational workflows while gradually moving transactions, tenant routing, middleware, and observability into the runtime.
 
-Tenra is designed for incremental adoption.
+Ambiten is designed for incremental adoption.
 
 <DocOverviewCards 
-eyebrow="Migration Path" title="Adopt Tenra one execution boundary at a time." description="Migration keeps existing collections and workflows intact while moving sessions, tenant routing, transactions, middleware, and instrumentation into the runtime." accent="#d38a49"
-:signals='["Existing collections", "TenraModel", "Context", "Transactions", "Runtime features"]' :cards='[ { "label": "Preserve", "title": "Keep existing MongoDB data", "text": "Collections, indexes, and document structure can remain unchanged while Tenra is introduced gradually." }, { "label": "Replace", "title": "Move data access into runtime-aware models", "text": "Introduce TenraModel around existing collections and replace direct driver or ORM calls progressively." }, { "label": "Centralize", "title": "Remove infrastructure plumbing from services", "text": "Tenant resolution, sessions, transactions, and instrumentation become runtime responsibilities instead of repeated application logic." }
+eyebrow="Migration Path" title="Adopt Ambiten one execution boundary at a time." description="Migration keeps existing collections and workflows intact while moving sessions, tenant routing, transactions, middleware, and instrumentation into the runtime." accent="#d38a49"
+:signals='["Existing collections", "AmbitenModel", "Context", "Transactions", "Runtime features"]' :cards='[ { "label": "Preserve", "title": "Keep existing MongoDB data", "text": "Collections, indexes, and document structure can remain unchanged while Ambiten is introduced gradually." }, { "label": "Replace", "title": "Move data access into runtime-aware models", "text": "Introduce AmbitenModel around existing collections and replace direct driver or ORM calls progressively." }, { "label": "Centralize", "title": "Remove infrastructure plumbing from services", "text": "Tenant resolution, sessions, transactions, and instrumentation become runtime responsibilities instead of repeated application logic." }
 ]'
 :flow='[ { "label": "Step 1", "title": "Introduce models" }, { "label": "Step 2", "title": "Bind context" }, { "label": "Step 3", "title": "Move transactions" }, { "label": "Step 4", "title": "Adopt runtime features" }
 ]'
@@ -20,7 +20,7 @@ Most MongoDB systems already have collections, schemas, query flows, and transac
 
 Migration changes how execution is organized around those systems.
 
-Instead of manually coordinating tenant routing, session propagation, database resolution, middleware behavior, and instrumentation across services, Tenra centralizes those concerns inside the runtime.
+Instead of manually coordinating tenant routing, session propagation, database resolution, middleware behavior, and instrumentation across services, Ambiten centralizes those concerns inside the runtime.
 
 ## Migration approach
 
@@ -31,7 +31,7 @@ A common progression looks like:
 ```text
 Existing queries
   ↓
-Introduce TenraModel
+Introduce AmbitenModel
   ↓
 Introduce Context
   ↓
@@ -44,10 +44,10 @@ This allows teams to validate each execution boundary independently without disr
 
 ## Introducing models
 
-Start by wrapping an existing collection with `TenraModel`.
+Start by wrapping an existing collection with `AmbitenModel`.
 
 ```ts
-const UserModel = new TenraModel({
+const UserModel = new AmbitenModel({
   collectionName: "users",
   schema: userSchema,
   provider: client
@@ -63,7 +63,7 @@ No collection migration is required.
 After models are in place, introduce runtime context boundaries.
 
 ```ts
-await TenraContext.run(
+await AmbitenContext.run(
   { tenantId: "tenant-a" },
   async () => {
     await UserModel.find({});
@@ -90,7 +90,7 @@ Infrastructure state must be threaded manually through every operation.
 After
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create(data);
   await AuditModel.create(log);
 });
@@ -126,7 +126,7 @@ Tenant and session scope resolve from the runtime rather than from manually prop
 
 Prisma structures data access around a generated query client.
 
-Tenra structures execution around a runtime.
+Ambiten structures execution around a runtime.
 
 Before
 
@@ -144,7 +144,7 @@ The visible syntax difference is small, but the execution model changes signific
 
 ## Preserving existing data
 
-Tenra operates on top of existing MongoDB infrastructure.
+Ambiten operates on top of existing MongoDB infrastructure.
 
 Collections, indexes, and document structure can remain intact while migration happens progressively around execution boundaries instead of database reconstruction.
 
@@ -152,7 +152,7 @@ Collections, indexes, and document structure can remain intact while migration h
 
 Migration does not need to happen all at once.
 
-Most teams start with a few high-value models, then progressively move service boundaries and runtime behavior into Tenra. Legacy queries and Tenra models can coexist during the transition, which reduces operational risk and makes adoption easier to validate incrementally.
+Most teams start with a few high-value models, then progressively move service boundaries and runtime behavior into Ambiten. Legacy queries and Ambiten models can coexist during the transition, which reduces operational risk and makes adoption easier to validate incrementally.
 
 ## Common migration mistakes
 
@@ -173,7 +173,7 @@ That is the real architectural shift.
 
 ## Summary
 
-Migration to Tenra is a transition from manually coordinated infrastructure behavior to a structured runtime system.
+Migration to Ambiten is a transition from manually coordinated infrastructure behavior to a structured runtime system.
 
 It can happen incrementally, without rewriting collections or disrupting production workloads.
 
@@ -181,7 +181,7 @@ The result is a cleaner execution model where transactions, tenant routing, midd
 
 ### Related pages
 
-- [TenraModel](/models/tenra-model)
+- [AmbitenModel](/models/ambiten-model)
 - [Context](/core/context)
 - [Transactions](/core/transactions)
 - [Execution Guarantees](/architecture/execution-guarantees)

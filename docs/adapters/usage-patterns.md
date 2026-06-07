@@ -1,25 +1,25 @@
 # Adapter Usage Patterns
 
-This page shows how Tenra’s adapter model applies across common runtime environments.
+This page shows how Ambiten’s adapter model applies across common runtime environments.
 
 The central idea is simple:
 
 >**The framework changes. The runtime contract does not.**
 
-Whether execution starts in Express, Fastify, NestJS, GraphQL, AWS Lambda, or an explicit background job, Tenra keeps the same runtime behavior: context is established, tenant scope is resolved, model execution remains consistent, and infrastructure concerns stay out of business logic.
+Whether execution starts in Express, Fastify, NestJS, GraphQL, AWS Lambda, or an explicit background job, Ambiten keeps the same runtime behavior: context is established, tenant scope is resolved, model execution remains consistent, and infrastructure concerns stay out of business logic.
 
 ## Core principle
 
 All adapters converge into the same execution path:
 
 <SignalFlow 
-   aria-label="Shared adapter usage flow" 
-   :items='["Ingress", "Adapter", "Adapter Runtime", "TenraContext", "Model", "MongoDB"]' 
+   aria-label="Shared adapter usage flow"
+   :items='["Ingress", "Adapter", "Adapter Runtime", "AmbitenContext", "Model", "MongoDB"]'
 />
 
-The adapter normalizes the host environment. The adapter runtime establishes execution scope. TenraContext carries runtime state, and models execute against that active boundary.
+The adapter normalizes the host environment. The adapter runtime establishes execution scope. AmbitenContext carries runtime state, and models execute against that active boundary.
 
-This is what makes Tenra portable across runtimes without forcing each application to reinvent context handling, tenant resolution, or transaction wiring.
+This is what makes Ambiten portable across runtimes without forcing each application to reinvent context handling, tenant resolution, or transaction wiring.
 
 ## Multi-tenant REST API with Express
 
@@ -27,7 +27,7 @@ A common SaaS pattern is resolving tenant identity at the edge through request h
 
 ```ts
 import express from "express";
-import { createExpressAdapter } from "@tenra/express";
+import { createExpressAdapter } from "@ambiten/express";
 
 const app = express();
 
@@ -60,11 +60,11 @@ is resolved by the adapter before the route executes. The handler does not need 
 
 ## Transactional workflow with Fastify
 
-Fastify uses lifecycle hooks rather than Express-style middleware, but the Tenra runtime behavior remains the same.
+Fastify uses lifecycle hooks rather than Express-style middleware, but the Ambiten runtime behavior remains the same.
 
 ```ts
 import Fastify from "fastify";
-import { createFastifyAdapter } from "@tenra/fastify";
+import { createFastifyAdapter } from "@ambiten/fastify";
 
 const app = Fastify();
 
@@ -127,11 +127,11 @@ NestJS integrates through modules and interceptors so runtime scope is establish
 
 ```ts
 import { Module } from "@nestjs/common";
-import { TenraNestAdapterModule } from "@tenra/nestjs";
+import { AmbitenNestAdapterModule } from "@ambiten/nestjs";
 
 @Module({
   imports: [
-    TenraNestAdapterModule.forRoot({
+    AmbitenNestAdapterModule.forRoot({
       tenancy: {
         header: "x-tenant-id"
       },
@@ -153,14 +153,14 @@ export class UserService {
 }
 ```
 
-The interceptor creates the runtime boundary above the service layer, so dependency injection and application structure remain untouched while Tenra handles execution context underneath.
+The interceptor creates the runtime boundary above the service layer, so dependency injection and application structure remain untouched while Ambiten handles execution context underneath.
 
 ## Serverless execution with AWS Lambda
 
 In Lambda, the handler itself is the execution boundary.
 
 ```ts
-import { createLambdaAdapter } from "@tenra/lambda";
+import { createLambdaAdapter } from "@ambiten/lambda";
 
 export const handler = createLambdaAdapter(async () => {
   const users = await UserModel.find({});
@@ -179,10 +179,10 @@ The adapter creates a fresh runtime scope per invocation. This prevents cross-re
 Background jobs do not have an adapter-managed request lifecycle, so context must be established explicitly.
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@ambiten/core";
 
 async function processJob(job: { tenantId: string }) {
-  await TenraContext.run(
+  await AmbitenContext.run(
     {
       tenantId: job.tenantId,
       requestId: `job-${Date.now()}`
@@ -201,7 +201,7 @@ This keeps worker execution tenant-aware and observable even when no HTTP reques
 
 ## Middleware-driven policies
 
-Centralized policy behavior is one of the main advantages of Tenra’s runtime model.
+Centralized policy behavior is one of the main advantages of Ambiten’s runtime model.
 
 ### Example
 
@@ -228,7 +228,7 @@ await measureQuery("UserModel.find", async () => {
 });
 ```
 
-Because execution occurs inside TenraContext, telemetry can be enriched with tenant identity, request metadata, collection names, operation duration, and runtime outcome consistently across environments.
+Because execution occurs inside AmbitenContext, telemetry can be enriched with tenant identity, request metadata, collection names, operation duration, and runtime outcome consistently across environments.
 
 ## Cross-runtime consistency
 
@@ -247,6 +247,6 @@ The execution contract remains stable.
 
 ## Summary
 
-Adapters make Tenra portable without weakening its runtime structure.
+Adapters make Ambiten portable without weakening its runtime structure.
 
 They allow different frameworks and execution environments to enter the same context-aware model, preserving tenant resolution, transaction participation, middleware behavior, instrumentation, and clean application code across runtimes.

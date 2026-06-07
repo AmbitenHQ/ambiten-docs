@@ -1,10 +1,10 @@
 # Transactions
 
-Transactions in Tenra allow multiple dependent operations to execute as a single atomic unit of work.
+Transactions in Ambiten allow multiple dependent operations to execute as a single atomic unit of work.
 
 Either every participating operation succeeds, or the entire execution is rolled back. This guarantee becomes essential whenever business correctness depends on coordinated writes across multiple collections, models, or runtime layers.
 
-This page explains how Tenra preserves transaction continuity inside an execution boundary. If you are looking for the runtime guarantees behind this behavior, see [Execution Guarantees](/architecture/execution-guarantees).
+This page explains how Ambiten preserves transaction continuity inside an execution boundary. If you are looking for the runtime guarantees behind this behavior, see [Execution Guarantees](/architecture/execution-guarantees).
 
 ## Why transactions matter
 
@@ -14,18 +14,18 @@ Without transactions, partial failure can leave systems in invalid states. A use
 
 Transactions ensure that these workflows behave as one consistent unit of execution rather than a series of unrelated database operations.
 
-## The Tenra transaction model
+## The Ambiten transaction model
 
-In Tenra, transactions are not treated as a manual session management problem.
+In Ambiten, transactions are not treated as a manual session management problem.
 
 They are part of the runtime execution model itself.
 
-When a transaction begins, Tenra creates a MongoDB session, binds it into TenraContext, and allows every downstream model operation to participate automatically.
+When a transaction begins, Ambiten creates a MongoDB session, binds it into AmbitenContext, and allows every downstream model operation to participate automatically.
 
 The primary API is:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   // transactional work
 });
 ```
@@ -41,9 +41,9 @@ This architecture provides three important guarantees:
 ## Basic usage
 
 ```ts
-import { TenraContext } from "@tenra/core";
+import { AmbitenContext } from "@Ambiten/core";
 
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create({ name: "John" });
 
   await ProfileModel.create({
@@ -60,13 +60,13 @@ No partial writes survive the failure boundary.
 
 Transaction propagation follows the same execution principles as the rest of the runtime.
 
-`withTransaction()` creates the session, TenraContext stores the active transaction state, downstream model operations resolve the session automatically, and the runtime commits or rolls back based on the final outcome of the execution boundary.
+`withTransaction()` creates the session, AmbitenContext stores the active transaction state, downstream model operations resolve the session automatically, and the runtime commits or rolls back based on the final outcome of the execution boundary.
 
 No manual session forwarding is required between services or model calls.
 
 ## Adapter integration
 
-Transactions integrate naturally with Tenra’s request-scoped runtime architecture.
+Transactions integrate naturally with Ambiten’s request-scoped runtime architecture.
 
 Adapters can enable transaction-aware execution directly at the framework boundary:
 
@@ -90,7 +90,7 @@ Once enabled, transaction scope remains isolated to the active request lifecycle
 Inside a transaction boundary:
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await OrderModel.create(order);
 
   await InventoryModel.updateOne(
@@ -115,10 +115,10 @@ Transaction participation becomes part of the runtime contract rather than a dis
 Nested transaction scopes remain predictable and safe.
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create(data);
 
-  await TenraContext.withTransaction(async () => {
+  await AmbitenContext.withTransaction(async () => {
     await AuditModel.create({
       action: "USER_CREATED"
     });
@@ -136,7 +136,7 @@ Rollback behavior is explicit and deterministic.
 
 ```ts
 try {
-  await TenraContext.withTransaction(async () => {
+  await AmbitenContext.withTransaction(async () => {
     await UserModel.create(data);
 
     throw new Error("fail");
@@ -162,10 +162,10 @@ This isolation is critical for correctness in concurrent systems.
 
 ## Multi-tenant compatibility
 
-Transactions in Tenra are inherently tenant-aware because transaction state lives inside TenraContext.
+Transactions in Ambiten are inherently tenant-aware because transaction state lives inside AmbitenContext.
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   await UserModel.create(data);
 });
 ```
@@ -197,7 +197,7 @@ async function runWithRetry<T>(
 ): Promise<T> {
   for (let i = 0; i < retries; i++) {
     try {
-      return await TenraContext.withTransaction(fn);
+      return await AmbitenContext.withTransaction(fn);
     } catch (error) {
       if (i === retries - 1) throw error;
     }
@@ -212,7 +212,7 @@ Retries should remain bounded, explicit, and appropriate for the operational req
 ## Example workflow
 
 ```ts
-await TenraContext.withTransaction(async () => {
+await AmbitenContext.withTransaction(async () => {
   const user = await UserModel.create({
     name: "Alice"
   });
@@ -253,20 +253,20 @@ The most reliable transaction systems are usually the simplest and most delibera
 
 <SignalFlow
   aria-label="Transaction runtime relationship"
-  :items='["Adapter", "TenraContext", "Transaction Boundary", "TenraModel", "MongoDB"]'
+  :items='["Adapter", "AmbitenContext", "Transaction Boundary", "AmbitenModel", "MongoDB"]'
 />
 
-Within the runtime architecture, adapters establish execution scope, `TenraContext` stores the active session, transaction boundaries define atomic execution, models reuse the active transaction state automatically, and MongoDB performs the final commit or rollback.
+Within the runtime architecture, adapters establish execution scope, `AmbitenContext` stores the active session, transaction boundaries define atomic execution, models reuse the active transaction state automatically, and MongoDB performs the final commit or rollback.
 
 Each layer participates in the same runtime contract without leaking session coordination into application code
 
 ## Summary
 
-Transactions in Tenra are runtime-managed and context-driven.
+Transactions in Ambiten are runtime-managed and context-driven.
 
 They allow applications to maintain atomic consistency across complex workflows while keeping transaction coordination isolated from business logic.
 
-Rather than treating transactions as a manual session propagation problem, Tenra turns them into part of the execution model itself.
+Rather than treating transactions as a manual session propagation problem, Ambiten turns them into part of the execution model itself.
 
 ## Related pages
 
@@ -274,5 +274,5 @@ Rather than treating transactions as a manual session propagation problem, Tenra
 - [Instrumentation](/core/instrumentation)
 - [Director Observability Dashboard](/operations/director)
 - [Context Binding](/models/context-binding)
-- [TenraClient](/api/tenra-client)
+- [AmbitenClient](/reference/api/ambiten-client)
 - [Architecture](/architecture/whitepaper)
