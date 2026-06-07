@@ -1,6 +1,6 @@
 <p align="center">
 	<img 
-	src="https://cdn.jsdelivr.net/gh/AmbitenHQ/ambiten@main/docs/public/ambiten_brand/ambiten-mark-300x300.png"
+	src="/docs/public/ambiten_brand/ambiten-mark-300x300.png"
 	width="400" 
 	alt="Ambiten" 
 	/>
