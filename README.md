@@ -1,5 +1,9 @@
 <p align="center">
-	<img src="./docs/public/ambiten-primary-logo-dark.png" alt="Ambiten" />
+	<img 
+	src="https://cdn.jsdelivr.net/gh/AmbitenHQ/ambiten@main/docs/public/ambiten_brand/ambiten-mark-300x300.png"
+	width="400" 
+	alt="Ambiten" 
+	/>
 </p>
 
 <h1 align="center">ambiten-docs</h1>
