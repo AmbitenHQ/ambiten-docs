@@ -48,8 +48,8 @@ aside: false
       <div class="ambiten-alt-orbit-ring ambiten-alt-ring-b"></div>
       <div class="ambiten-alt-orbit-ring ambiten-alt-ring-a"></div>
       <div class="ambiten-alt-orbit-core">
-        <img class="ambiten-orbit-mark ambiten-orbit-mark-light" src="/ambiten_brand/ambiten-mark-192x192.svg" alt="Ambiten" />
-        <img class="ambiten-orbit-mark ambiten-orbit-mark-dark" src="/ambiten_brand/ambiten-mark-192x192.svg" alt="" aria-hidden="true" />
+        <img class="ambiten-orbit-mark ambiten-orbit-mark-light" src="/ambiten_brand/ambiten-wordmark-light.png" alt="Ambiten" />
+        <img class="ambiten-orbit-mark ambiten-orbit-mark-dark" src="/ambiten_brand/ambiten-wordmark-dark.png" alt="" aria-hidden="true" />
       </div>
       <span class="ambiten-alt-node ambiten-alt-node-a"><span>Context</span></span>
       <span class="ambiten-alt-node ambiten-alt-node-b"><span>Adapters</span></span>

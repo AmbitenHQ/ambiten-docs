@@ -8,14 +8,22 @@ export default defineConfig({
   cleanUrls: true,
   lastUpdated: true,
   head: [
-    ["link", { rel: "icon", href: "/ambiten_favicon_pack/favicon.ico", sizes: "any" }],
+    ["link", { rel: "icon", type: "image/svg+xml", href: "/ambiten_favicon_pack/favi-512x512.svg" }],
+    ["link", { rel: "icon", type: "image/svg+xml", sizes: "32x32", href: "/ambiten_favicon_pack/favi-cycle-32x32.svg" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "16x16", href: "/ambiten_favicon_pack/ambiten-icon-16.png" }],
     ["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/ambiten_favicon_pack/ambiten-icon-32.png" }],
+    ["link", { rel: "icon", type: "image/png", sizes: "96x96", href: "/ambiten_favicon_pack/ambiten-icon-96.png" }],
     ["link", { rel: "icon", type: "image/png", sizes: "192x192", href: "/ambiten_favicon_pack/ambiten-icon-192.png" }],
-    ["link", { rel: "apple-touch-icon", sizes: "180x180", href: "/ambiten_favicon_pack/ambiten-icon-180.png" }],
+    ["link", { rel: "apple-touch-icon", href: "/ambiten_favicon_pack/ambiten-icon-192.png" }],
     ["link", { rel: "manifest", href: "/ambiten_favicon_pack/site.webmanifest" }],
-    ["meta", { name: "theme-color", content: "#0b1220" }],
+    ["meta", { name: "application-name", content: "Ambiten" }],
+    ["meta", { name: "apple-mobile-web-app-title", content: "Ambiten" }],
+    ["meta", { name: "theme-color", content: "#050816" }],
+    ["meta", { name: "msapplication-TileColor", content: "#050816" }],
+    ["meta", { name: "format-detection", content: "telephone=no" }],
     ["meta", { property: "og:type", content: "website" }],
-    ["meta", { property: "og:title", content: "Ambiten" }],
+    ["meta", { property: "og:site_name", content: "Ambiten Docs" }],
+    ["meta", { property: "og:title", content: "Ambiten Docs" }],
     [
       "meta",
       {
@@ -23,8 +31,23 @@ export default defineConfig({
         content:
           "Context-driven data runtime for multi-tenant, transaction-safe apps."
       }
-    ]
-  ], 
+    ],
+    ["meta", { property: "og:image", content: "/ambiten_brand/ambiten-og-card.png" }],
+    ["meta", { property: "og:image:alt", content: "Ambiten Docs social preview" }],
+    ["meta", { property: "og:image:type", content: "image/png" }],
+    ["meta", { property: "twitter:card", content: "summary_large_image" }],
+    ["meta", { property: "twitter:title", content: "Ambiten Docs" }],
+    [
+      "meta",
+      {
+        property: "twitter:description",
+        content:
+          "Context-driven data runtime for multi-tenant, transaction-safe apps."
+      }
+    ],
+    ["meta", { property: "twitter:image", content: "/ambiten_brand/ambiten-og-card.png" }],
+    ["meta", { property: "twitter:image:alt", content: "Ambiten Docs social preview" }]
+  ],
   themeConfig: {
     logo: {
       light: "/ambiten_brand/ambiten-mark-192x192.png",
@@ -401,3 +424,5 @@ export default defineConfig({
     }
   }
 });
+
+
