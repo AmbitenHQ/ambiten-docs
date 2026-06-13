@@ -1,0 +1,19 @@
+{
+  "name": "Ambiten",
+  "short_name": "Ambiten",
+  "icons": [
+    {
+      "src": "/ambiten_favicon_pack/ambiten-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/ambiten_favicon_pack/ambiten-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#050816",
+  "background_color": "#050816",
+  "display": "standalone"
+}
