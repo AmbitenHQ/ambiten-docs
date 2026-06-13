@@ -5,6 +5,8 @@ export default defineConfig({
   description:
     "Context-driven data runtime for multi-tenant, transaction-safe apps.",
   lang: "en-US",
+  base: "/",
+ 
   cleanUrls: true,
   lastUpdated: true,
   head: [
