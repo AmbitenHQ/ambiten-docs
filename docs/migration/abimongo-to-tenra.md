@@ -58,24 +58,24 @@ Replace legacy Abimongo packages with Ambiten packages.
 
 ```bash
 npm uninstall @abimongo/core
-npm install @ambiten/core
+pnpm add @ambiten/core
 ```
 
 Additional packages should move to the Ambiten namespace as well.
 
 ```bash
 npm uninstall @abimongo/logger
-npm install @ambiten/logger
+pnpm add @ambiten/logger
 ```
 
 Adapter packages follow the same structure:
 
 ```bash
-npm install @ambiten/express
-npm install @ambiten/fastify
-npm install @ambiten/graphql
-npm install @ambiten/nestjs
-npm install @ambiten/lambda
+pnpm add @ambiten/express
+pnpm add @ambiten/fastify
+pnpm add @ambiten/graphql
+pnpm add @ambiten/nestjs
+pnpm add @ambiten/lambda
 ```
 
 ## Import migration

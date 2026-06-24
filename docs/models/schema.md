@@ -29,18 +29,40 @@ The schema defines what persistence should look like and how persistence behavio
 Schemas support strongly typed model execution through TypeScript generics.
 
 ```ts
-interface User {
-  name: string;
-  email: string;
+/* 
+ * This Document is an integral part the AmbitenSchema interface
+ * If define an interface without extending it, you are going to
+ * get TypeScript error/complains because your generic value to the
+ * AmbitenSchema<User>(); will be interpreted as incompatible.
+ * 
+ * Note: The same value must be pass to the AmbitenModel<User>() else
+ * TypeScript will complain about incompatibility of the schema property
+ * value passed to the model object
+**/
+
+import type { Document } from "@ambiten/core"
+
+interface User extends Document {
+  name: "string"
+  email: "string"
 }
 
 const userSchema = new AmbitenSchema<User>({
-  name: String,
-  email: String
+  name: "sring",
+  email: "string"
 });
 ```
 
 When paired with `AmbitenModel`, this improves compile-time validation, editor inference, update safety, and operational consistency across the application.
+
+> [!Note]
+> This Document is an integral part the AmbitenSchema interface
+> If define an interface without extending it, you are going to
+> get TypeScript error/complains because your generic value to the
+> `AmbitenSchema<User>();` will be interpreted as incompatible.
+> The same value must be pass to the `AmbitenModel<User>()` else
+> TypeScript will complain about incompatibility of the schema > property value passed to the model object.
+> Do not use default MongoDB `Document` import directly, you are going to get compilier error by doing so. Use this: `import type { Document } from '@ambiten/core'`.
 
 Schemas also act as validation boundaries before persistence occurs:
 

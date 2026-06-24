@@ -90,8 +90,10 @@ This separation is one of the reasons Ambiten adapts cleanly to multi-tenant and
 Ambiten models support TypeScript generics for strongly typed operations.
 
 ```ts
-interface User {
-  name: string;
+import type { Document } from '@ambiten/core'
+
+interface User extends Document {
+  name: string;    
   email: string;
 }
 
@@ -110,6 +112,15 @@ await UserModel.create({
   email: "john@example.com"
 });
 ```
+
+> [!Note]
+> This Document is an integral part the AmbitenSchema interface
+> If define an interface without extending it, you are going to
+> get TypeScript error/complains because your generic value to the
+> `AmbitenSchema<User>();` will be interpreted as incompatible.
+> The same value must be pass to the `AmbitenModel<User>()` else
+> TypeScript will complain about incompatibility of the schema > property value passed to the model object
+> Do not use default MongoDB `Document` import directly, you are going to get compilier error by doing so. Use this: `import type { Document } from '@ambiten/core'`
 
 Type safety becomes especially valuable as systems scale across teams, services, and runtime boundaries.
 

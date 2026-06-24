@@ -9,7 +9,7 @@ Ambiten is framework-agnostic by design. The core runtime remains consistent acr
 Before installing Ambiten, ensure your environment provides:
 
 - Node.js 18+
-- npm, pnpm, or yarn
+- pnpm, npm, or yarn
 - a reachable MongoDB deployment
 
 Ambiten operates directly on top of the official MongoDB driver, so the runtime expects an accessible MongoDB instance during initialization.
@@ -18,9 +18,7 @@ Ambiten operates directly on top of the official MongoDB driver, so the runtime 
 
 Install the core runtime package:
 
-```bash
-npm install @ambiten/core
-```
+<PackageManagerTabs package-name="@ambiten/core" />
 
 The core package contains the execution runtime, context system, model layer, middleware pipeline, transaction coordination, and provider infrastructure used throughout the framework.
 

@@ -35,10 +35,19 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
+const props = withDefaults(
+  defineProps<{
+    packageName?: string;
+  }>(),
+  {
+    packageName: "@ambiten/logger"
+  }
+);
+
 const tabs = [
-  { id: "pnpm", label: "pnpm", command: "pnpm add @ambiten/logger" },
-  { id: "npm", label: "npm", command: "npm install @ambiten/logger" },
-  { id: "yarn", label: "yarn", command: "yarn add @ambiten/logger" }
+  { id: "pnpm", label: "pnpm", command: `pnpm add ${props.packageName}` },
+  { id: "npm", label: "npm", command: `npm install ${props.packageName}` },
+  { id: "yarn", label: "yarn", command: `yarn add ${props.packageName}` }
 ];
 
 const activeTab = ref("pnpm");
