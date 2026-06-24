@@ -218,7 +218,6 @@ export default defineConfig({
           },
 
           { text: "Integration", link: "/logger/integration" },
-          // { text: "API Reference", link: "/api/logger/" }
         ]
       },
       {
