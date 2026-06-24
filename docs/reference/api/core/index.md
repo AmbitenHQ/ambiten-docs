@@ -14,4 +14,4 @@ This section should document the main entry points teams use across applications
 
 ## Related API
 
-If you need the direct MongoDB bootstrap wrapper rather than the higher-level runtime abstractions, see [AmbitenClient](/api/ambiten-client).
+If you need the direct MongoDB bootstrap wrapper rather than the higher-level runtime abstractions, see [AmbitenClient](/reference/api/ambiten-client).
