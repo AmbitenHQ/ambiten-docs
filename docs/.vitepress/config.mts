@@ -5,8 +5,8 @@ export default defineConfig({
   description:
     "Context-driven data runtime for multi-tenant, transaction-safe apps.",
   lang: "en-US",
-  base: "/", 
- 
+  base: "/",
+
   cleanUrls: true,
   lastUpdated: true,
   head: [
@@ -26,6 +26,12 @@ export default defineConfig({
     ["meta", { property: "og:type", content: "website" }],
     ["meta", { property: "og:site_name", content: "Ambiten Docs" }],
     ["meta", { property: "og:title", content: "Ambiten Docs" }],
+    ["meta",
+      {
+        name: "google-site-verification",
+        content: "MxnaimBNAEhGC1KuM_5mNUjOfQErcoBf6CEPW5Gljfo"
+      }
+    ],
     [
       "meta",
       {

@@ -171,6 +171,8 @@ async function main() {
 
   const runtime = await initAmbiten();
 
+  // You do not necessarily need to call this, configuring it in the 
+  // config file registers multi-tenant out of the box
   await runtime.registerMultiTenancy();
 
   const adapter = createExpressAdapter();
