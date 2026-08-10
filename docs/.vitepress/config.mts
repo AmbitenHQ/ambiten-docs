@@ -35,6 +35,13 @@ export default defineConfig({
     [
       "meta",
       {
+        name: "google-site-verification",
+        content: "4-us-Ha-HoI5RdMVlOUbEHfgjNpvB2Y9z3H4zD-tgRY"
+      }
+    ],
+    [
+      "meta",
+      {
         property: "og:description",
         content:
           "Context-driven data runtime for multi-tenant, transaction-safe apps."
