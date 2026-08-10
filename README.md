@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-	Context-driven, enterprise-grade documentation for a runtime-aware MongoDB platform.
+	Context-driven and a runtime-aware data platform,  documentation for  MongoDB applications.
 </p>
 
 ## Overview
