@@ -11,7 +11,6 @@ import DirectorDashboardPreview from "./components/DirectorDashboardPreview.vue"
 import DocOverviewCards from "./components/DocOverviewCards.vue";
 import HomepageCodePanel from "./components/HomepageCodePanel.vue";
 import HomepageLoggerSection from "./components/HomepageLoggerSection.vue";
-import HomepageSpiritOverlay from "./components/HomepageSpiritOverlay.vue";
 import InstrumentationOverview from "./components/InstrumentationOverview.vue";
 import MiddlewareLifecycleOverview from "./components/MiddlewareLifecycleOverview.vue";
 import MultiTenancyOverview from "./components/MultiTenancyOverview.vue";
@@ -19,6 +18,7 @@ import OneRequestFlowVisual from "./components/OneRequestFlowVisual.vue";
 import PackageManagerTabs from "./components/PackageManagerTabs.vue";
 import ProviderContractPrinciples from "./components/ProviderContractPrinciples.vue";
 import ReadOperationFlow from "./components/ReadOperationFlow.vue";
+import ReleaseAnnouncementBanner from "./components/ReleaseAnnouncementBanner.vue";
 import LoggerArchitecturePrinciples from "./components/LoggerArchitecturePrinciples.vue";
 import LoggerPipelineFlow from "./components/LoggerPipelineFlow.vue";
 import RuntimeExecutionVisualFlow from "./components/RuntimeExecutionVisualFlow.vue";
@@ -52,7 +52,6 @@ export default {
     app.component("DocOverviewCards", DocOverviewCards);
     app.component("HomepageCodePanel", HomepageCodePanel);
     app.component("HomepageLoggerSection", HomepageLoggerSection);
-    app.component("HomepageSpiritOverlay", HomepageSpiritOverlay);
     app.component("InstrumentationOverview", InstrumentationOverview);
     app.component("MiddlewareLifecycleOverview", MiddlewareLifecycleOverview);
     app.component("MultiTenancyOverview", MultiTenancyOverview);
@@ -60,6 +59,7 @@ export default {
     app.component("PackageManagerTabs", PackageManagerTabs);
     app.component("ProviderContractPrinciples", ProviderContractPrinciples);
     app.component("ReadOperationFlow", ReadOperationFlow);
+    app.component("ReleaseAnnouncementBanner", ReleaseAnnouncementBanner);
     app.component("LoggerArchitecturePrinciples", LoggerArchitecturePrinciples);
     app.component("LoggerPipelineFlow", LoggerPipelineFlow);
     app.component("RuntimeExecutionVisualFlow", RuntimeExecutionVisualFlow);

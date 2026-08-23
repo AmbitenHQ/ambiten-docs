@@ -4,7 +4,6 @@ aside: false
 ---
 
 <div class="vp-doc Ambiten-alt-home">
-<HomepageSpiritOverlay />
 <div class="ambiten-home-watermark" aria-hidden="true"></div>
 <section class="ambiten-alt-hero">
   <article class="ambiten-alt-hero-copy">
