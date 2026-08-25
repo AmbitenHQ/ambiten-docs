@@ -150,6 +150,32 @@
   --ab-announcement-height: 50px;
 }
 
+.Layout {
+  --vp-layout-top-height: var(--ab-announcement-height);
+}
+
+.ambiten-release-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-bottom: 0;
+}
+
+.VPNav {
+  position: fixed !important;
+  top: var(--vp-layout-top-height, 0px) !important;
+  left: 0;
+  right: 0;
+  z-index: 30 !important;
+}
+
+.VPNavBar {
+  position: relative;
+  z-index: 31;
+}
+
 .ambiten-release-banner-inner {
   max-width: 1440px;
   margin: 0 auto;
@@ -239,21 +265,28 @@
 }
 
 @media (min-width: 961px) {
-  .Layout {
-    --vp-layout-top-height: var(--ab-announcement-height);
-  }
+}
 
-  .ambiten-release-banner {
-    position: fixed;
-    top: 0;
+@media (max-width: 959px) {
+  .VPLocalNav {
+    position: fixed !important;
     left: 0;
     right: 0;
-    z-index: 20;
-    margin-bottom: 0;
+    top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px)) !important;
+    z-index: 25 !important;
   }
 }
 
 @media (max-width: 640px) {
+  :root {
+    --ab-announcement-height: 86px;
+  }
+
+  .VPNav {
+    position: fixed !important;
+    top: var(--vp-layout-top-height, 0px) !important;
+  }
+
   .ambiten-release-banner-inner {
     padding: 0 14px;
   }
