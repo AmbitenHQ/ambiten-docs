@@ -268,12 +268,25 @@
 }
 
 @media (max-width: 959px) {
+  :root {
+    --ab-mobile-local-nav-height: 48px;
+  }
+
   .VPLocalNav {
     position: fixed !important;
     left: 0;
     right: 0;
     top: calc(var(--vp-nav-height) + var(--vp-layout-top-height, 0px)) !important;
+    padding-top: 0 !important;
+    min-height: var(--ab-mobile-local-nav-height);
     z-index: 25 !important;
+  }
+
+  .VPContent.has-sidebar {
+    margin-top: 0;
+    padding-top: calc(
+      var(--vp-layout-top-height, 0px) + var(--vp-nav-height) + var(--ab-mobile-local-nav-height)
+    );
   }
 }
 
