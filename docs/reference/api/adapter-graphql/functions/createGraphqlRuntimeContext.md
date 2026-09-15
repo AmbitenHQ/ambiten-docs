@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [adapter-graphql](../README.md) / createGraphqlRuntimeContext
+[ambiten](../../../README.md) / [adapter-graphql/src](../README.md) / createGraphqlRuntimeContext
 
 # Function: createGraphqlRuntimeContext()
 
 > **createGraphqlRuntimeContext**\<`TExtra`\>(`input`, `options?`, `extend?`): `Promise`\<[`AmbitenGraphqlRuntimeContext`](../interfaces/AmbitenGraphqlRuntimeContext.md) & `TExtra`\>
 
-Defined in: [packages/adapter-graphql/src/graphql-context.ts:30](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/adapter-graphql/src/graphql-context.ts#L30)
+Defined in: [packages/adapter-graphql/src/graphql-context.ts:30](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/adapter-graphql/src/graphql-context.ts#L30)
 
 ## Type Parameters
 
@@ -30,7 +30,7 @@ Defined in: [packages/adapter-graphql/src/graphql-context.ts:30](https://github.
 
 #### request
 
-[`AmbitenRequestLike`](../../adapter-types/interfaces/AmbitenRequestLike.md)
+[`AmbitenRequestLike`](../../../adapter-types/src/interfaces/AmbitenRequestLike.md)
 
 ### options?
 
@@ -43,4 +43,3 @@ Defined in: [packages/adapter-graphql/src/graphql-context.ts:30](https://github.
 ## Returns
 
 `Promise`\<[`AmbitenGraphqlRuntimeContext`](../interfaces/AmbitenGraphqlRuntimeContext.md) & `TExtra`\>
-

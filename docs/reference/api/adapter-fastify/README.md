@@ -1,8 +1,8 @@
-[**ambiten**](../README.md)
+[**ambiten**](../../README.md)
 
 ***
 
-[ambiten](../README.md) / adapter-fastify
+[ambiten](../../README.md) / adapter-fastify/src
 
 # adapter-fastify/src
 

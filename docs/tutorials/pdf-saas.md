@@ -1,10 +1,10 @@
 <TutorialHero />
 
-This tutorial builds a tenant-aware document-to-PDF SaaS application designed to demonstrate how Ambiten behaves as a runtime system under real product workflows.
+This tutorial builds a tenant-aware Document-to-PDF SaaS application designed to demonstrate how Ambiten behaves as a runtime system across a complete product workflow.
 
-Rather than focusing only on CRUD operations, the tutorial shows how context propagation, transactions, middleware, instrumentation, and tenant isolation work together inside a production-style architecture.
+Rather than focusing only on CRUD operations, the tutorial follows execution from the framework boundary through `AmbitenContext`, application logic, `AmbitenModel`, Effective `ModelContext`, schema middleware, infrastructure resolution, and MongoDB.
 
-The application includes multi-tenant execution, tier-aware usage limits, transaction-safe conversion records, middleware-driven policy enforcement, and instrumentation-aware runtime behavior.
+The application includes tenant-aware execution, tier-based usage limits, explicit transactional workflows, middleware-driven persistence policy, and runtime instrumentation.
 
 ## Product requirements
 
@@ -16,82 +16,189 @@ The application supports three user tiers:
 | Premium | Registered users | Higher conversion limits |
 | Ultimate | Paid users | Full access |
 
-The system must remain tenant-aware, track conversion usage, enforce plan limits, record conversion activity, and keep runtime behavior observable without manually passing tenant or transaction state through every function.
+The system must:
+
+- identify the tenant for each execution
+- preserve tenant identity through the runtime
+- track conversion usage
+- enforce plan limits
+- record conversion activity
+- keep model operations transaction-aware where required
+- expose useful execution metadata for instrumentation
+- avoid manually forwarding tenant IDs and sessions through every application function
+
+Authentication and authorization remain application responsibilities.
+
+Tenant resolution answers:
+
+```text
+Which tenant is this execution for?
+```
+
+Authorization answers:
+
+```text
+May this caller perform this action for that tenant?
+```
+
+The tutorial keeps those concerns separate.
 
 ## Runtime architecture
 
+The application follows this execution path:
+
 ```text
-Request
-  ↓
-Express Adapter
-  ↓
+HTTP Request
+      ↓
+Express
+      ↓
+Ambiten Express Adapter
+      ↓
+Adapter Runtime
+      ↓
+Tenant Resolution
+      ↓
 AmbitenContext
-  ↓
+      ↓
+Route Handler
+      ↓
 Tier Policy
-  ↓
+      ↓
 AmbitenModel
-  ↓
-Provider / AmbitenClient
-  ↓
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient / DbProvider
+      ↓
 MongoDB
 ```
 
-The route handlers stay focused on product behavior while the runtime coordinates infrastructure concerns underneath the execution flow.
+The route handlers remain focused on product behavior while Ambiten coordinates execution state and persistence concerns underneath the workflow.
+
+The important distinction is:
+
+```text
+AmbitenContext
+= execution-scoped runtime state
+
+Effective ModelContext
+= persistence-facing state for one model operation
+```
+
+During model execution:
+
+```text
+explicit operation ModelContext
+        ↓
+active AmbitenContext
+        ↓
+model defaults
+        ↓
+Effective ModelContext
+```
 
 ## Install and scaffold
 
+If you already have an Ambiten application, you can add the tutorial files directly.
+
+Otherwise scaffold the project using your Ambiten project setup and install the application dependencies:
+
 ```bash
-npx ambiten init pdf-saas --multi-tenant --logger --install
-
-cd pdf-saas
-
-npm install express multer
+pnpm add express multer
 ```
 
-Fork the repository, clone it into your workspace, and open it in your preferred IDE.
+The tutorial uses the Express adapter:
 
-If you are starting manually, create the following structure inside the project root:
+```bash
+pnpm add @ambiten/adapter-express
+```
+
+A minimal project structure is:
 
 ```text
 src/
   main.ts
+
   core/
     db.ts
+
   models/
     user.model.ts
     conversion.model.ts
+
   policies/
     tier-policy.ts
 ```
 
-## Establish a database connection
+## Establish process-level database infrastructure
+
+MongoDB clients should normally live for the lifetime of the application process rather than being recreated for every request.
 
 ```ts
 // src/core/db.ts
-import { AmbitenClient } from "@ambiten/core";
 
-export async function dbDriver() {
-  const client = new AmbitenClient({
-    uri: process.env.MONGODB_URI,
-    options: {
-      dbName: "pdf-saas"
-    }
-  });
+import {
+  AmbitenClient
+} from "@ambiten/core";
 
-  await client.connect();
+export const db = new AmbitenClient({
+  uri: process.env.MONGODB_URI,
+  options: {
+    dbName: "pdf-saas"
+  }
+});
 
-  return client;
+export async function connectDatabase() {
+  await db.connect();
+
+  return db;
 }
 ```
 
-In production systems, the client should usually be initialized once and reused across the application lifecycle.
+The client is created once.
+
+```text
+PROCESS LIFETIME
+
+AmbitenClient
+MongoClient
+providers
+tenant infrastructure
+runtime configuration
+```
+
+Execution-specific values such as tenant identity and transaction sessions remain outside this shared infrastructure.
+
+```text
+EXECUTION LIFETIME
+
+AmbitenContext
+tenantId
+requestId
+dbName
+session
+runtime metadata
+```
 
 ## User model
 
+The model can also be constructed once and reused.
+
 ```ts
 // src/models/user.model.ts
-import { AmbitenSchema, AmbitenModel } from "@ambiten/core";
-import { dbDriver } from "../core/db";
+
+import {
+  AmbitenSchema,
+  AmbitenModel
+} from "@ambiten/core";
+
+import {
+  db
+} from "../core/db";
 
 export type UserTier =
   | "free"
@@ -105,42 +212,69 @@ export interface User {
   createdAt: Date;
 }
 
-export const userSchema = new AmbitenSchema<User>({
-  email: String,
-  tier: String,
-  paid: Boolean,
-  createdAt: Date
-});
+export const userSchema =
+  new AmbitenSchema<User>({
+    email: String,
+    tier: String,
+    paid: Boolean,
+    createdAt: Date
+  });
 
-export async function createUserModel() {
-  const provider = await dbDriver();
-
-  return new AmbitenModel<User>({
+export const UserModel =
+  new AmbitenModel<User>({
     collectionName: "users",
     schema: userSchema,
-    provider
+    provider: db
   });
-}
 ```
 
-The model remains focused on domain behavior while runtime scope is resolved dynamically through context.
+`UserModel` is reusable process-level model infrastructure.
+
+The model does not permanently belong to one tenant.
+
+Instead, execution-specific state is resolved when an operation runs.
+
+Conceptually:
+
+```text
+AmbitenContext
+      ↓
+UserModel
+      ↓
+mergeCtx()
+      ↓
+Effective ModelContext
+      ↓
+Provider
+```
 
 ## Conversion model
 
+The conversion model records PDF conversion activity.
+
 ```ts
 // src/models/conversion.model.ts
+
 import {
   AmbitenSchema,
   AmbitenModel
 } from "@ambiten/core";
 
-import { dbDriver } from "../core/db";
-import type { UserTier } from "./user.model";
+import {
+  db
+} from "../core/db";
+
+import type {
+  UserTier
+} from "./user.model";
 
 export interface Conversion {
   userId: string;
   fileName: string;
-  status: "pending" | "completed" | "failed";
+  status:
+    | "pending"
+    | "completed"
+    | "failed";
   tierUsed: UserTier;
   createdAt: Date;
 }
@@ -153,7 +287,11 @@ export const conversionSchema =
     tierUsed: String,
     createdAt: Date
   });
+```
 
+A schema middleware hook can enforce persistence-related behavior.
+
+```ts
 conversionSchema.pre(
   "create",
   async (ctx) => {
@@ -164,30 +302,58 @@ conversionSchema.pre(
     }
 
     if (ctx.doc) {
-      ctx.doc.createdAt = new Date();
+      ctx.doc.createdAt =
+        new Date();
     }
   }
 );
-
-export async function createConversionModel() {
-  const provider = await dbDriver();
-
-  return new AmbitenModel<Conversion>({
-    collectionName: "conversions",
-    schema: conversionSchema,
-    provider
-  });
-}
 ```
 
-Middleware enforces runtime policy without leaking infrastructure logic into routes or services.
+Then create the reusable model:
+
+```ts
+export const ConversionModel =
+  new AmbitenModel<Conversion>({
+    collectionName:
+      "conversions",
+
+    schema:
+      conversionSchema,
+
+    provider:
+      db
+  });
+```
+
+The schema remains reusable.
+
+The active execution supplies runtime state when model operations occur.
+
+```text
+Static Schema
+      +
+Effective ModelContext
+      ↓
+Runtime Middleware Behavior
+```
+
+This keeps the principle:
+
+```text
+Static definition.
+Dynamic execution.
+```
 
 ## Tier policy
 
+Business rules such as subscription limits belong in application policy rather than database infrastructure.
+
 ```ts
 // src/policies/tier-policy.ts
-import type { UserTier }
-from "../models/user.model";
+
+import type {
+  UserTier
+} from "../models/user.model";
 
 export function getTierLimit(
   tier: UserTier
@@ -204,16 +370,25 @@ export function getTierLimit(
 }
 ```
 
-This policy layer stays intentionally small so product rules remain isolated from runtime orchestration.
+This keeps product policy separate from runtime coordination.
+
+Ambiten provides the execution boundary.
+
+The application decides what the business rules mean.
 
 ## Application setup
 
+Initialize the application and connect shared infrastructure once.
+
 ```ts
 // src/main.ts
+
 import express from "express";
 import multer from "multer";
 
-import { createExpressAdapter } from "@ambiten/express";
+import {
+  createExpressAdapter
+} from "@ambiten/adapter-express";
 
 import {
   AmbitenBootstrapFactory,
@@ -221,11 +396,21 @@ import {
   measureQuery
 } from "@ambiten/core";
 
-import { createUserModel } from "./models/user.model";
+import {
+  connectDatabase
+} from "./core/db";
 
-import { createConversionModel } from "./models/conversion.model";
+import {
+  UserModel
+} from "./models/user.model";
 
-import { getTierLimit } from "./policies/tier-policy";
+import {
+  ConversionModel
+} from "./models/conversion.model";
+
+import {
+  getTierLimit
+} from "./policies/tier-policy";
 
 const app = express();
 
@@ -235,40 +420,122 @@ const upload = multer({
 
 app.use(express.json());
 
-const adapter =
-  createExpressAdapter();
+await connectDatabase();
 
 await AmbitenBootstrapFactory.create({
-  adapter,
-  config: "./ambiten.config.json"
+  config:
+    "./ambiten.config.json"
 });
 
+const adapter =
+  createExpressAdapter();
+```
+
+The framework adapter establishes an execution boundary around downstream application work.
+
+Install it with tenant resolution:
+
+```ts
 await adapter.install(app, {
   tenancy: {
     header: "x-tenant-id",
-    fallback: "default"
-  },
-  enableTransactions: true
+
+    validate: async (
+      tenantId
+    ) => {
+      return Boolean(tenantId);
+    }
+  }
 });
 ```
 
-The adapter establishes the runtime boundary before application logic executes.
+There is deliberately no default tenant fallback here.
+
+If tenant-aware execution is required and tenant resolution fails, the request should not silently continue as another tenant.
+
+The adapter establishes:
+
+```text
+Request
+      ↓
+Tenant Resolution
+      ↓
+AmbitenContext
+      ↓
+Application Handler
+```
+
+The adapter resolves identity.
+
+It does not replace authentication or authorization.
+
+## Tenant infrastructure
+
+Resolving the tenant identifier is only the first half of multi-tenant execution.
+
+```text
+Request
+      ↓
+TenantResolver
+      ↓
+tenantId
+```
+
+Database infrastructure must also be able to resolve the MongoDB resources associated with that tenant.
+
+Conceptually:
+
+```text
+tenantId
+      ↓
+TenantConfigResolver /
+MultiTenantManager
+      ↓
+Tenant MongoClient
+      ↓
+Tenant Database
+```
+
+Your production configuration should establish that mapping through the application's tenant infrastructure.
+
+The important separation is:
+
+```text
+Who is this execution for?
+→ TenantResolver
+
+Where does the tenant live?
+→ TenantConfigResolver /
+  MultiTenantManager
+
+Give me the client.
+→ TenantClientResolver /
+  MultiTenantManager
+```
+
+The tutorial assumes that tenant infrastructure has been configured for the tenant IDs accepted by the adapter.
 
 ## Register a premium user
+
+The registration workflow remains application-focused:
 
 ```ts
 app.post(
   "/register",
   async (req, res) => {
-    const UserModel =
-      await createUserModel();
-
     const user =
       await UserModel.create({
-        email: req.body.email,
-        tier: "premium",
-        paid: false,
-        createdAt: new Date()
+        email:
+          req.body.email,
+
+        tier:
+          "premium",
+
+        paid:
+          false,
+
+        createdAt:
+          new Date()
       });
 
     res.json(user);
@@ -276,21 +543,36 @@ app.post(
 );
 ```
 
-In this workflow, premium users are identified by registration while ultimate users represent paid accounts.
+The route does not manually pass the tenant ID to `UserModel`.
+
+The model can inherit execution state through:
+
+```text
+AmbitenContext
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+Effective ModelContext
+```
+
+The resulting provider path can then resolve tenant-aware infrastructure.
 
 ## Upgrade to ultimate
+
+The upgrade route changes product state.
 
 ```ts
 app.post(
   "/upgrade",
   async (req, res) => {
-    const { userId } = req.body;
-
-    const UserModel =
-      await createUserModel();
+    const {
+      userId
+    } = req.body;
 
     await UserModel.updateOne(
-      { _id: userId },
+      {
+        _id: userId
+      },
       {
         $set: {
           tier: "ultimate",
@@ -299,83 +581,106 @@ app.post(
       }
     );
 
-    res.json({ success: true });
+    res.json({
+      success: true
+    });
   }
 );
 ```
 
-The runtime keeps update behavior tenant-aware and transaction-capable without additional plumbing.
+The application expresses the business rule.
+
+Runtime infrastructure remains below the route.
 
 ## Convert a document
+
+The conversion workflow combines product policy, model execution, instrumentation, and an explicit transaction boundary.
 
 ```ts
 app.post(
   "/convert",
   upload.single("file"),
+
   async (req, res) => {
-    const userId = req.body.userId;
-
-    const UserModel =
-      await createUserModel();
-
-    const ConversionModel =
-      await createConversionModel();
+    const userId =
+      req.body.userId;
 
     const conversion =
-      await AmbitenContext.withTransaction(
-        async () => {
-          const user =
-            await UserModel.findOne({
-              _id: userId
-            });
+      await AmbitenContext
+        .withTransaction(
+          async () => {
+            const user =
+              await UserModel
+                .findOne({
+                  _id: userId
+                });
 
-          if (!user) {
-            throw new Error(
-              "User not found."
-            );
-          }
-
-          const limit =
-            getTierLimit(user.tier);
-
-          const conversions =
-            await ConversionModel.find({
-              userId
-            });
-
-          if (
-            conversions.length >= limit
-          ) {
-            throw new Error(
-              "Conversion limit reached. Upgrade your plan."
-            );
-          }
-
-          return measureQuery(
-            {
-              operation: "create",
-              collectionName:
-                "conversions",
-              extra: {
-                feature:
-                  "document.convert",
-                tier: user.tier
-              }
-            },
-            async () => {
-              return ConversionModel.create({
-                userId,
-                fileName:
-                  req.file?.originalname ??
-                  "unknown",
-                status: "completed",
-                tierUsed: user.tier,
-                createdAt: new Date()
-              });
+            if (!user) {
+              throw new Error(
+                "User not found."
+              );
             }
-          );
-        }
-      );
+
+            const limit =
+              getTierLimit(
+                user.tier
+              );
+
+            const conversions =
+              await ConversionModel
+                .find({
+                  userId
+                });
+
+            if (
+              conversions.length >=
+              limit
+            ) {
+              throw new Error(
+                "Conversion limit reached. Upgrade your plan."
+              );
+            }
+
+            return measureQuery(
+              {
+                operation:
+                  "create",
+
+                collectionName:
+                  "conversions",
+
+                extra: {
+                  feature:
+                    "document.convert",
+
+                  tier:
+                    user.tier
+                }
+              },
+
+              async () => {
+                return ConversionModel
+                  .create({
+                    userId,
+
+                    fileName:
+                      req.file
+                        ?.originalname ??
+                      "unknown",
+
+                    status:
+                      "completed",
+
+                    tierUsed:
+                      user.tier,
+
+                    createdAt:
+                      new Date()
+                  });
+              }
+            );
+          }
+        );
 
     res.json({
       success: true,
@@ -385,48 +690,461 @@ app.post(
 );
 ```
 
+This tutorial uses an **explicit transaction boundary** around the conversion workflow.
+
+The adapter is therefore not also configured with:
+
+```ts
+enableTransactions: true
+```
+
+for this example.
+
+The two transaction strategies are alternatives:
+
+```text
+Adapter-managed transaction
+```
+
+or:
+
+```text
+AmbitenContext.withTransaction(...)
+```
+
+They are not two layers that every application needs to combine.
+
+## Transaction behavior
+
+When the transaction begins:
+
+```text
+AmbitenContext.withTransaction()
+      ↓
+MongoDB ClientSession
+      ↓
+AmbitenContext.session
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+Effective ModelContext.session
+      ↓
+Participating Model Operations
+```
+
+The transaction boundary owns:
+
+```text
+start
+commit
+rollback
+completion
+```
+
+`UserModel` and `ConversionModel` participate in that execution.
+
+They do not independently commit or roll back the surrounding transaction.
+
+The central rule is:
+
+```text
+Boundary owns atomicity.
+
+Context carries the session.
+
+Model binds the session
+to the operation.
+```
+
+## What the transaction does not include
+
+MongoDB transaction participation does not automatically make every side effect atomic.
+
+For example:
+
+```text
+PDF rendering
+object storage
+email delivery
+payment APIs
+message queues
+external HTTP calls
+```
+
+do not automatically become part of the MongoDB transaction.
+
+A production Document-to-PDF system may therefore use patterns such as:
+
+```text
+transactional database record
+      ↓
+commit
+      ↓
+background PDF generation
+      ↓
+object storage
+      ↓
+status update
+```
+
+depending on its durability requirements.
+
+Keep MongoDB transactions focused and reasonably short.
+
 ## Runtime behavior
 
-When `/convert` executes, the Express adapter establishes the runtime boundary and resolves tenant identity from the incoming request.
+When `/convert` executes, the runtime path is:
 
-`AmbitenContext` stores request-scoped metadata, the transaction boundary becomes active, and both models execute inside the same runtime scope.
+```text
+HTTP Request
+      ↓
+Express Adapter
+      ↓
+Tenant Resolution
+      ↓
+AmbitenContext
+      ↓
+Route Handler
+      ↓
+withTransaction()
+      ↓
+UserModel
+      ↓
+Effective ModelContext
+      ↓
+Provider Resolution
+      ↓
+MongoDB
+      ↓
+ConversionModel
+      ↓
+Schema Middleware
+      ↓
+Effective ModelContext
+      ↓
+Provider Resolution
+      ↓
+MongoDB
+      ↓
+Transaction Completion
+      ↓
+HTTP Response
+```
 
-Middleware validates tenant state, instrumentation records structured telemetry, and the provider resolves the correct database connection before MongoDB persists the conversion record.
+`AmbitenContext` carries execution-scoped state.
 
-The route remains focused on product behavior while Ambiten coordinates execution concerns underneath it.
+It is not merely a request metadata object.
 
-### Example request
+During model execution, `AmbitenModel` resolves the persistence-facing context:
 
-```bash
+```text
+explicit operation context
+        ↓
+active AmbitenContext
+        ↓
+model defaults
+        ↓
+Effective ModelContext
+```
+
+Schema middleware participates in the model operation using that runtime-bound state.
+
+The provider then resolves the MongoDB infrastructure required for the operation.
+
+## Example request
+
+A tenant-aware request may look like:
+
+```text
 POST /convert
+
 x-tenant-id: company-a
 Content-Type: multipart/form-data
 ```
 
+The header identifies the tenant for the execution.
+
+It does not by itself prove that the caller is authorized to act for that tenant.
+
+A production application should normally perform:
+
+```text
+Authentication
+      ↓
+Tenant Resolution
+      ↓
+Authorization
+      ↓
+Application Logic
+```
+
+or an equivalent security flow appropriate for the application.
+
+## Instrumentation
+
+The conversion workflow uses:
+
+```ts
+measureQuery(...)
+```
+
+to attach structured information to the observed operation.
+
+The active runtime can also contain execution metadata such as:
+
+```text
+tenantId
+requestId
+loggerMeta
+debug
+meta
+observer
+budget
+```
+
+This allows instrumentation to correlate behavior with an execution without embedding telemetry logic into every business function.
+
+Ambiten provides the runtime metadata boundary.
+
+The logging, tracing, metric, or telemetry backend remains responsible for transporting and storing those signals.
+
+## Model and infrastructure responsibilities
+
+The conversion route works because responsibilities remain separated.
+
+```text
+Express Adapter
+→ execution ingress
+
+TenantResolver
+→ tenant identity
+
+AmbitenContext
+→ execution-scoped state
+
+Route Handler
+→ product workflow
+
+Tier Policy
+→ business limits
+
+AmbitenModel
+→ operation coordination
+  and context binding
+
+ModelContext
+→ persistence-facing
+  operation state
+
+AmbitenSchema
+→ persistence structure
+  and middleware behavior
+
+DbProvider
+→ database/client/session
+  contract
+
+MultiTenantManager
+→ tenant infrastructure
+
+AmbitenClient
+→ MongoDB capability
+
+Transaction Boundary
+→ transaction lifecycle
+
+MongoDB
+→ persistence
+```
+
+No single component needs to own the entire runtime.
+
 ## What this tutorial demonstrates
 
-This tutorial demonstrates how Ambiten’s runtime model keeps infrastructure behavior centralized while application code stays focused on workflow logic.
-
-| Capability | Runtime boundary |
+| Capability | Runtime responsibility |
 |---|---|
-| Adapter integration | Express adapter |
-| Context propagation | `AmbitenContext` |
-| Tenant isolation | `x-tenant-id` |
-| Transactions | `withTransaction()` |
-| Middleware policy | `conversionSchema.pre("create")` |
+| Framework integration | Express adapter |
+| Execution state | `AmbitenContext` |
+| Tenant identity | Tenant resolver |
+| Model context binding | `AmbitenModel` |
+| Persistence state | Effective `ModelContext` |
+| Schema policy | `AmbitenSchema` middleware |
+| Business policy | Tier policy |
+| Transactions | `AmbitenContext.withTransaction()` |
 | Instrumentation | `measureQuery()` |
-| Provider resolution | `AmbitenClient` |
+| Tenant infrastructure | `MultiTenantManager` / provider |
+| MongoDB capability | `AmbitenClient` |
+
+The key distinction is that tenant-aware execution is not the same thing as automatic security isolation.
+
+Correct isolation depends on the application's tenant topology, authorization model, database configuration, and infrastructure resolution.
 
 ## Production extensions
 
-The same architecture can evolve into a larger SaaS platform by introducing authentication, payment processing, distributed workers, object storage, analytics, audit systems, and administrative tooling.
+The same architecture can evolve into a larger SaaS system with:
 
-Because execution boundaries are already established through context, middleware, and instrumentation, these capabilities can be added without restructuring the core runtime model.
+```text
+authentication
+authorization
+billing
+payment processing
+background workers
+PDF rendering services
+object storage
+message queues
+analytics
+audit systems
+administrative tooling
+rate limiting
+usage accounting
+```
+
+Those capabilities can be added around the same execution model.
+
+For example:
+
+```text
+Request
+      ↓
+Authentication
+      ↓
+Tenant Resolution
+      ↓
+Authorization
+      ↓
+AmbitenContext
+      ↓
+Business Workflow
+      ↓
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Tenant Infrastructure
+      ↓
+MongoDB
+```
+
+Background work can establish its own execution boundary:
+
+```text
+Queue Message
+      ↓
+AmbitenContext.run(...)
+      ↓
+Worker Logic
+      ↓
+AmbitenModel
+      ↓
+Infrastructure Resolution
+```
+
+This is why Ambiten uses the term **execution-scoped** rather than assuming all runtime work originates from HTTP.
+
+## Process reuse
+
+The tutorial deliberately creates infrastructure once:
+
+```text
+AmbitenClient
+UserModel
+ConversionModel
+schemas
+runtime configuration
+```
+
+and reuses it across many executions.
+
+It does not create a new MongoDB client for each route call.
+
+The runtime separates:
+
+```text
+Reusable Infrastructure
+```
+
+from:
+
+```text
+Execution-Specific State
+```
+
+That distinction becomes increasingly important under concurrency.
 
 ## Summary
 
-This tutorial demonstrates Ambiten inside a realistic SaaS workflow rather than a simplified CRUD example.
+This tutorial demonstrates Ambiten inside a realistic SaaS workflow rather than as a collection of isolated database calls.
 
-Tenant isolation, transactions, middleware, provider resolution, and instrumentation all remain aligned through the runtime while application code stays focused on the product itself.
+The complete model is:
 
-The result is a system where execution behavior stays predictable as the application grows in scale and complexity.
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+Application Logic
+      ↓
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+For multi-tenancy:
+
+```text
+TenantResolver
+      ↓
+AmbitenContext.tenantId
+      ↓
+ModelContext.tenantId
+      ↓
+Tenant Infrastructure
+      ↓
+Tenant Database
+```
+
+For transactions:
+
+```text
+Transaction Boundary
+      ↓
+AmbitenContext.session
+      ↓
+ModelContext.session
+      ↓
+Participating Operations
+```
+
+The application remains responsible for product behavior, authentication, authorization, and external system coordination.
+
+Ambiten coordinates the execution and persistence boundary.
+
+The central mental model is:
+
+```text
+Boundary creates execution.
+
+Context carries execution.
+
+Model binds execution
+to an operation.
+
+ModelContext carries
+operation state.
+
+Infrastructure resolves
+resources.
+
+MongoDB performs
+persistence.
+```
+
+That separation is what allows the same application architecture to remain understandable as product and infrastructure requirements grow.

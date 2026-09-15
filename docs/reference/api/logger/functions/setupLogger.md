@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [logger](../README.md) / setupLogger
+[ambiten](../../../README.md) / [logger/src](../README.md) / setupLogger
 
 # Function: setupLogger()
 
 > **setupLogger**(`config?`): [`ILogger`](../interfaces/ILogger.md)
 
-Defined in: [packages/logger/src/logger/setupLogger.ts:4](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/logger/src/logger/setupLogger.ts#L4)
+Defined in: [packages/logger/src/logger/setupLogger.ts:4](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/logger/src/logger/setupLogger.ts#L4)
 
 ## Parameters
 
@@ -19,4 +19,3 @@ Defined in: [packages/logger/src/logger/setupLogger.ts:4](https://github.com/Amb
 ## Returns
 
 [`ILogger`](../interfaces/ILogger.md)
-

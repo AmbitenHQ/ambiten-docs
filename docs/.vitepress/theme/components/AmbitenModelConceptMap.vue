@@ -2,64 +2,119 @@
   <div class="ambiten-model-concept-map">
     <div class="ambiten-model-concept-grid">
 
-      <a class="ambiten-model-concept-card" href="/models/context-binding">
-        <span class="ambiten-model-concept-label">Context Binding</span>
+      <a
+        class="ambiten-model-concept-card"
+        href="/models/context-binding"
+      >
+        <span class="ambiten-model-concept-label">
+          Context Binding
+        </span>
 
         <strong class="ambiten-model-concept-title">
-          Runtime state propagation during model execution.
+          Execution state becomes effective model context.
         </strong>
 
         <p class="ambiten-model-concept-body">
-          Explains how tenant scope, sessions, request metadata, and execution
-          state become available inside model operations automatically.
+          Explains how tenant identity, request metadata, transaction sessions,
+          runtime overrides, and model defaults participate in effective context
+          resolution during an operation.
         </p>
 
-        <em class="ambiten-model-concept-link">Explore runtime binding</em>
+        <em class="ambiten-model-concept-link">
+          Explore context binding
+        </em>
       </a>
 
-      <a class="ambiten-model-concept-card" href="/models/defining-models">
-        <span class="ambiten-model-concept-label">Defining Models</span>
+      <a
+        class="ambiten-model-concept-card"
+        href="/models/defining-models"
+      >
+        <span class="ambiten-model-concept-label">
+          Defining Models
+        </span>
 
         <strong class="ambiten-model-concept-title">
-          Static model structure with dynamic runtime behavior.
+          Static model structure with dynamic execution behavior.
         </strong>
 
         <p class="ambiten-model-concept-body">
-          Covers schema configuration, typing, providers, and how models are
-          declared within the Ambiten runtime architecture.
+          Covers schema association, typing, collection configuration,
+          middleware, model defaults, and the structural definition that is
+          registered before runtime operations begin.
         </p>
 
-        <em class="ambiten-model-concept-link">Explore model definition</em>
+        <em class="ambiten-model-concept-link">
+          Explore model definition
+        </em>
       </a>
 
-      <a class="ambiten-model-concept-card" href="/core/middleware">
-        <span class="ambiten-model-concept-label">Middleware</span>
+      <a
+        class="ambiten-model-concept-card"
+        href="/core/middleware"
+      >
+        <span class="ambiten-model-concept-label">
+          Middleware
+        </span>
 
         <strong class="ambiten-model-concept-title">
-          Runtime policies surrounding persistence execution.
+          Deterministic policies around model execution.
         </strong>
 
         <p class="ambiten-model-concept-body">
-          Shows how validation, auditing, access control, observability, and
-          execution shaping operate consistently around model behavior.
+          Shows how validation, normalization, policy enforcement, auditing,
+          instrumentation, and result shaping participate in the model
+          operation lifecycle.
         </p>
 
-        <em class="ambiten-model-concept-link">Explore middleware lifecycle</em>
+        <em class="ambiten-model-concept-link">
+          Explore middleware lifecycle
+        </em>
       </a>
 
-      <a class="ambiten-model-concept-card" href="/api/ambiten-client">
-        <span class="ambiten-model-concept-label">AmbitenClient</span>
+      <a
+        class="ambiten-model-concept-card"
+        href="/architecture/multi-tenancy/multi-tenant-manager"
+      >
+        <span class="ambiten-model-concept-label">
+          MultiTenantManager
+        </span>
 
         <strong class="ambiten-model-concept-title">
-          Infrastructure resolution inside the execution boundary.
+          Tenant infrastructure resolution and lifecycle.
         </strong>
 
         <p class="ambiten-model-concept-body">
-          Explains how databases, sessions, tenant routing, and MongoDB
-          infrastructure are resolved dynamically at runtime.
+          Explains how tenant configuration, dynamic discovery, lazy client
+          activation, runtime registration, and tenant database resources are
+          resolved from the active tenant identity.
         </p>
 
-        <em class="ambiten-model-concept-link">Explore infrastructure resolution</em>
+        <em class="ambiten-model-concept-link">
+          Explore tenant infrastructure
+        </em>
+      </a>
+
+      <a
+        class="ambiten-model-concept-card"
+        href="/reference/api/ambiten-client"
+      >
+        <span class="ambiten-model-concept-label">
+          AmbitenClient
+        </span>
+
+        <strong class="ambiten-model-concept-title">
+          The bridge from resolved runtime infrastructure to MongoDB.
+        </strong>
+
+        <p class="ambiten-model-concept-body">
+          Explains how Ambiten uses the resolved client, database, collection,
+          session, and operation options to execute against the MongoDB driver
+          without hiding MongoDB semantics.
+        </p>
+
+        <em class="ambiten-model-concept-link">
+          Explore MongoDB client access
+        </em>
       </a>
 
     </div>

@@ -2,43 +2,61 @@
   <div class="multi-tenancy-overview">
     <div class="multi-tenancy-hero-card">
       <div class="multi-tenancy-hero-copy">
-        <span class="multi-tenancy-eyebrow">Tenant Runtime</span>
-        <h3>Resolve tenant scope once. Enforce it across the entire execution chain.</h3>
+        <span class="multi-tenancy-eyebrow">
+          Tenant Runtime
+        </span>
+
+        <h3>
+          Resolve tenant identity at the execution boundary.
+          Resolve tenant infrastructure when operations need it.
+        </h3>
+
         <p>
-          Ambiten treats tenant identity as a runtime boundary. Once resolved, execution remains scoped to that tenant across models, middleware, transactions, and observability without requiring additional infrastructure coordination.
+          Ambiten separates tenant identity from tenant infrastructure.
+          A resolver determines which tenant belongs to the current
+          execution, <code>AmbitenContext</code> carries that identity,
+          and <code>MultiTenantManager</code> resolves the configuration,
+          client, database, and runtime resources required downstream.
         </p>
       </div>
 
       <div class="multi-tenancy-signal-strip">
-        <span>Request-scoped</span>
-        <span>Context-bound</span>
-        <span>Provider-resolved</span>
-        <span>Isolation enforced</span>
+        <span>Execution-scoped</span>
+        <span>Context-bound identity</span>
+        <span>Manager-resolved resources</span>
+        <span>Dynamic-tenant ready</span>
       </div>
     </div>
 
     <div class="multi-tenancy-pillars">
       <div class="multi-tenancy-pillar">
-        <strong>Boundary Resolution</strong>
+        <strong>Tenant Identity</strong>
+
         <p>
-          Tenant identity is extracted at the system boundary and bound into
-          <code>AmbitenContext</code>, establishing the execution scope.
+          A <code>TenantResolver</code> determines who the execution
+          belongs to and binds the resolved <code>tenantId</code> into
+          <code>AmbitenContext</code>.
         </p>
       </div>
 
       <div class="multi-tenancy-pillar">
-        <strong>Infrastructure Isolation</strong>
+        <strong>Tenant Infrastructure</strong>
+
         <p>
-          The provider resolves the correct database or partition strategy,
-          ensuring strict tenant separation at the infrastructure level.
+          <code>MultiTenantManager</code> owns tenant configuration,
+          dynamic discovery, lazy client activation, and resolution of
+          the database resources required by the active tenant.
         </p>
       </div>
 
       <div class="multi-tenancy-pillar">
         <strong>Execution Continuity</strong>
+
         <p>
-          Transactions, middleware, logging, and model execution all inherit
-          the same tenant boundary without manual propagation.
+          Models, middleware, transactions, logging, and instrumentation
+          consume the active tenant-aware execution state without requiring
+          tenant infrastructure to be propagated manually through
+          application code.
         </p>
       </div>
     </div>
@@ -46,28 +64,70 @@
     <div class="multi-tenancy-flow">
       <div class="multi-tenancy-flow-step">
         <span>Ingress</span>
-        <strong>Tenant-aware execution begins</strong>
+
+        <strong>
+          Request, operation, or job enters execution
+        </strong>
       </div>
 
-      <div class="multi-tenancy-flow-arrow">→</div>
+      <div
+        class="multi-tenancy-flow-arrow"
+        aria-hidden="true"
+      >
+        →
+      </div>
+
+      <div class="multi-tenancy-flow-step">
+        <span>Tenant Resolution</span>
+
+        <strong>
+          TenantResolver identifies the tenantId
+        </strong>
+      </div>
+
+      <div
+        class="multi-tenancy-flow-arrow"
+        aria-hidden="true"
+      >
+        →
+      </div>
 
       <div class="multi-tenancy-flow-step">
         <span>Context Binding</span>
-        <strong>Execution scope bound to AmbitenContext</strong>
+
+        <strong>
+          tenantId becomes part of AmbitenContext
+        </strong>
       </div>
 
-      <div class="multi-tenancy-flow-arrow">→</div>
-
-      <div class="multi-tenancy-flow-step">
-        <span>Provider Resolution</span>
-        <strong>Infrastructure resolved from active tenant boundary</strong>
+      <div
+        class="multi-tenancy-flow-arrow"
+        aria-hidden="true"
+      >
+        →
       </div>
 
-      <div class="multi-tenancy-flow-arrow">→</div>
+      <div class="multi-tenancy-flow-step">
+        <span>Infrastructure Resolution</span>
+
+        <strong>
+          MultiTenantManager resolves tenant configuration and resources
+        </strong>
+      </div>
+
+      <div
+        class="multi-tenancy-flow-arrow"
+        aria-hidden="true"
+      >
+        →
+      </div>
 
       <div class="multi-tenancy-flow-step">
-        <span>Execution</span>
-        <strong>Execution remains isolated throughout runtime</strong>
+        <span>Tenant-Aware Execution</span>
+
+        <strong>
+          Models operate against the resolved tenant infrastructure
+        </strong>
       </div>
     </div>
   </div>

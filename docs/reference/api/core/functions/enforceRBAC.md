@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [core](../README.md) / enforceRBAC
+[ambiten](../../../README.md) / [core/src](../README.md) / enforceRBAC
 
 # Function: enforceRBAC()
 
 > **enforceRBAC**(`resolver`, `permission`): (`parent`, `args`, `context`, `info`) => `Promise`\<`any`\>
 
-Defined in: [packages/core/src/middleware/rbac/rbacMiddleware.ts:216](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/core/src/middleware/rbac/rbacMiddleware.ts#L216)
+Defined in: [packages/core/src/middleware/rbac/rbacMiddleware.ts:216](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/core/src/middleware/rbac/rbacMiddleware.ts#L216)
 
 Middleware to enforce RBAC (Role-Based Access Control) on GraphQL resolvers
 
@@ -66,4 +66,3 @@ This function is designed to be used in GraphQL resolvers to enforce role-based 
  - [rolePermissions](../variables/rolePermissions.md) for the mapping of roles to permissions
 *
  - [getCachedData](getCachedData.md) and [setCachedData](setCachedData.md) for caching permissions
-

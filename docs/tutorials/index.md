@@ -1,8 +1,8 @@
 # Tutorials
 
-Learn Ambiten by building real systems instead of isolated examples.
+Learn Ambiten by building complete systems instead of isolated examples.
 
-Tutorials are designed to show how the runtime behaves across complete application workflows: context propagation, middleware execution, transactions, tenant isolation, instrumentation, and operational boundaries working together inside one system.
+Tutorials show how Ambiten behaves across real application workflows: execution boundaries, context propagation, model operations, middleware, transactions, tenant-aware infrastructure, instrumentation, and persistence working together inside one system.
 
 <OneRequestFlowVisual />
 
@@ -12,38 +12,139 @@ Ambiten is not only a collection of APIs.
 
 It is a runtime system.
 
-Understanding individual methods is useful, but production behavior emerges from how execution boundaries interact across adapters, context, models, middleware, transactions, and infrastructure resolution.
+Understanding individual methods is useful, but production behavior emerges from how execution boundaries interact across adapters, `AmbitenContext`, application logic, models, middleware, transactions, providers, tenant infrastructure, and MongoDB.
 
-That is why the tutorials focus on complete runtime flows rather than disconnected snippets.
+That is why the tutorials focus on complete execution flows rather than disconnected snippets.
 
-The goal is to help you understand how systems remain predictable as they grow in complexity.
+The goal is not only to show how to call Ambiten APIs.
+
+The goal is to show how execution remains understandable as an application grows.
+
+A typical runtime path looks like:
+
+```text
+Execution Ingress
+      ↓
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+Application Logic
+      ↓
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+The tutorials make that architecture concrete.
 
 ## What you will learn
 
-Each tutorial is built around a real architectural pattern rather than a synthetic example.
+Each tutorial is built around a real architectural pattern rather than a synthetic API demonstration.
 
-You will see how runtime context moves through requests, how middleware shapes behavior centrally, how tenant isolation remains enforced automatically, and how instrumentation exposes operational behavior without polluting business logic.
+You will see how execution state is established at a boundary and carried through the runtime.
 
-The tutorials also demonstrate how transactions, policies, and runtime guarantees interact under realistic workloads instead of only in simplified examples.
+You will learn how:
+
+- adapters establish framework execution boundaries
+- `AmbitenContext` carries execution-scoped state
+- application handlers remain focused on business behavior
+- `AmbitenModel` binds runtime state into an Effective `ModelContext`
+- schemas and middleware participate in model execution
+- tenant identity remains separate from tenant infrastructure
+- providers and `AmbitenClient` resolve database resources
+- transaction sessions propagate through participating Ambiten operations
+- instrumentation can observe runtime behavior without being scattered through business logic
+
+The tutorials also show where Ambiten's guarantees stop.
+
+External side effects, authorization policy, cross-process coordination, and infrastructure topology remain application or system responsibilities unless explicitly handled by the surrounding architecture.
 
 ## Learning structure
 
 Every tutorial follows the same architectural progression.
 
-```PlainText
+```text
 Product Definition
+
 → Data Modeling
+
 → Runtime Setup
+
+→ Execution Boundaries
+
 → Feature Workflows
+
 → Runtime Behavior
+
 → Operational Insight
 ```
 
-This structure keeps the focus on execution behavior instead of only implementation details.
+This structure keeps the focus on system behavior rather than only implementation syntax.
 
-You are not only learning how to write features.
+You are not only learning how to write a feature.
 
-You are learning how those features behave inside a controlled runtime system.
+You are learning how that feature participates in an execution.
+
+## From feature code to runtime behavior
+
+A feature inside Ambiten does not execute in isolation.
+
+For model-driven persistence, the runtime path is typically:
+
+```text
+Application Operation
+      ↓
+AmbitenModel
+      ↓
+mergeCtx()
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Collection Resolution
+      ↓
+DbProvider
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+The Effective `ModelContext` can inherit execution values such as:
+
+```text
+tenantId
+requestId
+dbName
+collectionName
+session
+```
+
+while also carrying operation-specific controls such as:
+
+```text
+db
+config
+withDeleted
+onlyDeleted
+hardDelete
+```
+
+This distinction is important throughout the tutorials.
+
+`AmbitenContext` represents the broader execution.
+
+`ModelContext` represents the persistence-facing state of a model operation.
 
 ## Available tutorials
 
@@ -51,43 +152,452 @@ You are learning how those features behave inside a controlled runtime system.
 
 ### Build a Document-to-PDF SaaS
 
-This tutorial walks through a complete multi-tenant SaaS application with tenant-aware execution, transaction-safe workflows, instrumentation-driven observability, and usage-tier enforcement.
+This tutorial builds a complete multi-tenant Document-to-PDF SaaS application.
 
-The system includes real operational concerns such as usage limits, upgrade flows, runtime policy enforcement, and request-scoped execution behavior.
+The system combines tenant-aware execution, transaction-aware workflows, runtime instrumentation, usage controls, and application-level policy decisions inside one architecture.
 
-Instead of treating Ambiten as an isolated data layer, the tutorial demonstrates how the runtime coordinates the entire execution path.
+You will follow the execution path from request ingress through tenant resolution and context binding into model operations and tenant-specific MongoDB infrastructure.
+
+The application includes practical concerns such as:
+
+```text
+tenant identification
+usage limits
+subscription tiers
+document creation
+PDF generation workflows
+transaction participation
+instrumentation
+upgrade flows
+runtime policy checks
+```
+
+Instead of treating Ambiten as an isolated database abstraction, the tutorial shows how the runtime coordinates execution state while leaving business behavior inside the application.
 
 → [Start tutorial](/tutorials/pdf-saas)
 
+## Execution-scoped context
+
+One of the most important ideas throughout the tutorials is that Ambiten context is execution-scoped.
+
+An HTTP request is only one possible execution boundary.
+
+Ambiten can also be used inside:
+
+```text
+background jobs
+queue consumers
+scheduled tasks
+workers
+CLI processes
+custom application workflows
+```
+
+Framework adapters normally establish the boundary automatically.
+
+Outside an adapter, an application can establish one explicitly with `AmbitenContext.run(...)`.
+
+Conceptually:
+
+```text
+Execution Begins
+      ↓
+AmbitenContext.run(...)
+      ↓
+Execution State Becomes Available
+      ↓
+Application Work
+      ↓
+Model Operations
+      ↓
+Execution Completes
+```
+
+This is why the tutorials use the term **execution** rather than assuming every operation originates from an HTTP request.
+
+## Tenant-aware execution
+
+The tutorials also distinguish tenant identity from tenant infrastructure.
+
+These are related, but they are not the same responsibility.
+
+```text
+Who is this execution for?
+        ↓
+TenantResolver
+
+Carry tenant identity
+        ↓
+AmbitenContext
+
+Where does this tenant run?
+        ↓
+TenantConfigResolver /
+MultiTenantManager
+
+Give me the MongoDB client
+        ↓
+TenantClientResolver /
+MultiTenantManager
+```
+
+A typical tenant-aware flow therefore looks like:
+
+```text
+Request / Invocation
+      ↓
+Tenant Resolution
+      ↓
+AmbitenContext.tenantId
+      ↓
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+MultiTenantManager
+      ↓
+Tenant MongoClient
+      ↓
+Tenant Database
+```
+
+The tutorials show this separation explicitly so tenant routing does not become confused with authentication or authorization.
+
+Tenant resolution answers:
+
+```text
+Which tenant is this execution for?
+```
+
+Authorization answers:
+
+```text
+May this caller act for that tenant?
+```
+
+Those are different concerns.
+
+## Transaction behavior
+
+Transactions are taught as execution boundaries rather than as individual model features.
+
+The transaction path is:
+
+```text
+Transaction Boundary
+      ↓
+ClientSession
+      ↓
+AmbitenContext.session
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+ModelContext.session
+      ↓
+Participating Ambiten Operations
+```
+
+The enclosing transaction boundary owns:
+
+```text
+start
+commit
+rollback
+completion
+```
+
+Individual models participate in the transaction but do not independently commit or roll back the surrounding workflow.
+
+The tutorials demonstrate both supported patterns.
+
+### Explicit transaction boundary
+
+```ts
+await AmbitenContext.withTransaction(async () => {
+  await DocumentModel.create({
+    title: "Quarterly Report"
+  });
+
+  await UsageModel.create({
+    operation: "pdf-generation"
+  });
+});
+```
+
+### Adapter-managed transaction boundary
+
+Where supported by the framework adapter:
+
+```ts
+enableTransactions: true
+```
+
+These are alternative transaction strategies.
+
+They are not two transaction layers that every application must combine.
+
+The tutorials also make an important boundary explicit:
+
+```text
+Ambiten transaction propagation
+≠
+automatic participation by every external operation
+```
+
+Participating Ambiten operations can inherit the active MongoDB session.
+
+External APIs, file storage, email delivery, queue publishing, and unrelated raw driver operations are not automatically made atomic by that MongoDB transaction.
+
+## Middleware and schema behavior
+
+Tutorials use middleware to demonstrate behavior that belongs close to the persistence boundary.
+
+A typical model flow is:
+
+```text
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Database Operation
+```
+
+Schemas remain reusable definitions.
+
+They can describe:
+
+```text
+structure
+validation
+normalization
+middleware
+soft-delete behavior
+persistence policy
+lifecycle configuration
+```
+
+Execution-specific state does not need to be embedded permanently into the schema.
+
+The model supplies the Effective `ModelContext` for the active operation.
+
+This keeps the distinction clear:
+
+```text
+Static definition.
+Dynamic execution.
+```
+
+## Instrumentation and operational insight
+
+Tutorials also show how runtime metadata can support instrumentation.
+
+`AmbitenContextState` can carry runtime information such as:
+
+```text
+requestId
+tenantId
+loggerMeta
+debug
+meta
+observer
+budget
+```
+
+This gives instrumentation a consistent execution context.
+
+The runtime provides the metadata boundary.
+
+How logs, traces, metrics, events, or telemetry are transported and stored remains the responsibility of the instrumentation backend being used.
+
+The goal is not to place observability logic inside every business operation.
+
+The goal is to make the execution information needed by instrumentation available at the runtime boundary.
+
+## Direct usage is still first-class
+
+Not every Ambiten application needs the complete runtime stack.
+
+Some tutorials and examples may begin directly with `AmbitenClient`.
+
+```text
+Application
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+Additional runtime capabilities can then be introduced progressively:
+
+```text
+AmbitenClient
+      ↓
+AmbitenContext
+      ↓
+AmbitenSchema + AmbitenModel
+      ↓
+Framework Adapters
+      ↓
+Multi-Tenant Runtime
+      ↓
+Transactions and Advanced Infrastructure
+```
+
+This progression is intentional.
+
+Ambiten does not require a small application, script, migration, educational example, or internal tool to adopt every runtime capability before it can perform useful work.
+
 ## What makes these tutorials different
 
-Most tutorials on the web focus on calling APIs.
+Many tutorials focus primarily on calling APIs.
 
 Ambiten tutorials focus on execution architecture.
 
-The emphasis is on runtime boundaries, operational correctness, scalability, and system behavior under production conditions rather than only showing how to invoke methods.
+The emphasis is on understanding:
 
-That distinction matters because most complexity in modern systems comes from execution coordination, not from individual database calls.
+```text
+where execution begins
+what state belongs to that execution
+how model operations inherit runtime state
+where persistence behavior belongs
+how tenant infrastructure is resolved
+who owns transaction completion
+how reusable infrastructure stays separate from execution state
+```
+
+That distinction matters because much of the complexity in growing systems comes from coordinating execution rather than from individual database calls.
+
+## Runtime responsibilities
+
+Throughout the tutorials, the same responsibility model is used consistently:
+
+```text
+Adapter
+→ framework execution ingress
+
+TenantResolver
+→ tenant identity
+
+AmbitenContext
+→ execution-scoped state
+
+Application
+→ business behavior
+
+AmbitenModel
+→ operation coordination and context binding
+
+ModelContext
+→ persistence-facing operation state
+
+AmbitenSchema
+→ structure and persistence behavior
+
+DbProvider
+→ database, client, and session contract
+
+MultiTenantManager
+→ tenant infrastructure
+
+AmbitenClient
+→ MongoDB capability
+
+Transaction Boundary
+→ transaction lifecycle
+
+MongoDB
+→ persistence
+```
+
+Keeping those responsibilities separate makes larger examples easier to understand.
+
+## Process state and execution state
+
+The tutorials also distinguish reusable process infrastructure from short-lived execution state.
+
+```text
+PROCESS LIFETIME
+
+AmbitenRuntime
+AmbitenClient
+MongoClient
+MultiTenantManager
+providers
+runtime configuration
+```
+
+```text
+EXECUTION LIFETIME
+
+AmbitenContext
+tenantId
+requestId
+dbName
+collectionName
+session
+logger metadata
+runtime metadata
+```
+
+And during model execution:
+
+```text
+OPERATION LIFETIME
+
+Effective ModelContext
+explicit overrides
+model defaults
+soft-delete controls
+operation configuration
+```
+
+This separation allows infrastructure to be reused while execution state remains isolated to the work that created it.
 
 ## When to use tutorials
 
-Tutorials are most useful when you want to understand how multiple runtime concepts work together inside a complete application.
+Tutorials are most useful when you want to understand how multiple Ambiten concepts work together inside a complete system.
 
-They are especially useful if you want to:
+They are especially useful when you want to:
 
 - move beyond isolated examples
-- understand request-scoped execution
-- study multi-tenant runtime behavior
-- see how instrumentation and middleware interact
-- learn how Ambiten behaves under realistic architectural conditions
+- understand execution-scoped context
+- study tenant-aware runtime behavior
+- see how `AmbitenContext` becomes an Effective `ModelContext`
+- understand middleware and schema participation
+- follow transaction state through participating operations
+- see how infrastructure is resolved without entering business logic
+- understand runtime instrumentation boundaries
+- study complete application execution flows
 
-For lower-level API details, use the core documentation and reference sections.
+For individual API contracts and lower-level behavior, use the Core documentation and reference sections.
 
 ## Summary
 
 Tutorials are where the Ambiten runtime becomes concrete.
 
-They demonstrate how context propagation, middleware, transactions, instrumentation, and tenant-aware execution combine to support real production-style systems instead of isolated code samples.
+They show how execution boundaries, `AmbitenContext`, application logic, `AmbitenModel`, Effective `ModelContext`, schemas, middleware, tenant infrastructure, transactions, instrumentation, and MongoDB fit together.
+
+The central model is:
+
+```text
+Boundary creates execution.
+
+Context carries execution.
+
+Model binds execution to an operation.
+
+ModelContext carries operation state.
+
+Infrastructure resolves resources.
+
+MongoDB performs persistence.
+```
+
+The goal is not simply to teach individual methods.
+
+It is to make the behavior of a complete Ambiten application understandable from ingress to persistence.
 
 ## Next step
 

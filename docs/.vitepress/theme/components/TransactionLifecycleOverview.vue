@@ -2,76 +2,174 @@
   <div class="transaction-overview">
     <div class="transaction-hero-card">
       <div class="transaction-hero-copy">
-        <span class="transaction-eyebrow">Transaction Model</span>
-        <h3>Atomic execution coordinated through AmbitenContext</h3>
+        <span class="transaction-eyebrow">
+          Transaction Model
+        </span>
+
+        <h3>
+          Atomic execution coordinated through AmbitenContext
+        </h3>
+
         <p>
-          Transactions are managed inside the runtime boundary so nested model
-          operations can participate in one consistent MongoDB session without
-          manual session propagation.
+          A transaction boundary binds a MongoDB session into
+          <code>AmbitenContext</code>, allowing participating model operations
+          to inherit the same transaction state through their effective
+          <code>ModelContext</code> without manual session propagation.
         </p>
       </div>
 
       <div class="transaction-signal-strip">
         <span>Session Created</span>
         <span>Context Bound</span>
-        <span>Session Reused</span>
+        <span>ModelContext Inherits</span>
         <span>Commit or Rollback</span>
       </div>
     </div>
 
     <div class="transaction-pillars">
       <div class="transaction-pillar">
-        <span class="transaction-eyebrow">Atomicity</span>
-        <strong>Dependent writes complete together or roll back together</strong>
+        <span class="transaction-eyebrow">
+          Atomicity
+        </span>
+
+        <strong>
+          Participating MongoDB writes complete inside one transaction boundary
+        </strong>
+
         <p>
-          A failed operation causes the active transaction boundary to roll back
-          instead of leaving partial persistence state behind.
+          When the transaction callback succeeds, the enclosing boundary can
+          commit. When it fails, the boundary aborts the transaction so
+          participating writes do not persist as a partial unit.
         </p>
       </div>
 
       <div class="transaction-pillar">
-        <span class="transaction-eyebrow">Propagation</span>
-        <strong>Sessions remain bound to the active runtime scope</strong>
+        <span class="transaction-eyebrow">
+          Propagation
+        </span>
+
+        <strong>
+          Session state flows from context into model execution
+        </strong>
+
         <p>
-          Once a transaction starts, downstream model calls resolve and reuse the
-          same session automatically through <code>AmbitenContext</code>.
+          The active session is stored in <code>AmbitenContext</code> and
+          projected by <code>AmbitenModel</code> into the effective
+          <code>ModelContext</code> used by participating operations.
         </p>
       </div>
 
       <div class="transaction-pillar">
-        <span class="transaction-eyebrow">Isolation</span>
-        <strong>Request and tenant boundaries remain intact</strong>
+        <span class="transaction-eyebrow">
+          Isolation
+        </span>
+
+        <strong>
+          Transaction state remains execution-scoped
+        </strong>
+
         <p>
-          Transaction state stays scoped to the current execution boundary,
-          preventing session leakage across requests, jobs, or tenants.
+          Each transaction belongs to its active execution boundary, preventing
+          session state from leaking into unrelated requests, jobs, workers, or
+          concurrent tenant executions.
         </p>
       </div>
     </div>
 
     <div class="transaction-flow">
       <div class="transaction-flow-step">
-        <span>Start</span>
-        <strong>withTransaction()</strong>
+        <span>
+          Boundary
+        </span>
+
+        <strong>
+          withTransaction()
+        </strong>
       </div>
-      <div class="transaction-flow-arrow" aria-hidden="true">→</div>
-      <div class="transaction-flow-step">
-        <span>Session</span>
-        <strong>MongoDB session initialized</strong>
+
+      <div
+        class="transaction-flow-arrow"
+        aria-hidden="true"
+      >
+        →
       </div>
-      <div class="transaction-flow-arrow" aria-hidden="true">→</div>
+
       <div class="transaction-flow-step">
-        <span>Scope</span>
-        <strong>Session bound to AmbitenContext</strong>
+        <span>
+          Session
+        </span>
+
+        <strong>
+          MongoDB session established
+        </strong>
       </div>
-      <div class="transaction-flow-arrow" aria-hidden="true">→</div>
-      <div class="transaction-flow-step">
-        <span>Execution</span>
-        <strong>Model operations reuse session</strong>
+
+      <div
+        class="transaction-flow-arrow"
+        aria-hidden="true"
+      >
+        →
       </div>
-      <div class="transaction-flow-arrow" aria-hidden="true">→</div>
+
       <div class="transaction-flow-step">
-        <span>Outcome</span>
-        <strong>Commit on success, rollback on failure</strong>
+        <span>
+          Context
+        </span>
+
+        <strong>
+          Session bound to AmbitenContext
+        </strong>
+      </div>
+
+      <div
+        class="transaction-flow-arrow"
+        aria-hidden="true"
+      >
+        →
+      </div>
+
+      <div class="transaction-flow-step">
+        <span>
+          Binding
+        </span>
+
+        <strong>
+          ModelContext inherits active session
+        </strong>
+      </div>
+
+      <div
+        class="transaction-flow-arrow"
+        aria-hidden="true"
+      >
+        →
+      </div>
+
+      <div class="transaction-flow-step">
+        <span>
+          Execution
+        </span>
+
+        <strong>
+          Participating operations reuse session
+        </strong>
+      </div>
+
+      <div
+        class="transaction-flow-arrow"
+        aria-hidden="true"
+      >
+        →
+      </div>
+
+      <div class="transaction-flow-step">
+        <span>
+          Outcome
+        </span>
+
+        <strong>
+          Boundary commits or rolls back
+        </strong>
       </div>
     </div>
   </div>

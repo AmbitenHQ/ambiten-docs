@@ -1,217 +1,1133 @@
+---
+title: Context Binding
+description: Understand how AmbitenModel combines execution context, model defaults, transaction state, and infrastructure resolution during runtime operations.
+---
+
 # Context Binding
 
-Context binding is the mechanism that allows `AmbitenModel` to execute against the active runtime scope without forcing infrastructure state through every layer of an application.
+Context binding is the mechanism that allows `AmbitenModel` to execute against the active runtime state without forcing infrastructure concerns through every layer of an application.
 
-In Ambiten, models do not operate as isolated collection wrappers. They execute inside a managed runtime boundary capable of supplying tenant identity, database selection, transaction state, collection overrides, and request metadata automatically during execution.
+In Ambiten, models do not operate as isolated collection wrappers.
 
-That is what makes model calls remain structurally simple:
+They execute inside a managed runtime boundary where execution-specific information such as:
+
+```text
+tenant identity
+request metadata
+database overrides
+collection overrides
+transaction session
+logger metadata
+custom runtime metadata
+```
+
+can participate in model execution automatically.
+
+This allows a model call to remain structurally simple:
 
 ```ts
 await UserModel.find({});
 ```
 
-while still ensuring the operation executes against the correct tenant, database, and transactional session.
+while the runtime determines the effective context and infrastructure required for that operation.
 
-## Why context binding exists
+Context binding is therefore the connection between:
 
-In conventional architectures, runtime state tends to leak into application services over time. Controllers and resolvers begin forwarding `tenantId`, `dbName`, and `session` values manually, and transaction participation becomes dependent on developer discipline rather than runtime guarantees.
-
-The result is predictable: infrastructure concerns spread across feature code, execution rules drift between services, and tenant-aware logic becomes duplicated throughout the application layer.
-
-Context binding eliminates that pattern by moving execution state into the runtime itself.
-
-Instead of manually propagating infrastructure state:
-
-```ts
-await UserModel.create(data, {
-  tenantId,
-  dbName,
-  session
-});
+```text
+execution state
 ```
 
-Ambiten allows models to resolve execution state from the active runtime boundary automatically:
+and:
 
-## The runtime binding model
+```text
+model execution
+```
 
-Context binding in Ambiten emerges from the interaction between four runtime layers.
+## Why Context Binding Exists
 
-Adapters establish the execution boundary. `AmbitenContext` stores request-scoped state. `AmbitenModel` consumes that state during execution, while `AmbitenClient` resolves the correct infrastructure target from the active context.
+In conventional application architectures, runtime state often leaks progressively into application APIs.
 
-The model itself does not discover infrastructure independently. It executes inside a scope that has already been established by the runtime.
+A service may begin with:
+
+```ts
+createUser(data);
+```
+
+and eventually become:
+
+```ts
+createUser(
+  tenantId,
+  dbName,
+  session,
+  requestId,
+  data
+);
+```
+
+The same infrastructure values then propagate through:
+
+```text
+controller
+   ↓
+service
+   ↓
+repository
+   ↓
+model
+```
+
+This creates several problems:
+
+- tenant identity becomes application plumbing,
+- transaction sessions depend on manual propagation,
+- database selection spreads into business services,
+- framework-specific request state leaks into domain APIs,
+- execution rules become inconsistent between application paths.
+
+Ambiten moves those concerns into the runtime.
+
+Instead of requiring every layer to forward:
+
+```text
+tenantId
+session
+dbName
+requestId
+```
+
+the execution boundary establishes runtime state once.
+
+Model execution can then consume that state when required.
+
+## The Binding Model
+
+Context binding is produced by several runtime layers working together.
+
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+AmbitenModel
+      ↓
+Effective Context
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
 
 <ContextBindingFlow />
 
-This separation is deliberate. The adapter owns ingress, the context owns state continuity, the model owns execution behavior, and the client owns infrastructure resolution.
+Each layer owns a distinct responsibility.
 
-## Bound execution state
+```text
+Execution Boundary
+→ establishes execution
 
-The runtime boundary may carry values such as tenant identity, request identifiers, database scope, collection overrides, active sessions, logging metadata, and instrumentation state.
+AmbitenContext
+→ carries execution state
 
-Those values can originate from:
+AmbitenModel
+→ consumes and resolves effective context
 
-```ts
-AmbitenContext.run(...)
-AmbitenContext.withTransaction(...)
-adapter-managed request scopes
-scoped providers such as withTenant(...)
+Provider
+→ resolves infrastructure bindings
+
+MultiTenantManager
+→ owns tenant infrastructure
+
+AmbitenClient
+→ bridges resolved infrastructure to MongoDB
 ```
 
-Once established, the execution scope remains available throughout the asynchronous call chain automatically.
+Context binding is therefore not simply:
 
-## Context-aware execution
+```text
+Context → Client
+```
 
-The clearest example of context binding is execution inside an explicit runtime boundary:
+It is the process by which execution state becomes meaningful to an individual model operation.
+
+## Bound Execution State
+
+An Ambiten execution boundary may carry values such as:
+
+```text
+tenantId
+requestId
+dbName
+collectionName
+transaction session
+debug state
+logger metadata
+custom metadata
+```
+
+Those values may originate from different runtime entry mechanisms.
+
+### Adapter-Managed Execution
+
+For supported frameworks:
+
+```text
+Express
+Fastify
+NestJS
+GraphQL
+AWS Lambda
+      ↓
+Adapter
+      ↓
+Adapter Runtime
+      ↓
+AmbitenContext
+```
+
+### Explicit Execution
+
+Outside adapter-managed environments:
 
 ```ts
 await AmbitenContext.run(
   {
     tenantId: "tenant-a",
-    requestId: "req-123",
-    dbName: "tenant_a_db"
+    requestId: "job-123"
   },
+
+  async () => {
+    await UserModel.find({});
+  }
+);
+```
+
+This is useful for:
+
+```text
+workers
+scheduled jobs
+queue consumers
+maintenance tasks
+custom runtimes
+```
+
+### Transaction Execution
+
+A transaction can add an active MongoDB session to the execution state:
+
+```ts
+await AmbitenContext.withTransaction(
+  async () => {
+    await UserModel.create(data);
+  }
+);
+```
+
+Context binding allows all of these execution styles to feed the same model runtime.
+
+## Context-Aware Execution
+
+Consider an explicitly established execution boundary:
+
+```ts
+await AmbitenContext.run(
+  {
+    tenantId: "tenant-a",
+    requestId: "req-123"
+  },
+
   async () => {
     return UserModel.find({});
   }
 );
 ```
 
-The model call itself remains unchanged, yet the runtime already understands which tenant is active, which database should be resolved, whether a transaction session exists, and which request metadata belongs to the operation.
+The model call remains:
 
-This is the central architectural idea behind Ambiten:
-
-```text
-Static model definition.
-Dynamic runtime execution.
+```ts
+UserModel.find({});
 ```
 
-## Provider-driven infrastructure resolution
+but the active execution contains:
 
-Context binding works because infrastructure resolution is delegated to the provider layer rather than embedded inside application code.
+```ts
+{
+  tenantId: "tenant-a",
+  requestId: "req-123"
+}
+```
 
-At execution time, the provider may resolve tenant-aware databases, scoped collections, active sessions, or runtime-specific overrides directly from the active context.
+The model does not need to rediscover where that tenant identity came from.
+
+It simply participates in the active runtime.
 
 Conceptually:
 
-```ts
-const db = await provider.db({
-  tenantId: "tenant-a",
-  dbName: "tenant_a_db"
-});
+```text
+External Input
+      ↓
+TenantResolver / Explicit Context
+      ↓
+AmbitenContext
+tenantId = tenant-a
+      ↓
+AmbitenModel
 ```
 
-In normal application code, this resolution happens automatically through the model and client layers. The runtime boundary changes per request, but the model definition itself remains stable.
+This is one of Ambiten's central architectural principles:
 
-## Transaction binding
+> **Static model definition. Dynamic runtime execution.**
 
-Transaction continuity depends on context binding.
+## Effective Context Resolution
 
-When a transaction boundary is active:
+`AmbitenModel` does not simply copy the active `AmbitenContext`.
 
-```ts
-await AmbitenContext.withTransaction(async () => {
-  await UserModel.create(data);
-  await AuditLogModel.create(log);
-});
+It resolves an **effective operation context**.
+
+The general precedence model is:
+
+```text
+explicit operation context
+        ↓
+active AmbitenContext
+        ↓
+model defaults
 ```
 
-the active MongoDB session becomes part of the execution context itself.
+Conceptually:
 
-All downstream model operations automatically participate in the same transaction boundary without requiring manual session propagation. This guarantees that nested execution paths remain atomic and transaction-safe even as the application grows more complex.
+```text
+Operation Starts
+      ↓
+explicit values
+      ↓
+active execution state
+      ↓
+model defaults
+      ↓
+Effective Context
+```
 
-## Tenant-aware execution
+Where the public API permits an explicit operation override, that value takes precedence over the corresponding active context or model default.
 
-Tenant binding follows the same runtime model.
+This makes model execution predictable while still allowing controlled operation-level customization.
 
-A request may enter the system with:
+## Why Effective Context Matters
+
+A model may be structurally configured with:
+
+```text
+default collection
+default database behavior
+model-specific metadata
+```
+
+while the active execution contributes:
+
+```text
+tenantId
+requestId
+transaction session
+```
+
+and an individual operation may provide a supported override.
+
+Context binding combines those sources into one effective state for that operation.
+
+The model definition itself does not need to mutate.
+
+```text
+Shared Model Definition
+        │
+        ├── Request A → Effective Context A
+        │
+        ├── Request B → Effective Context B
+        │
+        └── Worker C  → Effective Context C
+```
+
+This allows one model definition to serve many isolated executions.
+
+## Tenant Binding
+
+Tenant binding begins before the model operation.
+
+For adapter-managed requests:
+
+```text
+Request
+   ↓
+TenantResolver
+   ↓
+tenantId
+   ↓
+AmbitenContext
+```
+
+For example:
 
 ```http
 x-tenant-id: tenant-a
 ```
 
-Once the adapter resolves and binds that identity into `AmbitenContext`, every downstream model operation becomes tenant-aware automatically:
+may resolve to:
+
+```ts
+AmbitenContext.get().tenantId;
+// "tenant-a"
+```
+
+The model then consumes that active identity as part of effective context resolution.
+
+```text
+AmbitenContext
+tenantId = tenant-a
+      ↓
+AmbitenModel
+      ↓
+Effective Context
+tenantId = tenant-a
+```
+
+The model does not own the original tenant-resolution mechanism.
+
+## Tenant Identity vs Tenant Infrastructure
+
+Context binding carries tenant **identity**.
+
+It does not itself represent the tenant's MongoDB infrastructure.
+
+This distinction is fundamental.
+
+```text
+TenantResolver
+→ Who is this execution for?
+
+AmbitenContext
+→ Which tenant belongs to this execution?
+
+AmbitenModel
+→ What effective context applies to this operation?
+
+MultiTenantManager
+→ What infrastructure belongs to that tenant?
+```
+
+A bound context may contain:
+
+```text
+tenantId = tenant-a
+```
+
+without containing:
+
+```text
+MongoDB URI
+MongoClient
+database handle
+connection state
+```
+
+Those resources remain infrastructure concerns.
+
+## Tenant-Aware Infrastructure Resolution
+
+Once a model operation requires persistence, the effective tenant identity can be translated into infrastructure.
+
+Conceptually:
+
+```text
+AmbitenModel
+      ↓
+Effective Context
+tenantId = tenant-a
+      ↓
+MultiTenantManager
+      ↓
+TenantConfig
+      ↓
+Tenant MongoClient
+      ↓
+Tenant Database
+```
+
+This allows tenant-aware execution without forcing controllers or services to select databases manually.
+
+## Dynamic Tenant Binding
+
+Context binding does not require every tenant to be registered during application startup.
+
+For example, the active context may contain:
+
+```text
+tenantId = tenant5
+```
+
+while `tenant5` is not currently registered.
+
+Infrastructure resolution can then follow:
+
+```text
+tenant5
+   ↓
+MultiTenantManager.resolveTenant()
+   ↓
+not registered
+   ↓
+TenantConfigResolver
+   ↓
+external lookup
+   ↓
+register tenant5
+   ↓
+getClient()
+```
+
+The original model call remains unchanged:
 
 ```ts
 await UserModel.find({});
 ```
 
-The application layer remains clean while the runtime enforces tenant isolation underneath.
+Context binding identifies **which tenant belongs to the operation**.
 
-This separation is one of the reasons Ambiten scales more coherently in multi-tenant environments. Tenant isolation becomes part of the runtime architecture rather than an application-level filtering discipline.
+Dynamic tenant resolution determines **how that tenant's infrastructure becomes available**.
 
-## Request and observability continuity
+## Provider-Driven Infrastructure Resolution
 
-Context binding is not limited to persistence behavior. The same execution boundary can also carry request identifiers, audit metadata, tracing information, logging enrichment data, and instrumentation state.
+Providers remain part of the infrastructure-resolution model.
 
-Because that metadata moves with the runtime boundary itself, logs and telemetry remain correlated with the originating request automatically without requiring every service signature to carry observability parameters manually.
+At execution time, a provider may consume effective operation context and resolve resources such as:
 
-## Adapter-managed binding
-
-In most applications, context binding begins at the adapter layer.
-
-The adapter receives a request or event, extracts execution metadata, initializes AmbitenContext, and allows models to execute inside that runtime scope.
-
-This is why adapters are a foundational architectural layer in Ambiten rather than a simple transport convenience.
-
-The same execution model applies consistently across `Express`, `Fastify`, `NestJS`, `GraphQL`, `AWS Lambda`, and background execution flows without requiring model changes.
-
-## Scoped execution outside requests
-
-Execution scope can also be established explicitly outside request lifecycles.
-
-```ts
-const tenantProvider = client.withTenant("tenant-a");
-
-const UserModel = new AmbitenModel({
-  collectionName: "users",
-  schema: userSchema,
-  provider: tenantProvider
-});
+```text
+database
+collection
+client
+session
+runtime overrides
 ```
 
-This pattern is useful for background jobs, maintenance workflows, infrastructure tooling, and scheduled execution where request-bound adapters are not present.
-
-## What context binding prevents
-
-A well-defined runtime binding model prevents several common architectural failures.
-
-It removes repetitive infrastructure plumbing from feature code, prevents accidental tenant leakage, preserves transaction continuity across nested operations, and keeps infrastructure-routing logic out of application services.
-
-Instead of forcing business code to coordinate runtime state manually, Ambiten centralizes those concerns into the execution system itself.
-
-## Design guidance
-
-Context-driven execution should remain the default approach:
+Conceptually:
 
 ```ts
-await UserModel.create(data);
+const db =
+  await provider.db(ctx);
 ```
 
-rather than manually injecting infrastructure state:
+For tenant-aware operations, provider resolution may cooperate with `MultiTenantManager`.
+
+```text
+Effective Context
+      ↓
+Provider
+      ↓
+MultiTenantManager
+      ↓
+Tenant Infrastructure
+```
+
+The provider therefore consumes context.
+
+It does not determine the original tenant identity of the request.
+
+## AmbitenClient Relationship
+
+`AmbitenClient` participates after the required runtime infrastructure has been resolved.
+
+Conceptually:
+
+```text
+Effective Context
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+By this stage, the runtime should already understand the relevant:
+
+```text
+client
+database
+collection
+session
+operation options
+```
+
+`AmbitenClient` provides the MongoDB-facing bridge.
+
+It should not be confused with request tenant resolution or tenant registry ownership.
+
+## Transaction Binding
+
+Transaction continuity depends on the same context-binding mechanism.
+
+For example:
 
 ```ts
-await UserModel.create(data, {
+await AmbitenContext.withTransaction(
+  async () => {
+    await UserModel.create(
+      data
+    );
+
+    await AuditLogModel.create(
+      log
+    );
+  }
+);
+```
+
+The active transaction session becomes part of the runtime execution state.
+
+Conceptually:
+
+```text
+Transaction Boundary
+      ↓
+session S1
+      ↓
+AmbitenContext
+      ↓
+UserModel
+      ↓
+session S1
+      ↓
+AuditLogModel
+      ↓
+session S1
+```
+
+Participating Ambiten operations can resolve that session without manually passing it through service APIs.
+
+## Transaction Ownership
+
+Context binding makes the transaction session available to participating operations.
+
+It does not make each model operation responsible for transaction completion.
+
+The surrounding transaction boundary owns:
+
+```text
+commit
+rollback
+session lifecycle
+```
+
+For example:
+
+```text
+withTransaction()
+      ↓
+Model A
+      ↓
+Model B
+      ↓
+callback resolves
+      ↓
+commit
+```
+
+or:
+
+```text
+withTransaction()
+      ↓
+Model A
+      ↓
+Model B fails
+      ↓
+callback rejects
+      ↓
+rollback
+```
+
+This keeps transaction participation separate from transaction ownership.
+
+## Adapter-Managed Transaction Binding
+
+Adapters may establish request-wide transaction-aware execution when configured.
+
+Conceptually:
+
+```text
+Request
+   ↓
+Adapter
+   ↓
+AmbitenContext
+   ↓
+Transaction Boundary
+   ↓
+Application
+   ↓
+Model Operations
+```
+
+From the model's perspective, the source of the transaction does not matter.
+
+It consumes the active transaction state available through effective context.
+
+## Request Metadata Binding
+
+Context binding is not limited to persistence routing.
+
+The active execution may also carry:
+
+```text
+requestId
+debug metadata
+logger metadata
+custom execution metadata
+```
+
+For example:
+
+```ts
+const {
   tenantId,
-  session,
-  dbName
-});
+  requestId
+} = AmbitenContext.get();
 ```
 
-unless the application is intentionally overriding the active execution boundary.
+can provide runtime correlation information without requiring those values to appear in every service method signature.
 
-Models should remain runtime-agnostic. A model should not know whether execution originated from Express, GraphQL, Lambda, Fastify, or a background worker. The runtime boundary supplies execution state uniformly regardless of ingress source.
+This allows application services to remain focused on application data rather than execution plumbing.
 
-## Runtime relationship
+## Observability Context
+
+Runtime instrumentation can consume the same execution context used by model operations.
+
+Conceptually:
+
+```text
+AmbitenContext
+      ├── tenantId
+      ├── requestId
+      ├── database
+      ├── collection
+      └── metadata
+            ↓
+       instrumentation
+```
+
+This makes context-aware logging and telemetry possible across different execution environments.
+
+The runtime provides the metadata required for correlation.
+
+Delivery guarantees of a specific logging or telemetry backend remain part of that backend's own contract.
+
+## Middleware Binding
+
+Middleware executes as part of the same model operation and can therefore observe its effective execution state.
+
+Conceptually:
+
+```text
+Effective Context
+      ↓
+before middleware
+      ↓
+persistence operation
+      ↓
+after middleware
+```
+
+This allows policies such as:
+
+```text
+validation
+auditing
+normalization
+soft-delete behavior
+logging
+instrumentation
+access shaping
+```
+
+to operate consistently without requiring framework-specific context propagation.
+
+## Adapter-Managed Binding
+
+For supported frameworks, the adapter establishes the execution boundary before downstream application logic runs.
+
+```text
+Framework
+      ↓
+Adapter
+      ↓
+Adapter Runtime
+      ↓
+AmbitenContext
+      ↓
+Application
+      ↓
+AmbitenModel
+```
+
+This allows the same model to execute behind:
+
+```text
+Express
+Fastify
+NestJS
+GraphQL
+AWS Lambda
+```
+
+without requiring framework-specific model behavior.
+
+Adapters therefore provide runtime ingress.
+
+They do not change the model contract.
+
+## Explicit Binding Outside Requests
+
+Not every execution begins inside a framework adapter.
+
+Background work can establish context explicitly:
+
+```ts
+await AmbitenContext.run(
+  {
+    tenantId: "tenant-a",
+    requestId: "job-42"
+  },
+
+  async () => {
+    await UserModel.updateMany(
+      {},
+      {
+        $set: {
+          processed: true
+        }
+      }
+    );
+  }
+);
+```
+
+This pattern is appropriate for:
+
+```text
+queue consumers
+scheduled jobs
+maintenance workflows
+workers
+internal tooling
+```
+
+The model remains unchanged.
+
+Only the execution boundary is established differently.
+
+## Scoped Providers
+
+Where scoped providers such as `withTenant(...)` are used, infrastructure can also be intentionally bound outside an adapter-managed request flow.
+
+For example:
+
+```ts
+const tenantProvider =
+  client.withTenant(
+    "tenant-a"
+  );
+
+const UserModel =
+  new AmbitenModel({
+    collectionName:
+      "users",
+
+    schema:
+      userSchema,
+
+    provider:
+      tenantProvider
+  });
+```
+
+This represents an explicitly scoped infrastructure configuration.
+
+It is useful when an application deliberately wants a model/provider relationship bound to a known tenant or execution environment.
+
+It should not be confused with request tenant resolution.
+
+For ordinary request-aware multi-tenant execution, `AmbitenContext` and `MultiTenantManager` remain the primary runtime path.
+
+## Context Binding Across Concurrent Executions
+
+The same model definition can participate in multiple concurrent runtime boundaries.
+
+```text
+Request A
+tenantId = tenantA
+      ↓
+UserModel
+      ↓
+Effective Context A
+
+
+Request B
+tenantId = tenantB
+      ↓
+UserModel
+      ↓
+Effective Context B
+```
+
+The model definition is shared.
+
+The execution context is not.
+
+This is one of the key properties that allows Ambiten to support multi-tenant concurrency without storing request-specific state directly on shared model instances.
+
+## What Context Binding Prevents
+
+A well-defined binding model reduces several common architectural failure modes.
+
+### Manual Tenant Propagation
+
+Avoid:
+
+```ts
+service.execute(
+  tenantId,
+  data
+);
+```
+
+solely because the persistence layer needs tenant identity.
+
+### Manual Session Propagation
+
+Avoid:
+
+```ts
+service.execute(
+  session,
+  data
+);
+```
+
+solely because nested model operations need the active transaction.
+
+### Framework Request Propagation
+
+Avoid passing:
+
+```text
+Express Request
+Fastify Request
+NestJS ExecutionContext
+GraphQL Context
+Lambda Event
+```
+
+through application layers just so a model can determine runtime infrastructure.
+
+### Shared Mutable Execution State
+
+Avoid storing request-specific values in process-global or singleton mutable state.
+
+Context binding gives those values an execution-scoped home.
+
+## What Context Binding Does Not Mean
+
+Context binding does not mean every value in the runtime is immutable.
+
+Supported operation-level context may override lower-precedence context or model defaults where the public API permits it.
+
+Context binding also does not mean:
+
+```text
+tenant resolution = authorization
+```
+
+or:
+
+```text
+tenant identity = physical database topology
+```
+
+Those are separate concerns.
+
+The runtime binds execution identity.
+
+Infrastructure resolution interprets that identity according to configured rules.
+
+## Design Guidance
+
+Context-driven model execution should remain the default pattern.
+
+Prefer:
+
+```ts
+await UserModel.create(
+  data
+);
+```
+
+inside a valid execution boundary.
+
+Avoid manually attaching runtime infrastructure to every model call merely because the runtime is already able to resolve it.
+
+For example, do not routinely write:
+
+```ts
+await UserModel.create(
+  data,
+  {
+    tenantId,
+    session,
+    dbName
+  }
+);
+```
+
+when those values already belong to the active execution.
+
+Explicit operation context should be used when the operation intentionally needs to override the normal runtime resolution rules.
+
+## Models Should Remain Framework-Independent
+
+An `AmbitenModel` should not need to know whether execution originated from:
+
+```text
+Express
+Fastify
+NestJS
+GraphQL
+Lambda
+worker
+```
+
+The host environment establishes the boundary.
+
+The context carries execution state.
+
+The model resolves the effective operation context.
+
+Infrastructure layers determine where persistence occurs.
+
+This separation allows model behavior to remain stable across execution environments.
+
+## Runtime Relationship
 
 <SignalFlow
   aria-label="Context binding runtime relationship"
-  :items='["Adapter", "AmbitenContext", "AmbitenModel", "AmbitenClient", "MongoDB"]'
+  :items='[
+    "Execution Boundary",
+    "AmbitenContext",
+    "AmbitenModel",
+    "Infrastructure Resolution",
+    "MongoDB"
+  ]'
 />
 
-The adapter establishes execution scope. `AmbitenContext` preserves runtime state. `AmbitenModel` consumes that state during execution, while `AmbitenClient` resolves infrastructure and MongoDB performs persistence.
+The full relationship is:
+
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+AmbitenModel
+      ↓
+Effective Context
+      ↓
+Provider / MultiTenantManager
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+The model consumes execution state.
+
+The infrastructure layer interprets it.
+
+MongoDB performs persistence.
+
+## Mental Model
+
+A useful way to think about context binding is:
+
+```text
+The boundary establishes state.
+
+The context carries state.
+
+The model resolves effective state.
+
+Infrastructure interprets state.
+
+The client reaches MongoDB.
+```
+
+Or, more compactly:
+
+```text
+Context defines execution.
+
+Model binds execution to an operation.
+
+Infrastructure determines where it runs.
+```
 
 ## Summary
 
-Context binding is the mechanism that makes Ambiten models runtime-aware without coupling business logic to infrastructure concerns.
+Context binding is the mechanism that connects Ambiten's execution context to model operations without forcing runtime infrastructure through application APIs.
 
-It allows model execution to inherit tenant scope, transaction participation, database resolution, and request metadata directly from the active runtime boundary, keeping applications structurally clean while preserving consistent and predictable execution behavior at scale.
+It allows model execution to:
+
+- consume tenant identity from the active execution,
+- preserve request metadata across supported async execution,
+- participate in active transaction sessions,
+- combine explicit operation context with runtime state and model defaults,
+- resolve tenant infrastructure through `MultiTenantManager`,
+- resolve database, collection, client, and session resources through runtime infrastructure,
+- remain independent from the host framework.
+
+The complete binding path is:
+
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+AmbitenModel
+      ↓
+Effective Context
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+The model remains structurally stable.
+
+The context and infrastructure surrounding each operation can change dynamically.
+
+> **Static model definition. Dynamic runtime execution.**
+
+## See Also
+
+- [AmbitenModel](/models/ambiten-model)
+- [Defining Models](/models/defining-models)
+- [Provider Contract](/models/provider-contract)
+- [Context](/core/context)
+- [Transactions](/core/transactions)
+- [Runtime Execution Flow](/architecture/runtime-execution-flow)
+- [Execution Guarantees](/architecture/execution-guarantees)
+- [Multi-Tenancy Overview](/architecture/multi-tenancy/overview)
+- [Tenant Resolution](/architecture/multi-tenancy/tenant-resolution)
+- [MultiTenantManager](/architecture/multi-tenancy/multi-tenant-manager)
+- [Dynamic Tenants](/architecture/multi-tenancy/dynamic-tenants)
+- [AmbitenClient](/reference/api/ambiten-client)

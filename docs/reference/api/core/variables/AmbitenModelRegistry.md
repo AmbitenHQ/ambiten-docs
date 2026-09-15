@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [core](../README.md) / AmbitenModelRegistry
+[ambiten](../../../README.md) / [core/src](../README.md) / AmbitenModelRegistry
 
 # Variable: AmbitenModelRegistry
 
 > `const` **AmbitenModelRegistry**: `object`
 
-Defined in: [packages/core/src/utils/ModelRegistry.ts:9](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/core/src/utils/ModelRegistry.ts#L9)
+Defined in: [packages/core/src/utils/ModelRegistry.ts:9](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/core/src/utils/ModelRegistry.ts#L9)
 
 AmbitenModelRegistry manages registered Ambiten model instances.
 
@@ -91,4 +91,3 @@ AmbitenModelRegistry manages registered Ambiten model instances.
 #### Returns
 
 `void`
-

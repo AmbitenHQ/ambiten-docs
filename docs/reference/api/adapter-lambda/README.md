@@ -1,8 +1,8 @@
-[**ambiten**](../README.md)
+[**ambiten**](../../README.md)
 
 ***
 
-[ambiten](../README.md) / adapter-lambda
+[ambiten](../../README.md) / adapter-lambda/src
 
 # adapter-lambda/src
 

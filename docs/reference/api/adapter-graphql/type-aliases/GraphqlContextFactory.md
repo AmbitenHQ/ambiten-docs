@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [adapter-graphql](../README.md) / GraphqlContextFactory
+[ambiten](../../../README.md) / [adapter-graphql/src](../README.md) / GraphqlContextFactory
 
 # Type Alias: GraphqlContextFactory\<TSource, TResult\>
 
 > **GraphqlContextFactory**\<`TSource`, `TResult`\> = (`input`) => `Promise`\<`TResult`\> \| `TResult`
 
-Defined in: [packages/adapter-graphql/src/types.ts:9](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/adapter-graphql/src/types.ts#L9)
+Defined in: [packages/adapter-graphql/src/types.ts:9](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/adapter-graphql/src/types.ts#L9)
 
 ## Type Parameters
 
@@ -29,4 +29,3 @@ Defined in: [packages/adapter-graphql/src/types.ts:9](https://github.com/Ambiten
 ## Returns
 
 `Promise`\<`TResult`\> \| `TResult`
-

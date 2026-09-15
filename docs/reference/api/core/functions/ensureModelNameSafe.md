@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [core](../README.md) / ensureModelNameSafe
+[ambiten](../../../README.md) / [core/src](../README.md) / ensureModelNameSafe
 
 # Function: ensureModelNameSafe()
 
 > **ensureModelNameSafe**(`collectionName`): `string`
 
-Defined in: [packages/core/src/utils/ensureModelNameSafe.ts:11](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/core/src/utils/ensureModelNameSafe.ts#L11)
+Defined in: [packages/core/src/utils/ensureModelNameSafe.ts:11](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/core/src/utils/ensureModelNameSafe.ts#L11)
 
 Ensures that the provided model name is a valid, non-empty string.
 Throws an error if the model name is invalid.
@@ -36,4 +36,3 @@ The collection name to validate.
 ```ts
 const safeModelName = ensureModelNameSafe('MyModel123');
 ```
-

@@ -5,6 +5,394 @@ aside: false
 
 <div class="vp-doc Ambiten-alt-home">
 <div class="ambiten-home-watermark" aria-hidden="true"></div>
+
+<section class="ambiten-alt-hero">
+  <article class="ambiten-alt-hero-copy">
+    <span class="ambiten-alt-kicker">Ambiten Runtime</span>
+    <h1>Context-aware MongoDB execution for modern application runtimes.</h1>
+    <p class="ambiten-alt-manifesto">
+      Establish execution context once. Carry it through the runtime.
+    </p>
+    <p class="ambiten-alt-positioning">
+      Ambiten turns MongoDB data access into a runtime foundation for
+      tenant-aware, transaction-aware, and observable application execution.
+    </p>
+    <p class="ambiten-alt-lead">
+      Ambiten is a framework-agnostic MongoDB runtime for applications that need
+      more than document access. Tenant identity, request metadata, transaction
+      sessions, database scope, middleware behavior, provider resolution, and
+      instrumentation metadata can move through a defined execution model instead
+      of being manually threaded through every application layer.
+    </p>
+    <div class="ambiten-alt-actions">
+      <a
+        class="ambiten-alt-action primary"
+        href="/getting-started/one-request-flow"
+      >
+        See One Request Flow
+      </a>
+      <a
+        class="ambiten-alt-action secondary"
+        href="/getting-started/introduction"
+      >
+        Start With Ambiten
+      </a>
+      <a
+        class="ambiten-alt-action tertiary"
+        href="/operations/director"
+      >
+        Explore Director
+      </a>
+    </div>
+    <div class="ambiten-alt-proof">
+      <div>
+        <strong>Execution-scoped</strong>
+        <span>
+          Tenant, request, database, session, and runtime metadata can remain
+          available throughout an Ambiten execution.
+        </span>
+      </div>
+      <div>
+        <strong>Transaction-aware</strong>
+        <span>
+          Participating model operations can inherit the active MongoDB session
+          from an enclosing transaction boundary.
+        </span>
+      </div>
+      <div>
+        <strong>Adapter-driven</strong>
+        <span>
+          The same runtime model can serve Express, Fastify, NestJS, GraphQL,
+          Lambda, workers, and explicit execution flows.
+        </span>
+      </div>
+    </div>
+  </article>
+
+  <aside class="ambiten-alt-hero-visual">
+    <img
+      class="ambiten-alt-spirit-hero"
+      src="/ambiten_brand/ambiten-spirit-premium.svg"
+      alt=""
+      aria-hidden="true"
+    />
+    <div class="ambiten-alt-orbit">
+      <div class="ambiten-alt-orbit-ring ambiten-alt-ring-b"></div>
+      <div class="ambiten-alt-orbit-ring ambiten-alt-ring-a"></div>
+      <div class="ambiten-alt-orbit-core">
+        <img
+          class="ambiten-orbit-mark ambiten-orbit-mark-light"
+          src="/ambiten_brand/ambiten-wordmark-light.png"
+          alt="Ambiten"
+        />
+        <img
+          class="ambiten-orbit-mark ambiten-orbit-mark-dark"
+          src="/ambiten_brand/ambiten-wordmark-dark.png"
+          alt=""
+          aria-hidden="true"
+        />
+      </div>
+      <span class="ambiten-alt-node ambiten-alt-node-a">
+        <span>Context</span>
+      </span>
+      <span class="ambiten-alt-node ambiten-alt-node-b">
+        <span>Adapters</span>
+      </span>
+      <span class="ambiten-alt-node ambiten-alt-node-c">
+        <span>Transactions</span>
+      </span>
+      <span class="ambiten-alt-node ambiten-alt-node-d">
+        <span>Tenancy</span>
+      </span>
+    </div>
+  </aside>
+</section>
+
+<section class="ambiten-alt-runtime-band">
+  <div class="ambiten-alt-runtime-copy">
+    <span class="ambiten-alt-kicker">One Runtime Flow</span>
+    <h2>
+      An execution enters once. Ambiten carries its runtime state toward persistence.
+    </h2>
+    <p>
+      In many MongoDB applications, the difficult part is not the database call
+      itself. The difficult part is preserving the execution state around that
+      call: which tenant is active, which request or job initiated the work,
+      which database should be used, whether a transaction session exists, which
+      middleware participates, and what runtime metadata should be available to
+      instrumentation.
+    </p>
+    <p>
+      Ambiten gives those concerns a defined execution path instead of leaving
+      them as repeated plumbing across controllers, services, resolvers,
+      background jobs, and model calls.
+    </p>
+  </div>
+
+  <div class="ambiten-alt-runtime-chain">
+    <span>Execution Boundary</span>
+    <span>AmbitenContext</span>
+    <span>AmbitenModel</span>
+    <span>Effective ModelContext</span>
+    <span>Schema / Middleware</span>
+    <span>Infrastructure</span>
+    <span>MongoDB</span>
+  </div>
+</section>
+
+<RuntimeAdapterGrid />
+
+<section class="ambiten-director-home">
+  <article class="ambiten-director-home-copy">
+    <span class="ambiten-alt-kicker">Director Observability</span>
+    <h2>
+      Execution-level operational insight for the systems Ambiten powers.
+    </h2>
+    <p>
+      Director is the planned operational intelligence layer for Ambiten. It is
+      designed to build on structured runtime telemetry and turn execution
+      signals into views around tenant activity, execution scope, transaction
+      outcomes, runtime budgets, latency patterns, and operational behavior.
+    </p>
+    <p>
+      Director is currently presented as a product preview. Ambiten Core provides
+      the execution model and runtime metadata; instrumentation exposes the
+      signals; Director is designed to correlate and present those signals in a
+      form teams can investigate and act on.
+    </p>
+    <div class="ambiten-alt-actions">
+      <a
+        class="ambiten-alt-action primary"
+        href="/operations/director"
+      >
+        Open Director Preview
+      </a>
+      <a
+        class="ambiten-alt-action secondary director-home-secondary"
+        href="/core/instrumentation"
+      >
+        View Instrumentation
+      </a>
+    </div>
+  </article>
+
+  <article class="ambiten-director-home-panel">
+    <div class="ambiten-director-home-panel-head">
+      <span>Runtime Signals</span>
+      <strong>What Director is designed to surface</strong>
+    </div>
+    <div class="ambiten-director-signal-list">
+      <div>
+        <strong>Tenant activity</strong>
+        <span>
+          Compare query volume, latency, runtime budgets, and operational
+          patterns across tenant workloads.
+        </span>
+      </div>
+      <div>
+        <strong>Scope visibility</strong>
+        <span>
+          Surface operations without expected tenant or execution identity so
+          teams can distinguish intentional system work from unexpected runtime
+          behavior.
+        </span>
+      </div>
+      <div>
+        <strong>Transaction diagnostics</strong>
+        <span>
+          Observe transaction outcomes, abort patterns, durations, and runtime
+          failure signals where corresponding telemetry is available.
+        </span>
+      </div>
+    </div>
+    <div class="ambiten-director-home-alerts">
+      <span>execution telemetry</span>
+      <span>query instrumentation</span>
+      <span>runtime insight</span>
+    </div>
+  </article>
+</section>
+<HomepageLoggerSection />
+<section class="ambiten-alt-surface">
+  <article class="ambiten-alt-surface-primary">
+    <span class="ambiten-alt-kicker">Why Ambiten Exists</span>
+    <h2>
+      MongoDB applications become harder to reason about when execution state
+      lives everywhere.
+    </h2>
+    <p>
+      Most teams can write CRUD operations. The harder problem appears as the
+      application grows: tenant identity moves through too many layers,
+      transactions depend on nested calls receiving the right session, database
+      scope is reconstructed in different places, and instrumentation loses the
+      execution information needed to explain what happened.
+    </p>
+    <p>
+      Ambiten addresses that problem by giving execution state a defined runtime
+      path. Models remain focused on persistence operations while context,
+      middleware, provider infrastructure, transaction sessions, and runtime
+      metadata participate around them through explicit responsibilities.
+    </p>
+  </article>
+  <article class="ambiten-alt-surface-code">
+    <span class="ambiten-alt-kicker">Runtime Experience</span>
+    <pre class="ambiten-alt-code-sample">
+      <code>
+      await AmbitenContext.withTransaction(async () =&gt; {
+        const user = await UserModel.create({
+          name: 'Amina',
+          email: 'amina@team.io'
+        });
+        await AuditLogModel.create({
+          action: 'USER_CREATED',
+          userId: user._id
+        });
+      });
+      </code>
+    </pre>
+    <p>
+      Participating Ambiten model operations can inherit the active transaction
+      session through the execution context. Tenant identity, request metadata,
+      and other execution state can also be inherited when they have been
+      established by the surrounding runtime.
+    </p>
+  </article>
+</section>
+
+<section class="ambiten-alt-grid">
+  <article class="ambiten-alt-card">
+    <span class="ambiten-alt-kicker">Product Delivery</span>
+    <h3>Keep feature code focused on application intent.</h3>
+    <p>
+      Ambiten reduces the amount of execution state that application code must
+      manually carry through every workflow. Context belongs to the runtime,
+      persistence state belongs to the model operation, and infrastructure
+      resolution stays behind defined provider boundaries.
+    </p>
+  </article>
+
+  <article class="ambiten-alt-card">
+    <span class="ambiten-alt-kicker">Platform Discipline</span>
+    <h3>Give runtime responsibilities explicit owners.</h3>
+    <p>
+      Context propagation, transaction participation, tenant-aware infrastructure,
+      middleware, lifecycle behavior, and instrumentation each have defined
+      places in the runtime instead of depending entirely on conventions repeated
+      across application code.
+    </p>
+  </article>
+
+  <article class="ambiten-alt-card">
+    <span class="ambiten-alt-kicker">Runtime Portability</span>
+    <h3>Use one persistence model across different execution environments.</h3>
+    <p>
+      Ambiten's adapter model allows the same application and persistence layer
+      to participate behind REST APIs, GraphQL resolvers, NestJS services,
+      Lambda handlers, background workers, and explicit runtime boundaries.
+    </p>
+  </article>
+</section>
+
+<section class="ambiten-alt-comparison">
+  <div class="ambiten-alt-comparison-head">
+    <span class="ambiten-alt-kicker">Capability Surface</span>
+    <h2>
+      What Ambiten adds around ordinary MongoDB data access.
+    </h2>
+    <p>
+      Ambiten is not only concerned with how documents are created, read,
+      updated, or deleted. Its value is in the execution model around those
+      operations: context propagation, model binding, provider resolution,
+      transaction participation, framework integration, tenant-aware
+      infrastructure, and operational metadata.
+    </p>
+  </div>
+
+  <div class="ambiten-alt-matrix">
+    <div>
+      <strong>Execution-scoped state</strong>
+      <span>
+        Tenant, request, database, session, and runtime metadata can remain
+        available across asynchronous execution through AmbitenContext.
+      </span>
+    </div>
+    <div>
+      <strong>Progressive adoption</strong>
+      <span>
+        Start directly with AmbitenClient, then add models, context, adapters,
+        multi-tenancy, and transaction boundaries as application requirements
+        grow.
+      </span>
+    </div>
+    <div>
+      <strong>Adapter portability</strong>
+      <span>
+        Establish the same runtime model across Express, Fastify, NestJS,
+        GraphQL, Lambda, workers, and explicit execution flows.
+      </span>
+    </div>
+    <div>
+      <strong>Transaction participation</strong>
+      <span>
+        Participating operations can inherit the active MongoDB session when
+        executed inside a compatible transaction boundary.
+      </span>
+    </div>
+    <div>
+      <strong>Provider-based resolution</strong>
+      <span>
+        Models retain their collection boundary while provider infrastructure
+        resolves the database, MongoDB client, and active session required by
+        the operation.
+      </span>
+    </div>
+    <div>
+      <strong>Operational visibility</strong>
+      <span>
+        Instrumentation can consume tenant, request, operation, and runtime
+        metadata without requiring every application layer to reconstruct it.
+      </span>
+    </div>
+  </div>
+</section>
+
+<section class="ambiten-alt-footer-cta">
+  <div>
+    <span class="ambiten-alt-kicker">Explore The Runtime</span>
+    <h2>
+      Start with one execution, then understand the system behind it.
+    </h2>
+    <p>
+      Follow execution through adapters, context, model binding, middleware,
+      infrastructure resolution, and MongoDB. From there, go deeper into
+      multi-tenancy, transactions, instrumentation, deployment, and the
+      operational intelligence Ambiten is designed to support.
+    </p>
+  </div>
+  <div class="ambiten-alt-actions">
+    <a
+      class="ambiten-alt-action primary"
+      href="/getting-started/one-request-flow"
+    >
+      One Request Flow
+    </a>
+    <a
+      class="ambiten-alt-action secondary"
+      href="/architecture/whitepaper"
+    >
+      Architecture
+    </a>
+  </div>
+</section>
+</div>
+
+<!-- ---
+layout: home
+aside: false
+---
+
+<div class="vp-doc Ambiten-alt-home">
+<div class="ambiten-home-watermark" aria-hidden="true"></div>
 <section class="ambiten-alt-hero">
   <article class="ambiten-alt-hero-copy">
     <span class="ambiten-alt-kicker">Ambiten Runtime</span>
@@ -268,4 +656,4 @@ aside: false
   </div>
 </section>
 
-</div>
+</div> -->

@@ -31,7 +31,7 @@ export default defineConfig({
         name: "google-site-verification",
         content: "MxnaimBNAEhGC1KuM_5mNUjOfQErcoBf6CEPW5Gljfo"
       }
-    ],
+    ], 
     [
       "meta",
       {
@@ -165,7 +165,6 @@ export default defineConfig({
         items: [
           { text: "Overview", link: "/architecture/whitepaper" },
           { text: "Runtime Execution Flow", link: "/architecture/runtime-execution-flow" },
-          { text: "Multi-Tenancy", link: "/architecture/multi-tenancy" },
           { text: "Execution Guarantees", link: "/architecture/execution-guarantees" }
         ]
       },
@@ -177,6 +176,17 @@ export default defineConfig({
           { text: "Transactions", link: "/core/transactions" },
           { text: "Middleware", link: "/core/middleware" },
           { text: "Instrumentation", link: "/core/instrumentation" }
+        ]
+      },
+      {
+        text: "Multi Tenancy",
+        collapsed: true,
+        items: [
+          { text: "Overview", link: "/multi-tenant/overview" },
+          { text: "Tenant Resolution", link: "/multi-tenant/tenant-resolver" },
+          { text: "MultiTenantManager", link: "/multi-tenant/multi-tenant-manager" },
+          { text: "Dynamic Tenants", link: "/multi-tenant/dynamic-tenants" },
+          { text: "Framework Adapters", link: "/multi-tenant/framework-adapters" }
         ]
       },
       {
@@ -272,16 +282,16 @@ export default defineConfig({
         ]
       },
       {
-        text: "Adapters",
+        text: "Framework Adapters", 
         collapsed: true,
         items: [
-          { text: "Overview", link: "/adapters/overview" },
-          { text: "Express", link: "/adapters/express" },
-          { text: "Fastify", link: "/adapters/fastify" },
-          { text: "NestJS", link: "/adapters/nestjs" },
-          { text: "GraphQL", link: "/adapters/graphql" },
-          { text: "Lambda", link: "/adapters/lambda" },
-          { text: "Usage Patterns", link: "/adapters/usage-patterns" }
+          { text: "Overview", link: "/framework-adapters/overview" },
+          { text: "Express", link: "/framework-adapters/express" },
+          { text: "Fastify", link: "/framework-adapters/fastify" },
+          { text: "NestJS", link: "/framework-adapters/nestjs" },
+          { text: "GraphQL", link: "/framework-adapters/graphql" },
+          { text: "Lambda", link: "/framework-adapters/lambda" },
+          { text: "Usage Patterns", link: "/framework-adapters/usage-patterns" }
         ]
       },
       {

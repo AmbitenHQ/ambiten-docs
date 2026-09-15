@@ -1,14 +1,14 @@
-[**ambiten**](../../README.md)
+[**ambiten**](../../../README.md)
 
 ***
 
-[ambiten](../../README.md) / [core](../README.md) / measureQuery
+[ambiten](../../../README.md) / [core/src](../README.md) / measureQuery
 
 # Function: measureQuery()
 
 > **measureQuery**\<`T`\>(`meta`, `executor`): `Promise`\<`T`\>
 
-Defined in: [packages/core/src/instrumentation/measureQueryWithErrors.ts:14](https://github.com/AmbitenHQ/ambiten/blob/cc0e7b03036ce0e549488b37d6b1276a65498bee/packages/core/src/instrumentation/measureQueryWithErrors.ts#L14)
+Defined in: [packages/core/src/instrumentation/measureQueryWithErrors.ts:14](https://github.com/AmbitenHQ/ambiten/blob/e30d8aa39363c5a87d56414ab76b4b08bc2a477d/packages/core/src/instrumentation/measureQueryWithErrors.ts#L14)
 
 ## Type Parameters
 
@@ -29,4 +29,3 @@ Defined in: [packages/core/src/instrumentation/measureQueryWithErrors.ts:14](htt
 ## Returns
 
 `Promise`\<`T`\>
-

@@ -2,57 +2,116 @@
 
 Read operations retrieve documents through the Ambiten model layer.
 
-Although reads are often treated as straightforward database lookups, they still participate in the runtime. Queries can be shaped by middleware, scoped by tenant and database context, filtered by lifecycle policies such as soft delete, instrumented for observability, and normalized before results reach application code.
+Although reads often look like straightforward database lookups, they can still participate in the runtime. Queries can be shaped by middleware, inherit execution state, participate in tenant-aware infrastructure resolution, observe soft-delete controls, reuse active transaction sessions, and expose structured information to instrumentation where those capabilities are configured.
 
-This allows reads to remain simple at the API surface while still behaving consistently across environments and execution boundaries.
+This keeps the API surface simple while allowing read behavior to remain aligned with the surrounding runtime.
 
 ## What read means in Ambiten
 
-In Ambiten, a read operation is part of the runtime execution flow rather than a direct driver call.
+In Ambiten, a model read participates in the same execution model as other model operations.
 
-A query may pass through middleware, inherit tenant scope from `AmbitenContext`, resolve the correct database and collection, execute under transaction-aware conditions, and return results in a normalized form.
+```text
+Application
+      ↓
+AmbitenModel Read Operation
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Collection Resolution
+      ↓
+DbProvider / AmbitenClient
+      ↓
+MongoDB
+```
 
-This keeps query behavior predictable across services, adapters, workers, and request lifecycles.
+The model can inherit execution state from `AmbitenContext`, merge it with explicit operation context and model defaults, and use the resulting Effective `ModelContext` throughout the operation.
+
+```text
+explicit operation ModelContext
+        ↓
+active AmbitenContext
+        ↓
+model defaults
+        ↓
+Effective ModelContext
+```
+
+This allows the same read API to participate in adapters, workers, scripts, transactions, and tenant-aware infrastructure without requiring every caller to manually coordinate database resources.
 
 ## Finding multiple documents
 
 Use `find()` to retrieve multiple matching documents:
 
 ```ts
-const users = await UserModel.find({});
+const users =
+  await UserModel.find({});
 ```
 
-This is the standard path for list-style queries, filtered datasets, dashboards, and general application reads that expect multiple results.
+This is the standard path for list-style queries, filtered datasets, dashboards, and application reads that expect multiple results.
+
+More selective filters should be preferred when the application does not actually need the full collection.
 
 ## Finding a single document
 
-Use `findOne()` when the query should resolve to one record:
+Use `findOne()` when the query should resolve to one matching document:
 
 ```ts
-const user = await UserModel.findOne({
-  email: "alice@example.com"
-});
+const user =
+  await UserModel.findOne({
+    email: "alice@example.com"
+  });
 ```
 
-This pattern is typically used for identifier lookups, unique-field queries, and workflows where only one result is expected.
+This pattern is useful for identifier lookups, unique-field queries, and workflows where only one matching result is required.
 
 ## Typical execution flow
 
 <ReadOperationFlow />
 
-Read behavior is often shaped by runtime rules before the query reaches MongoDB. Middleware, tenant scope, instrumentation, and lifecycle policies can all influence execution.
+Read behavior can be shaped before the query reaches MongoDB.
+
+```text
+AmbitenContext
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+Effective ModelContext
+      ↓
+Read Middleware
+      ↓
+Collection Resolution
+      ↓
+Provider Resolution
+      ↓
+MongoDB Query
+      ↓
+Post-Operation Behavior
+```
+
+The model owns the collection boundary.
+
+The provider path resolves the database, MongoDB client, and active session needed by the operation.
 
 ## Runtime behavior
 
-In a standard read flow, middleware may modify the filter before execution, the active tenant and database are resolved from context, the query executes against the correct persistence boundary, and post-query hooks can observe or normalize the returned result.
+In a configured read flow:
 
-This allows reads to participate in system-wide query policies without scattering filtering logic across controllers, services, or resolvers.
+- middleware can inspect or modify the filter
+- execution state can contribute tenant, database, request, and session information
+- soft-delete controls can affect which records are eligible for retrieval
+- the model resolves its collection
+- the provider resolves the MongoDB infrastructure used by the query
+- post-operation behavior can observe or transform the result where configured
 
-## Normalized results
+This keeps read behavior aligned with the same runtime model used by other Ambiten model operations.
 
-Results can be normalized before they are returned to application code.
+## Returned results
 
-For example:
+A read result may look like:
 
 ```json
 {
@@ -61,107 +120,287 @@ For example:
 }
 ```
 
-The exact structure depends on the schema and model configuration, but the goal is to keep result handling consistent and predictable across the application.
+The exact result shape depends on the document type, schema behavior, projection, query method, and any configured post-operation processing.
+
+Ambiten should not be understood as forcing every read into one universal result shape.
+
+Instead, the model runtime provides a consistent execution path around the query.
 
 ## Context-aware reads
 
-Read operations can execute against an explicit runtime scope when necessary:
+Read operations can receive explicit persistence-facing context when a particular operation needs it:
 
 ```ts
 await UserModel.find(
-  { active: true },
-  { tenantId: "tenant-a" }
+  {
+    active: true
+  },
+  {
+    tenantId: "tenant-a"
+  }
 );
 ```
 
-This is useful for operational tooling, workers, scripts, or controlled maintenance flows.
+The Effective `ModelContext` follows the normal precedence:
 
-In normal request-driven applications, explicit runtime overrides should be rare. Most reads should inherit scope from adapters or `AmbitenContext`.
+```text
+explicit operation ModelContext
+        ↓
+active AmbitenContext
+        ↓
+model defaults
+        ↓
+Effective ModelContext
+```
+
+Explicit operation context can be useful for:
+
+```text
+workers
+maintenance jobs
+scripts
+administrative tooling
+controlled infrastructure workflows
+```
+
+In adapter-managed application flows, explicit overrides usually do not need to be supplied when the required execution state has already been established through `AmbitenContext`.
 
 ## Middleware around reads
 
-Read middleware is commonly used to enforce centralized query policies.
+Read middleware can centralize persistence-level query behavior.
 
-Example:
+For example:
 
 ```ts
-userSchema.pre("find", async (ctx) => {
-  ctx.filter = {
-    ...(ctx.filter || {}),
-    active: true
-  };
-});
+userSchema.pre(
+  "find",
+  async (ctx) => {
+    ctx.filter = {
+      ...(ctx.filter || {}),
+      active: true
+    };
+  }
+);
 ```
 
-Because middleware executes inside the runtime boundary, query shaping, lifecycle rules, observability behavior, and access policies can remain centralized instead of being repeated throughout the application.
+Middleware can be useful for concerns such as:
 
-## Soft delete behavior
+```text
+default filters
+soft-delete behavior
+query normalization
+persistence-level policy
+instrumentation hooks
+```
 
-Read operations are one of the primary places where soft-delete policy is enforced.
+This keeps reusable query behavior close to the persistence boundary rather than duplicating it throughout application services and controllers.
 
-A standard query such as:
+Middleware should not be treated as a replacement for application authentication or authorization.
+
+A query filter may contribute to data access policy, but authorization still depends on the surrounding security model.
+
+## Soft-delete behavior
+
+When soft-delete behavior is configured, read operations can exclude deleted records by default.
+
+For example:
 
 ```ts
 await UserModel.find({});
 ```
 
-may automatically exclude deleted records through middleware or runtime policy.
+may return only active records when the model's lifecycle policy applies an appropriate deleted-state filter.
 
-Different retrieval behavior can still be requested explicitly.
+The operation context also supports explicit lifecycle controls.
 
 Include deleted records:
 
 ```ts
-await UserModel.find({}, { withDeleted: true });
+await UserModel.find(
+  {},
+  {
+    withDeleted: true
+  }
+);
 ```
 
 Return only deleted records:
 
 ```ts
-await UserModel.find({}, { onlyDeleted: true });
+await UserModel.find(
+  {},
+  {
+    onlyDeleted: true
+  }
+);
 ```
 
-This keeps lifecycle behavior consistent without forcing every query path to remember the same filtering rules manually.
+Conceptually:
+
+```text
+ModelContext
+      ↓
+withDeleted /
+onlyDeleted
+      ↓
+Read Lifecycle Behavior
+      ↓
+MongoDB Query
+```
+
+These controls keep lifecycle behavior centralized without requiring every application query to manually reconstruct the same deleted-state filter.
+
+The exact behavior still depends on the model and schema soft-delete configuration.
+
+## Transaction-aware reads
+
+Read operations can participate in an active Ambiten transaction when they execute through compatible transaction-aware infrastructure.
+
+```ts
+await AmbitenContext.withTransaction(
+  async () => {
+    const user =
+      await UserModel.findOne({
+        email:
+          "alice@example.com"
+      });
+
+    // other participating operations
+  }
+);
+```
+
+The session path is:
+
+```text
+Transaction Boundary
+      ↓
+AmbitenContext.session
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+ModelContext.session
+      ↓
+Read Operation
+```
+
+This can be useful when a read must observe the same transactional state as other MongoDB operations in the surrounding workflow.
+
+The transaction boundary owns session lifecycle, commit, and rollback.
+
+The read operation participates in that boundary; it does not create or complete the transaction itself.
 
 ## Multi-tenant query behavior
 
-Read operations become tenant-aware automatically when execution occurs inside a runtime scope containing tenant identity.
+When execution state contains tenant identity and tenant infrastructure has been configured, reads can participate in tenant-aware infrastructure resolution.
 
 ```ts
-await UserModel.find({ active: true });
+await UserModel.find({
+  active: true
+});
 ```
 
-A single query can still resolve the active tenant, database, collection scope, and request metadata without exposing those infrastructure concerns to the caller.
+Conceptually:
 
-This is especially important in multi-tenant systems where query safety should not rely entirely on developer discipline.
+```text
+AmbitenContext.tenantId
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+ModelContext.tenantId
+      ↓
+Tenant Infrastructure
+      ↓
+Tenant MongoClient / Database
+      ↓
+Model Collection
+      ↓
+Read Operation
+```
+
+The application does not need to manually resolve and pass the tenant MongoDB client into every model query.
+
+The model still owns collection resolution.
+
+Tenant infrastructure determines which client and database resources are used for the execution.
+
+This does **not** mean that `find()` or `findOne()` authenticates the caller, authorizes tenant access, or independently guarantees tenant isolation.
+
+Those properties depend on the application's authentication, authorization, tenant-resolution strategy, storage topology, and infrastructure configuration.
+
+## Shared-collection tenant filtering
+
+Some multi-tenant architectures separate tenants by database.
+
+Others may store multiple tenants in a shared collection.
+
+When a shared-collection topology is used, tenant discrimination may also need to be represented in query filters or persistence middleware.
+
+For example:
+
+```text
+Shared Database
+      ↓
+Shared Collection
+      ↓
+Tenant Filter
+      ↓
+Read Result
+```
+
+That is a different isolation strategy from:
+
+```text
+Tenant Identity
+      ↓
+Tenant Database
+      ↓
+Model Collection
+```
+
+Ambiten's runtime can carry tenant identity through both approaches, but the application architecture determines where the actual data separation is enforced.
 
 ## Query design considerations
 
-Ambiten improves runtime consistency, but query performance still depends on good MongoDB design.
+Ambiten coordinates runtime behavior, but MongoDB query performance still depends on sound query design.
 
-Reads should remain selective and measurable. Frequently queried fields should be indexed, broad collection scans should be avoided in high-traffic paths, and projection should limit unnecessary payload size.
+Useful principles include:
 
-Middleware and lifecycle policies should also remain observable so query cost stays predictable as systems scale.
+```text
+use selective filters
+index frequently queried fields
+avoid unnecessary collection scans
+limit result shape where appropriate
+observe query cost
+keep middleware measurable
+```
 
-For analytical or transformation-heavy workloads, aggregation is often more appropriate than overloading standard reads.
+Broad reads can become expensive even when the runtime itself is functioning correctly.
+
+Lifecycle filters such as soft-delete predicates should also be considered when designing indexes because they may become part of frequently executed query shapes.
+
+For analytical or transformation-heavy workloads, aggregation may be more appropriate than forcing increasingly complex behavior into ordinary reads.
 
 ## Common read patterns
 
 Simple list query:
 
 ```ts
-const users = await UserModel.find({});
+const users =
+  await UserModel.find({});
 ```
 
 Single-record lookup:
 
 ```ts
-const user = await UserModel.findOne({
-  email: "alice@example.com"
-});
+const user =
+  await UserModel.findOne({
+    email:
+      "alice@example.com"
+  });
 ```
 
-Context-bound execution:
+Execution established explicitly:
 
 ```ts
 await AmbitenContext.run(
@@ -170,41 +409,132 @@ await AmbitenContext.run(
     requestId: "read-001"
   },
   async () => {
-    return UserModel.find({ active: true });
+    return UserModel.find({
+      active: true
+    });
   }
 );
 ```
 
-Soft-delete override:
+Include soft-deleted records:
 
 ```ts
-await UserModel.find({}, { withDeleted: true });
+await UserModel.find(
+  {},
+  {
+    withDeleted: true
+  }
+);
+```
+
+Only soft-deleted records:
+
+```ts
+await UserModel.find(
+  {},
+  {
+    onlyDeleted: true
+  }
+);
+```
+
+Read inside a transaction:
+
+```ts
+await AmbitenContext.withTransaction(
+  async () => {
+    return UserModel.findOne({
+      email:
+        "alice@example.com"
+    });
+  }
+);
 ```
 
 ## Performance guidance
 
-Read performance should always begin with instrumentation and query discipline.
+Read performance begins with MongoDB query discipline.
 
-Use meaningful filters instead of broad collection reads. Index fields that participate in lookups and lifecycle policies. Keep middleware measurable. Avoid unnecessary payloads. Monitor query cost when tenant resolution, soft-delete enforcement, or middleware participate in the execution path.
+Prefer meaningful filters over broad collection reads.
 
-The runtime provides consistency, but operational efficiency still depends on deliberate query design.
+Index fields that participate frequently in lookups, sorting, and lifecycle filtering.
+
+Use projection when callers only need part of the document.
+
+Keep middleware measurable so implicit query shaping does not make query cost difficult to understand.
+
+Monitor query behavior as tenant infrastructure, soft-delete rules, and runtime policies become more sophisticated.
+
+The runtime can make execution consistent.
+
+It does not make an inefficient MongoDB query efficient by itself.
 
 ## Mental model
 
-```sh
-Context defines scope.
-Middleware shapes behavior.
-Model executes the query.
-MongoDB returns the result.
+```text
+Context carries execution.
+
+Model binds execution
+to the read operation.
+
+ModelContext carries
+persistence state.
+
+Middleware can shape
+query behavior.
+
+Infrastructure resolves
+database resources.
+
+MongoDB executes
+the query.
 ```
+
+## Best practices
+
+Keep read filters selective and intentional.
+
+Use schema middleware for persistence-oriented query behavior that should remain consistent across model operations.
+
+Keep authentication and authorization outside read middleware unless an application deliberately models part of its access policy at the persistence boundary.
+
+Use `withDeleted` and `onlyDeleted` only when the workflow intentionally needs deleted-state visibility.
+
+Prefer context-driven execution when tenant, request, or transaction state has already been established.
+
+Use explicit `ModelContext` values for controlled operations that intentionally need different persistence-facing state.
+
+Treat tenant-aware execution and tenant isolation as related but distinct concerns.
+
+Measure query performance independently from runtime correctness.
 
 ## Summary
 
-Read operations in Ambiten are runtime-aware queries.
+Read operations in Ambiten are runtime-aware model queries.
 
-They can be shaped by middleware, scoped by tenant and database context, aligned to lifecycle policies such as soft delete, and normalized before results reach application code.
+They can participate in:
 
-This allows reads to remain predictable, policy-aware, and operationally consistent as systems grow in scale and complexity.
+```text
+AmbitenContext
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Lifecycle Controls
+      ↓
+Tenant-Aware Infrastructure
+      ↓
+Transaction Session
+      ↓
+MongoDB
+```
+
+The read operation itself does not establish every surrounding guarantee.
+
+Instead, it participates in the execution context, model behavior, middleware, lifecycle policy, provider infrastructure, tenant configuration, and transaction state established around it.
+
+This keeps ordinary reads simple while allowing them to remain consistent with the larger Ambiten runtime model.
 
 ## Related pages
 

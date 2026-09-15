@@ -1,8 +1,8 @@
-[**ambiten**](../README.md)
+[**ambiten**](../../README.md)
 
 ***
 
-[ambiten](../README.md) / adapter-graphql
+[ambiten](../../README.md) / adapter-graphql/src
 
 # adapter-graphql/src
 

@@ -58,7 +58,7 @@ This turns deletion into a controlled lifecycle transition rather than an immedi
 A schema typically defines deletion lifecycle fields directly:
 
 ```ts
-const userSchema = new AmbitenSchema({
+const userSchema = new AmbitenSchema<User>({
   name: String,
   email: String,
   isDeleted: Boolean,

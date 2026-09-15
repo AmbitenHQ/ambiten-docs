@@ -1,186 +1,811 @@
 # Migration
 
-Migration to Ambiten is not a rewrite. It is a transition from manually coordinated infrastructure behavior to a runtime-driven execution model.
+Migration to Ambiten is not necessarily a rewrite.
 
-The goal is to preserve existing collections, business logic, and operational workflows while gradually moving transactions, tenant routing, middleware, and observability into the runtime.
+It is a transition toward clearer execution boundaries around MongoDB access, context propagation, model operations, tenant infrastructure, transactions, middleware, and instrumentation.
+
+The goal is to preserve existing MongoDB data and application behavior where possible while progressively moving execution concerns into a more explicit runtime structure.
 
 Ambiten is designed for incremental adoption.
 
-<DocOverviewCards 
-eyebrow="Migration Path" title="Adopt Ambiten one execution boundary at a time." description="Migration keeps existing collections and workflows intact while moving sessions, tenant routing, transactions, middleware, and instrumentation into the runtime." accent="#d38a49"
-:signals='["Existing collections", "AmbitenModel", "Context", "Transactions", "Runtime features"]' :cards='[ { "label": "Preserve", "title": "Keep existing MongoDB data", "text": "Collections, indexes, and document structure can remain unchanged while Ambiten is introduced gradually." }, { "label": "Replace", "title": "Move data access into runtime-aware models", "text": "Introduce AmbitenModel around existing collections and replace direct driver or ORM calls progressively." }, { "label": "Centralize", "title": "Remove infrastructure plumbing from services", "text": "Tenant resolution, sessions, transactions, and instrumentation become runtime responsibilities instead of repeated application logic." }
-]'
-:flow='[ { "label": "Step 1", "title": "Introduce models" }, { "label": "Step 2", "title": "Bind context" }, { "label": "Step 3", "title": "Move transactions" }, { "label": "Step 4", "title": "Adopt runtime features" }
-]'
+<DocOverviewCards
+  eyebrow="Migration Path"
+  title="Adopt Ambiten one execution boundary at a time."
+  description="Preserve existing MongoDB data while progressively introducing AmbitenClient, models, context binding, tenant infrastructure, transactions, middleware, and instrumentation."
+  accent="#d38a49"
+  :signals='[
+    "Existing collections",
+    "AmbitenClient",
+    "AmbitenModel",
+    "Context",
+    "Transactions"
+  ]'
+  :cards='[
+    {
+      "label": "Preserve",
+      "title": "Keep existing MongoDB data",
+      "text": "Collections, indexes, and documents can usually remain unchanged while Ambiten is introduced around the existing persistence layer."
+    },
+    {
+      "label": "Adopt",
+      "title": "Introduce runtime structure progressively",
+      "text": "Start with direct AmbitenClient usage or model-based access, then add context, transactions, tenant infrastructure, and adapters where they are useful."
+    },
+    {
+      "label": "Clarify",
+      "title": "Separate execution from infrastructure",
+      "text": "Execution state, model operation state, tenant infrastructure, transaction ownership, and persistence behavior become distinct responsibilities."
+    }
+  ]'
+  :flow='[
+    {
+      "label": "Step 1",
+      "title": "Adopt Ambiten access"
+    },
+    {
+      "label": "Step 2",
+      "title": "Introduce models"
+    },
+    {
+      "label": "Step 3",
+      "title": "Establish context"
+    },
+    {
+      "label": "Step 4",
+      "title": "Adopt runtime features"
+    }
+  ]'
 />
 
 ## What changes during migration
 
-Most MongoDB systems already have collections, schemas, query flows, and transaction handling patterns.
-
-Migration changes how execution is organized around those systems.
-
-Instead of manually coordinating tenant routing, session propagation, database resolution, middleware behavior, and instrumentation across services, Ambiten centralizes those concerns inside the runtime.
-
-## Migration approach
-
-Migration should remain incremental.
-
-A common progression looks like:
+Most MongoDB applications already have:
 
 ```text
-Existing queries
-  ↓
-Introduce AmbitenModel
-  ↓
-Introduce Context
-  ↓
-Move transaction handling
-  ↓
-Adopt runtime features
+collections
+indexes
+document structures
+query flows
+service boundaries
+transaction patterns
 ```
 
-This allows teams to validate each execution boundary independently without disrupting production systems.
+Migration changes how execution is coordinated around those systems.
+
+Instead of allowing tenant identity, database selection, transaction sessions, query policy, and instrumentation metadata to move through application code in unrelated ways, Ambiten provides clearer runtime boundaries for carrying and resolving that state.
+
+A model-driven execution path can become:
+
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+Application Logic
+      ↓
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Infrastructure Resolution
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+Not every application needs every layer immediately.
+
+## Migration does not require one starting point
+
+Ambiten supports progressive adoption.
+
+A low-level MongoDB application can begin with:
+
+```text
+Application
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+A model-oriented application may instead begin with:
+
+```text
+Application
+      ↓
+AmbitenModel
+      ↓
+AmbitenClient
+      ↓
+MongoDB
+```
+
+Runtime context can then be introduced where execution state needs to flow across operations:
+
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+Application
+      ↓
+AmbitenModel
+```
+
+This allows migration to follow the architecture that already exists rather than forcing every project through the same sequence.
+
+## A common migration progression
+
+One common path is:
+
+```text
+Existing MongoDB Access
+      ↓
+AmbitenClient
+      ↓
+AmbitenSchema + AmbitenModel
+      ↓
+AmbitenContext
+      ↓
+Tenant Infrastructure
+      ↓
+Transaction Boundaries
+      ↓
+Adapters / Instrumentation
+```
+
+Another application may introduce only part of that stack.
+
+The important goal is to make each adopted boundary explicit and testable.
+
+## Introducing AmbitenClient
+
+Existing direct MongoDB code can migrate incrementally through `AmbitenClient`.
+
+```ts
+import {
+  AmbitenClient
+} from "@ambiten/core";
+
+const client =
+  new AmbitenClient({
+    uri:
+      process.env.MONGODB_URI,
+
+    options: {
+      dbName: "my-app"
+    }
+  });
+
+await client.connect();
+```
+
+Direct client usage remains a supported Ambiten execution model.
+
+Applications do not need to introduce schemas, models, adapters, or multi-tenancy before Ambiten becomes useful.
 
 ## Introducing models
 
-Start by wrapping an existing collection with `AmbitenModel`.
+When reusable model behavior is useful, wrap existing collections with `AmbitenSchema` and `AmbitenModel`.
 
 ```ts
-const UserModel = new AmbitenModel({
-  collectionName: "users",
-  schema: userSchema,
-  provider: client
-});
+const UserModel =
+  new AmbitenModel({
+    collectionName: "users",
+    schema: userSchema,
+    provider: client
+  });
 ```
 
-Once the model exists, direct MongoDB driver calls or ORM queries can be replaced progressively.
+An existing MongoDB collection usually does not need to be recreated simply because it is now accessed through Ambiten.
 
-No collection migration is required.
+However, review schema assumptions, lifecycle behavior, middleware, and document conventions before treating an existing collection as fully equivalent to a new Ambiten model.
+
+Direct driver calls can then be replaced progressively where model behavior is beneficial.
 
 ## Introducing context
 
-After models are in place, introduce runtime context boundaries.
+Once operations need execution-scoped state, introduce `AmbitenContext`.
 
 ```ts
 await AmbitenContext.run(
-  { tenantId: "tenant-a" },
+  {
+    tenantId: "tenant-a"
+  },
   async () => {
     await UserModel.find({});
   }
 );
 ```
 
-This removes the need to manually pass tenant or database state through service layers.
+`AmbitenContext` carries the broader execution state.
 
-## Moving transaction handling
+During model execution, `AmbitenModel` derives the persistence-facing state used by the operation:
 
-One of the biggest architectural improvements usually comes from transaction orchestration.
-
-Before
-
-```ts
-await User.create(data, { session });
-
-await Audit.create(log, { session });
+```text
+explicit operation ModelContext
+        ↓
+active AmbitenContext
+        ↓
+model defaults
+        ↓
+Effective ModelContext
 ```
 
-Infrastructure state must be threaded manually through every operation.
+This distinction matters.
 
-After
+```text
+AmbitenContext
+= execution-scoped runtime state
 
-```ts
-await AmbitenContext.withTransaction(async () => {
-  await UserModel.create(data);
-  await AuditModel.create(log);
-});
+ModelContext
+= persistence-facing operation state
 ```
 
-The runtime manages session reuse, transaction boundaries, and rollback consistency automatically.
+Context therefore does not simply replace every parameter previously passed through application code.
 
-## Migrating from Mongoose
+It carries state that genuinely belongs to the execution.
 
-Migration from Mongoose usually focuses less on schema structure and more on execution behavior.
+## Moving tenant handling
 
-Before
+Older systems may pass tenant identity through multiple service methods:
 
 ```ts
- { _id: id, tenantId },
+await UserService.create(
   data,
-  { session }
+  tenantId
 );
 ```
 
-After
+A runtime-bound execution can instead establish tenant identity once:
+
+```ts
+await AmbitenContext.run(
+  {
+    tenantId: "tenant-a"
+  },
+  async () => {
+    await UserModel.create(
+      data
+    );
+  }
+);
+```
+
+The model can then inherit the tenant identity through its Effective `ModelContext`.
+
+Tenant identity and tenant infrastructure should remain separate:
+
+```text
+Who is this execution for?
+→ TenantResolver
+
+Carry tenant identity
+→ AmbitenContext
+
+Where does the tenant live?
+→ TenantConfigResolver /
+  MultiTenantManager
+
+Give me the MongoClient
+→ TenantClientResolver /
+  MultiTenantManager
+```
+
+Tenant-aware execution does not replace authentication or authorization.
+
+## Moving transaction handling
+
+Legacy applications often pass MongoDB sessions manually.
+
+Before:
+
+```ts
+await UserModel.create(
+  data,
+  {
+    session
+  }
+);
+
+await AuditModel.create(
+  log,
+  {
+    session
+  }
+);
+```
+
+An explicit Ambiten transaction boundary can carry the session through the execution:
+
+```ts
+await AmbitenContext.withTransaction(
+  async () => {
+    await UserModel.create(
+      data
+    );
+
+    await AuditModel.create(
+      log
+    );
+  }
+);
+```
+
+The session flow becomes:
+
+```text
+Transaction Boundary
+      ↓
+AmbitenContext.session
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+ModelContext.session
+      ↓
+Participating Operations
+```
+
+The enclosing transaction boundary owns:
+
+```text
+start
+commit
+rollback
+completion
+```
+
+Participating Ambiten operations can reuse that session without every application layer manually forwarding it.
+
+This applies to participating MongoDB work.
+
+External APIs, queues, filesystems, object storage, and other side effects do not automatically become part of the MongoDB transaction.
+
+## Migrating from Mongoose
+
+A Mongoose migration usually involves both data-access APIs and execution behavior.
+
+For example, an existing application may combine tenant filtering and explicit session propagation:
+
+```ts
+await User.findOneAndUpdate(
+  {
+    _id: id,
+    tenantId
+  },
+  data,
+  {
+    session
+  }
+);
+```
+
+An Ambiten model operation may instead execute inside an already established tenant and transaction context:
 
 ```ts
 await UserModel.findOneAndUpdate(
-  { _id: id },
+  {
+    _id: id
+  },
   data
 );
 ```
 
-Tenant and session scope resolve from the runtime rather than from manually propagated arguments.
+Whether the tenant identifier should remain in the query depends on the application's tenant topology.
 
-### Migrating from Prisma
+For example:
 
-Prisma structures data access around a generated query client.
-
-Ambiten structures execution around a runtime.
-
-Before
-
-```ts
-await prisma.user.create({ data });
+```text
+Database-per-tenant
+→ tenant separation may occur through infrastructure resolution
 ```
 
-After
+while:
 
-```ts
-await UserModel.create(data);
+```text
+Shared collection
+→ tenant discrimination may still need to appear in the filter
 ```
 
-The visible syntax difference is small, but the execution model changes significantly because runtime scope, transactions, middleware, and instrumentation now participate automatically.
+Migration should therefore preserve the application's actual isolation model rather than mechanically removing tenant fields from queries.
+
+## Migrating from Prisma
+
+Prisma and Ambiten use different abstractions.
+
+Prisma structures access around a generated client and schema model.
+
+Ambiten structures MongoDB execution around clients, models, runtime context, and infrastructure resolution.
+
+A simple operation may look similar at the surface.
+
+Before:
+
+```ts
+await prisma.user.create({
+  data
+});
+```
+
+After:
+
+```ts
+await UserModel.create(
+  data
+);
+```
+
+But this should not be treated as a one-to-one API migration.
+
+If Prisma is being used with MongoDB, review:
+
+```text
+schema definitions
+generated types
+relation assumptions
+transactions
+indexes
+query semantics
+middleware
+application services
+```
+
+before replacing Prisma access.
+
+Ambiten is specifically oriented around MongoDB runtime execution rather than acting as a general replacement for every Prisma architecture.
 
 ## Preserving existing data
 
-Ambiten operates on top of existing MongoDB infrastructure.
+Ambiten operates against MongoDB infrastructure.
 
-Collections, indexes, and document structure can remain intact while migration happens progressively around execution boundaries instead of database reconstruction.
+Existing:
+
+```text
+collections
+indexes
+documents
+document identifiers
+```
+
+can usually remain intact.
+
+Migration happens primarily around how those resources are accessed and how execution state reaches persistence operations.
+
+That does not mean every existing application convention should remain unchanged.
+
+Review:
+
+```text
+schema expectations
+soft-delete fields
+tenant topology
+index strategy
+transaction assumptions
+connection lifecycle
+middleware behavior
+```
+
+as each model is migrated.
+
+## Migrating middleware
+
+Existing persistence hooks can often move toward Ambiten schema middleware where the behavior belongs close to the data boundary.
+
+For example:
+
+```ts
+userSchema.pre(
+  "updateOne",
+  async (ctx) => {
+    ctx.update.$set = {
+      ...(ctx.update.$set || {}),
+      updatedAt:
+        new Date()
+    };
+  }
+);
+```
+
+Good middleware candidates include:
+
+```text
+normalization
+timestamps
+persistence metadata
+soft-delete behavior
+query shaping
+persistence-level policy
+```
+
+Application authentication, authorization, payment policy, approval workflows, and unrelated business rules should not be moved into middleware merely because middleware exists.
+
+## Migrating instrumentation
+
+Legacy applications may scatter logging around data access:
+
+```ts
+console.log(
+  "Creating user"
+);
+
+await UserModel.create(
+  data
+);
+```
+
+Instrumentation can instead use structured execution information where appropriate.
+
+```ts
+await measureQuery(
+  {
+    operation:
+      "create",
+
+    collectionName:
+      "users",
+
+    extra: {
+      feature:
+        "user.create"
+    }
+  },
+  async () => {
+    return UserModel.create(
+      data
+    );
+  }
+);
+```
+
+`AmbitenContextState` can carry runtime metadata such as:
+
+```text
+tenantId
+requestId
+dbName
+loggerMeta
+debug
+meta
+observer
+budget
+```
+
+Ambiten makes execution metadata available to instrumentation.
+
+The logging, tracing, metrics, or telemetry backend remains responsible for transporting and storing those signals.
 
 ## Gradual replacement strategy
 
 Migration does not need to happen all at once.
 
-Most teams start with a few high-value models, then progressively move service boundaries and runtime behavior into Ambiten. Legacy queries and Ambiten models can coexist during the transition, which reduces operational risk and makes adoption easier to validate incrementally.
+Existing MongoDB access and Ambiten-based access can coexist while individual execution paths are migrated.
+
+For example:
+
+```text
+Legacy Path A
+→ MongoDB Driver
+
+Migrated Path B
+→ AmbitenModel
+→ AmbitenClient
+→ MongoDB
+```
+
+This can reduce migration risk.
+
+However, care is required when old and new access patterns participate in the same transaction or tenant-sensitive workflow.
+
+A legacy driver operation will not automatically inherit Ambiten context merely because nearby Ambiten model operations do.
+
+If the two paths share a transaction, session participation must remain explicit and compatible.
+
+## Recommended migration order
+
+A practical migration sequence is:
+
+```text
+1. Inventory current MongoDB access
+
+2. Introduce AmbitenClient where useful
+
+3. Introduce AmbitenSchema and AmbitenModel
+
+4. Validate existing collection behavior
+
+5. Establish AmbitenContext around execution boundaries
+
+6. Move tenant identity into execution context
+
+7. Configure tenant infrastructure where required
+
+8. Replace manual session propagation with transaction boundaries
+
+9. Migrate persistence-oriented middleware
+
+10. Introduce instrumentation
+
+11. Replace remaining legacy access progressively
+
+12. Validate runtime behavior before removing the old path
+```
+
+Not every application needs every step.
+
+## Validate each migration stage
+
+A successful build is not enough to prove a migration is correct.
+
+Verify behavior such as:
+
+```text
+database resolution
+collection resolution
+context propagation
+tenant resolution
+transaction participation
+middleware execution
+soft-delete behavior
+connection reuse
+shutdown behavior
+```
+
+For multi-tenant systems, verify the actual isolation model as well.
+
+Examples include:
+
+```text
+tenant A resolves only intended infrastructure
+
+tenant B resolves its own infrastructure
+
+shared-collection filters include required tenant constraints
+
+dynamic tenant discovery resolves expected configuration
+```
 
 ## Common migration mistakes
 
-The most common mistake is trying to migrate everything simultaneously.
+One common mistake is trying to migrate the entire persistence layer at once.
 
-Another common issue is mixing manual session handling with runtime-managed transactions inside the same execution flow, which usually recreates the complexity migration was meant to remove.
+Incremental migration makes runtime differences easier to isolate and test.
 
-Tenant-aware systems should also avoid bypassing context boundaries, otherwise infrastructure concerns leak back into application code.
+Another mistake is assuming:
+
+```text
+using AmbitenContext
+=
+all infrastructure is now automatic
+```
+
+Context carries execution state.
+
+The model, provider, tenant infrastructure, and transaction boundary still have distinct responsibilities.
+
+Another common issue is mixing manual session handling and runtime-managed transaction participation without a clear ownership model.
+
+For a transaction, decide which boundary owns:
+
+```text
+session creation
+transaction start
+commit
+rollback
+completion
+```
+
+Tenant-aware systems should also avoid treating tenant identity as equivalent to authorization.
+
+Finally, do not recreate process-level infrastructure for every request.
+
+Prefer reuse of:
+
+```text
+AmbitenClient
+MongoClient
+models
+schemas
+providers
+MultiTenantManager
+```
+
+while keeping execution-specific state inside:
+
+```text
+AmbitenContext
+```
 
 ## Mental model
 
-```PlainText
-Before → infrastructure state travels through the application
-After  → infrastructure state lives in the runtime
+Before migration, execution state may travel through application layers:
+
+```text
+Controller
+      ↓ tenantId / session / db
+Service
+      ↓ tenantId / session / db
+Repository
+      ↓ tenantId / session / db
+MongoDB
 ```
 
-That is the real architectural shift.
+After introducing Ambiten runtime boundaries:
+
+```text
+Execution Boundary
+      ↓
+AmbitenContext
+      ↓
+Application Logic
+      ↓
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Infrastructure Resolution
+      ↓
+MongoDB
+```
+
+The shift is not:
+
+```text
+manual everything
+→ automatic everything
+```
+
+It is:
+
+```text
+scattered responsibility
+→ explicit runtime responsibility
+```
 
 ## Summary
 
-Migration to Ambiten is a transition from manually coordinated infrastructure behavior to a structured runtime system.
+Migration to Ambiten is a transition toward a more explicit MongoDB execution model.
 
-It can happen incrementally, without rewriting collections or disrupting production workloads.
+Existing data can usually remain in place while applications progressively introduce:
 
-The result is a cleaner execution model where transactions, tenant routing, middleware, and instrumentation become centralized runtime behavior instead of repeated application plumbing.
+```text
+AmbitenClient
+AmbitenSchema
+AmbitenModel
+AmbitenContext
+tenant infrastructure
+transaction boundaries
+middleware
+instrumentation
+adapters
+```
+
+The central migration model is:
+
+```text
+Preserve MongoDB Data
+      ↓
+Adopt Ambiten Access
+      ↓
+Establish Execution Context
+      ↓
+Bind Model Operations
+      ↓
+Resolve Infrastructure
+      ↓
+MongoDB
+```
+
+Ambiten does not require every application to adopt the entire runtime at once.
+
+The goal is to introduce the amount of structure required by the system while keeping execution responsibilities clear as the application grows.
 
 ### Related pages
 
+- [Migrating from Abimongo](/migration/abimongo)
 - [AmbitenModel](/models/ambiten-model)
 - [Context](/core/context)
 - [Transactions](/core/transactions)

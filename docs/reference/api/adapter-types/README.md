@@ -1,8 +1,8 @@
-[**ambiten**](../README.md)
+[**ambiten**](../../README.md)
 
 ***
 
-[ambiten](../README.md) / adapter-types
+[ambiten](../../README.md) / adapter-types/src
 
 # adapter-types/src
 
@@ -23,3 +23,4 @@
 ## Functions
 
 - [resolveTenant](functions/resolveTenant.md)
+- [validateResolvedTenant](functions/validateResolvedTenant.md)

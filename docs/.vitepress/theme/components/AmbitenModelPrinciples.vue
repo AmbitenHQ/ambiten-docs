@@ -9,38 +9,52 @@
       <div class="ambiten-model-principles-grid">
 
         <div class="ambiten-model-principle">
-          <strong>Runtime-aware execution</strong>
+          <strong>
+            Runtime-aware execution
+          </strong>
 
           <p>
-            Model operations resolve tenant scope, transaction state, and
-            execution metadata from the active runtime boundary automatically.
+            Model operations consume the active execution context and resolve
+            effective tenant identity, request metadata, transaction state, and
+            supported runtime overrides without requiring those values to be
+            manually propagated through application code.
           </p>
         </div>
 
         <div class="ambiten-model-principle">
-          <strong>Separation of execution and infrastructure</strong>
+          <strong>
+            Separation of execution and infrastructure
+          </strong>
 
           <p>
-            Models coordinate persistence behavior while providers resolve
-            databases, sessions, and tenant-aware infrastructure concerns.
+            Models coordinate operation behavior while providers and
+            <code>MultiTenantManager</code> resolve the client, database,
+            collection, session, and tenant infrastructure required for the
+            active execution.
           </p>
         </div>
 
         <div class="ambiten-model-principle">
-          <strong>Deterministic behavior</strong>
+          <strong>
+            Deterministic resolution
+          </strong>
 
           <p>
-            The same operation executed inside the same runtime boundary should
-            resolve the same infrastructure, middleware chain, and execution flow.
+            Given the same effective context, model configuration, middleware
+            registration, and runtime rules, an operation follows the same
+            resolution path and execution lifecycle.
           </p>
         </div>
 
         <div class="ambiten-model-principle">
-          <strong>Static structure, dynamic runtime</strong>
+          <strong>
+            Static structure, dynamic execution
+          </strong>
 
           <p>
-            Model definitions remain stable while execution context changes per
-            request, tenant, transaction scope, or deployment environment.
+            Model definitions remain stable while execution context and
+            resolved infrastructure can vary per request, tenant, transaction
+            scope, worker, or other runtime boundary.
           </p>
         </div>
 

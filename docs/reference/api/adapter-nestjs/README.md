@@ -1,8 +1,8 @@
-[**ambiten**](../README.md)
+[**ambiten**](../../README.md)
 
 ***
 
-[ambiten](../README.md) / adapter-nestjs
+[ambiten](../../README.md) / adapter-nestjs/src
 
 # adapter-nestjs/src
 

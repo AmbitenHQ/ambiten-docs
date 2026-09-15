@@ -1,59 +1,138 @@
 # Director Observability Dashboard
 
-Director is Ambiten’s operational control plane for tenant-aware runtime systems.
+Director is the planned operational intelligence layer for Ambiten runtime systems.
 
-It consumes the structured telemetry emitted by instrumentation, transactions, middleware, and runtime context, then transforms that execution data into operational insight teams can act on.
+It is designed to consume structured execution telemetry and turn runtime signals into views that help teams understand tenant behavior, query activity, transaction outcomes, execution cost, and operational patterns.
 
 <DirectorDashboardPreview />
 
->Director is shown here as a product preview. The dashboard represents the operational signals Ambiten is designed to expose from runtime instrumentation, tenant context, query metadata, and transaction activity.
+> Director is shown here as a product preview. The dashboard represents the direction of Ambiten's operational tooling and the kinds of signals that can be derived from runtime context, instrumentation, query metadata, transaction events, and tenant-aware execution. Individual metrics, APIs, exporters, and dashboard features may evolve before release.
 
 ## Why Director exists
 
-Most production systems eventually become data-rich but insight-poor.
+Production systems often generate large amounts of telemetry while still making application execution difficult to understand.
 
-Teams may already have logs, metrics, traces, and infrastructure dashboards, yet still struggle to understand runtime behavior inside multi-tenant execution systems. Questions about tenant cost, transaction instability, request scope, and runtime overhead are often difficult to answer because traditional monitoring tools operate at the infrastructure layer rather than the execution layer.
+Infrastructure dashboards can answer questions such as:
 
-Director exists to bridge that gap.
+```text
+Is MongoDB available?
 
-Instead of treating observability as a disconnected monitoring concern, Director treats runtime behavior itself as a structured operational signal. It exposes how execution behaves inside Ambiten rather than only how servers or databases behave underneath it.
+How much CPU is the service using?
+
+How many requests are reaching the application?
+
+How much memory is the process consuming?
+```
+
+Those signals are important.
+
+But an execution-aware runtime creates a different set of questions:
+
+```text
+Which tenant produced this workload?
+
+Which operations were part of this execution?
+
+Where was execution time spent?
+
+Which transaction aborted?
+
+How many queries were executed?
+
+Which execution exceeded an expected budget?
+
+Which operations ran without tenant identity?
+```
+
+Director is intended to make those execution-level questions easier to investigate.
+
+It complements infrastructure monitoring rather than replacing it.
 
 ## Runtime telemetry model
 
 <DocOverviewCards
   eyebrow="Operational Intelligence"
-  title="Director transforms runtime telemetry into actionable system visibility."
-  description="The dashboard groups execution signals by tenant, request scope, collection, transaction state, runtime cost, and operational outcome."
+  title="Director turns runtime signals into execution-level visibility."
+  description="The dashboard is designed to organize telemetry around tenant identity, execution scope, model operations, transaction outcomes, runtime cost, and operational behavior."
   accent="#d38a49"
-  :signals='["Tenant latency", "Rollback rate", "Leak detection", "Runtime overhead", "Request budget"]'
+  :signals='[
+    "Tenant latency",
+    "Transaction outcomes",
+    "Unscoped execution",
+    "Runtime cost",
+    "Execution budget"
+  ]'
   :cards='[
     {
-      "label": "Tenant Heatmap",
-      "title": "Identify operationally expensive tenants",
-      "text": "Director groups runtime latency and request cost by tenant so teams can isolate noisy workloads and infrastructure pressure early."
+      "label": "Tenant Activity",
+      "title": "Understand workload by tenant",
+      "text": "Execution metadata can be grouped by tenant to help teams compare latency, query activity, and resource pressure across tenant workloads."
     },
     {
-      "label": "Leak Detection",
-      "title": "Expose unscoped runtime activity",
-      "text": "Operations without tenant identity are surfaced separately so runtime hygiene issues never become invisible."
+      "label": "Scope Visibility",
+      "title": "Surface operations without expected tenant identity",
+      "text": "Operations that execute without tenant identity can be classified separately so teams can determine whether they are intentional system work or unexpected runtime behavior."
     },
     {
-      "label": "Transaction Integrity",
-      "title": "Track rollback patterns across workflows",
-      "text": "Rollback visibility helps teams identify unstable transaction boundaries, repeated conflicts, and failing execution paths."
+      "label": "Transaction Diagnostics",
+      "title": "Inspect transaction outcomes",
+      "text": "Transaction lifecycle signals can help teams identify abort patterns, repeated failures, and workflows that deserve closer operational investigation."
     }
   ]'
   :flow='[
-    { "label": "Emit", "title": "Runtime telemetry" },
-    { "label": "Group", "title": "Tenant and request scope" },
-    { "label": "Score", "title": "Latency and integrity" },
-    { "label": "Act", "title": "Alert, tune, or enforce" }
+    {
+      "label": "Capture",
+      "title": "Execution signals"
+    },
+    {
+      "label": "Correlate",
+      "title": "Tenant and execution scope"
+    },
+    {
+      "label": "Analyze",
+      "title": "Runtime behavior"
+    },
+    {
+      "label": "Act",
+      "title": "Investigate or tune"
+    }
   ]'
 />
 
-Director is built around the telemetry Ambiten already emits internally. Runtime activity becomes measurable because execution boundaries already understand tenant identity, request scope, transaction state, and middleware participation.
+Director is designed around structured telemetry produced by Ambiten instrumentation and runtime integrations.
 
-Example payload:
+Ambiten execution state can already contain information such as:
+
+```text
+tenantId
+requestId
+dbName
+collectionName
+loggerMeta
+meta
+observer
+budget
+session
+```
+
+Model and instrumentation layers can also expose operation-specific information such as:
+
+```text
+operation
+duration
+collection
+query outcome
+error state
+application metadata
+```
+
+Director's role is to correlate those signals into operational views.
+
+It should not be assumed that every field shown in the product preview is emitted automatically by Ambiten Core without corresponding instrumentation.
+
+## Example telemetry
+
+A Director-compatible telemetry event could look like:
 
 ```json
 {
@@ -64,101 +143,600 @@ Example payload:
   "durationMs": 45.2,
   "collectionName": "orders",
   "queriesExecuted": 3,
-  "totalBudgetUsed": 112.5,
-  "cacheHit": false,
-  "transaction": {
-    "active": true,
-    "status": "committed"
-  },
   "timestamp": "2026-05-02T10:00:00Z"
 }
 ```
 
-Rather than limiting visibility to infrastructure metrics, Director focuses on execution-level signals such as runtime cost, transaction continuity, request integrity, middleware overhead, and tenant isolation behavior.
+Additional instrumentation could attach information such as:
 
-## Tenant heatmap
+```json
+{
+  "budget": {
+    "maxQueries": 10,
+    "queriesExecuted": 3,
+    "totalTimeMs": 112.5
+  }
+}
+```
 
-Director ranks operational cost using runtime-aware latency instead of database duration alone.
+Transaction lifecycle telemetry could separately describe an outcome such as:
 
-That distinction matters because expensive execution paths may originate from middleware behavior, cache misses, transaction retries, tenant routing overhead, or request amplification rather than MongoDB query time itself.
+```json
+{
+  "transaction": {
+    "status": "committed"
+  }
+}
+```
 
-The heatmap is intended to expose which tenants generate the highest operational pressure so teams can identify unstable workloads before they become production incidents. Runtime visibility becomes tied to actual execution behavior instead of isolated infrastructure metrics.
+The exact event schema remains part of Director's evolving product design.
 
-## Leak detection
+## Execution-level visibility
 
-A query without tenant identity is operationally dangerous inside a tenant-aware system.
+Director is intended to focus on execution behavior rather than only infrastructure state.
 
-Some unscoped operations may be legitimate system-level workflows, but they should never become invisible. Director surfaces those operations explicitly so teams can continuously verify runtime hygiene and execution safety.
+Possible signals include:
+
+```text
+operation latency
+query count
+tenant identity
+execution identity
+collection activity
+transaction outcome
+runtime budget usage
+middleware timing
+provider resolution
+error context
+```
+
+This provides a different perspective from host-level or database-level monitoring.
+
+The two layers complement each other.
+
+```text
+Infrastructure Monitoring
+→ what the platform is doing
+
+Director
+→ how Ambiten executions are behaving
+```
+
+## Tenant activity
+
+Tenant-aware runtime metadata creates the possibility of analyzing workload by tenant.
+
+Conceptually:
+
+```text
+Execution Telemetry
+      ↓
+tenantId
+      ↓
+Aggregate Runtime Signals
+      ↓
+Tenant Activity View
+```
+
+A Director tenant view could help teams compare:
+
+```text
+operation volume
+latency
+query count
+transaction outcomes
+budget consumption
+failure patterns
+```
+
+This can help identify unusual or disproportionately expensive workloads.
+
+It should not be interpreted as a billing system or exact cost-allocation engine unless the application provides the accounting inputs required for those calculations.
+
+## Tenant heatmaps
+
+A tenant heatmap could combine multiple execution-level measurements rather than relying only on MongoDB query duration.
+
+For example:
+
+```text
+request duration
+query duration
+query count
+middleware time
+transaction retries
+cache behavior
+application metadata
+```
+
+This can help distinguish a slow MongoDB query from a slow execution caused by other application behavior.
+
+The exact scoring model remains a Director-level concern.
+
+Ambiten Core provides execution signals; Director can derive higher-level operational interpretations from them.
+
+## Unscoped execution visibility
+
+An operation without tenant identity is not automatically a defect.
+
+Some workflows may intentionally execute outside tenant scope.
+
+Examples include:
+
+```text
+system maintenance
+administrative jobs
+global configuration
+shared infrastructure tasks
+migration workflows
+```
+
+The important operational question is whether the missing tenant identity was intentional.
+
+Director can classify these executions explicitly.
 
 | State | Meaning |
-| --- | --- |
-| Missing tenant | No tenant identity was attached to execution context |
-| System scope | Operation intentionally runs outside tenant boundaries |
-| Unknown scope | Runtime could not resolve execution ownership |
+|---|---|
+| Tenant scoped | Execution contains tenant identity |
+| System scoped | Execution intentionally operates without tenant identity |
+| Unclassified | Execution has no tenant identity and no known system classification |
 
-This allows tenant isolation to become observable and measurable instead of depending entirely on engineering discipline.
+This is more precise than treating every missing `tenantId` as a tenant leak.
 
-## Transaction integrity
+Director can make unscoped execution visible so teams can investigate it.
 
-Rollback rate is one of the clearest early indicators of runtime instability.
+It does not prove tenant isolation by itself.
 
-Repeated rollbacks may signal transaction conflicts, invalid workflow ordering, failing middleware behavior, or unsafe retry patterns. Director correlates those failures across tenants, request flows, collections, and execution boundaries so operational problems can be traced back to the runtime paths responsible for them.
+## Tenant isolation remains an architectural responsibility
 
-The purpose is not only to record failure, but to expose unstable execution behavior before it evolves into broader operational incidents.
+Director can observe runtime identity.
 
-## Product positioning
+It does not enforce the application's complete tenant security model.
 
-Director represents the operational intelligence layer built on top of Ambiten’s runtime foundation.
+Actual isolation can depend on:
 
-The core runtime remains focused on execution primitives such as context propagation, models, adapters, middleware, transactions, and instrumentation. Director extends that foundation into operational visibility, runtime analytics, request budgeting, and execution governance.
+```text
+authentication
+authorization
+tenant resolution
+database topology
+collection design
+query filtering
+infrastructure configuration
+```
 
-This separation allows the runtime to remain broadly accessible while operational tooling evolves into higher-level platform capabilities for scaling teams.
+For example:
 
-## Relationship with future bundles
+```text
+Database-per-tenant
+```
 
-Director naturally aligns with future operational and governance-focused bundles.
+and:
 
-The Insights Bundle focuses on runtime analytics, tenant cost visibility, quotas, and operational alerts. The Safety Bundle focuses on audit trails, evidence collection, policy enforcement, and compliance reporting.
+```text
+Shared collection + tenant filter
+```
 
-Together, these systems move Ambiten beyond traditional ODM tooling and toward runtime governance and operational intelligence.
+are different isolation architectures.
 
-## Deployment architecture
+Director can make runtime behavior around those architectures visible, but visibility is not the same thing as enforcement.
 
-Director is designed to support both hosted and self-hosted deployment models.
+## Transaction diagnostics
 
-The runtime itself remains deployment-agnostic. It only needs to emit structured telemetry through a stable exporter contract.
+Transaction telemetry can provide useful operational insight.
+
+Possible signals include:
+
+```text
+transaction started
+transaction committed
+transaction aborted
+duration
+retry count
+failure context
+participating operations
+```
+
+The transaction execution model remains:
+
+```text
+Transaction Boundary
+      ↓
+AmbitenContext.session
+      ↓
+AmbitenModel.mergeCtx()
+      ↓
+ModelContext.session
+      ↓
+Participating Operations
+```
+
+Director can use transaction lifecycle events to help teams investigate repeated aborts or unusual execution patterns.
+
+Repeated transaction failures may have many causes:
+
+```text
+write conflicts
+application errors
+middleware failures
+MongoDB errors
+retry behavior
+workflow design
+infrastructure conditions
+```
+
+Director should surface evidence around those failures rather than claim to determine their cause automatically.
+
+## Runtime budget visibility
+
+Ambiten context can carry runtime budget information.
+
+For example:
+
+```ts
+interface AmbitenQuotaBudget {
+  maxQueries: number;
+  queriesExecuted: number;
+  totalTimeMs: number;
+}
+```
+
+This provides a foundation for Director views around execution budgets.
+
+Conceptually:
+
+```text
+Execution
+      ↓
+Budget State
+      ↓
+Queries Executed
+      ↓
+Runtime Cost Signals
+      ↓
+Director
+```
+
+Possible views may include:
+
+```text
+query-budget usage
+execution time
+high-query executions
+tenant-level budget patterns
+budget threshold events
+```
+
+Budget telemetry is an operational signal.
+
+It should not automatically be interpreted as financial cost unless a separate cost model is provided.
+
+## Middleware visibility
+
+Middleware participates in the model execution path:
+
+```text
+AmbitenModel
+      ↓
+Effective ModelContext
+      ↓
+Schema / Middleware
+      ↓
+Persistence Operation
+```
+
+Where timing or event instrumentation exists, Director could make middleware behavior visible.
+
+Examples may include:
+
+```text
+middleware duration
+middleware failures
+operation transformation
+policy invocation
+hook frequency
+```
+
+This can help teams understand whether runtime behavior is being influenced by persistence middleware rather than by MongoDB alone.
+
+## Instrumentation relationship
+
+Director does not replace Ambiten instrumentation.
+
+The relationship is:
 
 ```text
 Ambiten Runtime
       ↓
-Telemetry Exporter
+Instrumentation
       ↓
-Director Ingest API
+Structured Execution Signals
       ↓
-Metrics Store
+Exporter / Transport
       ↓
-Operational Dashboard
+Director
 ```
 
-This separation allows the observability pipeline to evolve independently from the runtime while keeping instrumentation behavior stable across environments.
+Ambiten instrumentation is responsible for making execution signals available.
+
+Director is responsible for interpreting and presenting those signals.
+
+The transport between them should remain replaceable.
+
+## Product positioning
+
+Director represents a higher-level operational product built on top of the Ambiten runtime.
+
+The Core runtime remains focused on primitives such as:
+
+```text
+AmbitenContext
+AmbitenModel
+ModelContext
+AmbitenSchema
+AmbitenClient
+MultiTenantManager
+transactions
+middleware
+providers
+instrumentation
+```
+
+Director builds on those primitives to provide:
+
+```text
+runtime analytics
+tenant workload visibility
+transaction diagnostics
+execution-budget analysis
+operational investigation
+runtime trend analysis
+```
+
+This separation allows Ambiten Core to remain usable without requiring Director.
+
+## Runtime first, Director second
+
+Director depends on runtime signals.
+
+The runtime does not depend on Director.
+
+```text
+Ambiten Core
+      ↓
+Execution Metadata
+      ↓
+Instrumentation
+      ↓
+Optional Director Integration
+```
+
+An application can use Ambiten with:
+
+```text
+OpenTelemetry
+structured logs
+custom metrics
+an internal analytics system
+another APM product
+```
+
+without deploying Director.
+
+Director is intended to provide Ambiten-specific operational interpretation on top of those runtime concepts.
+
+## Relationship with future operational products
+
+Director may also become the visual surface for future Ambiten operational capabilities.
+
+Potential areas include:
+
+```text
+runtime analytics
+tenant workload insight
+execution budgets
+operational alerts
+policy events
+audit-oriented evidence
+runtime health signals
+```
+
+These areas should be understood as product direction rather than already available guarantees.
+
+Any future packaging or bundle structure may evolve independently from the runtime APIs.
+
+## Deployment architecture
+
+Director is intended to remain separate from application execution.
+
+A conceptual architecture is:
+
+```text
+Ambiten Runtime
+      ↓
+Instrumentation
+      ↓
+Telemetry Exporter
+      ↓
+Director Ingestion
+      ↓
+Operational Data Store
+      ↓
+Director Dashboard
+```
+
+This keeps observability processing outside the request or model execution path.
+
+The runtime should not require a Director dashboard to complete ordinary MongoDB operations.
+
+## Exporter model
+
+A future exporter contract should allow execution telemetry to leave the runtime without coupling Ambiten Core to one storage or dashboard implementation.
+
+Conceptually:
+
+```text
+Runtime Event
+      ↓
+Exporter Interface
+      ├─ Director
+      ├─ OpenTelemetry
+      ├─ Structured Logs
+      └─ Custom Backend
+```
+
+The exact exporter API remains part of the evolving instrumentation design.
+
+Director should not require applications to abandon existing observability systems.
+
+## Hosted and self-managed direction
+
+Director may support different deployment models as the product develops.
+
+Possible forms include:
+
+```text
+hosted service
+self-managed deployment
+private infrastructure integration
+```
+
+The final supported deployment options will depend on the product implementation and release model.
+
+The important architectural goal is to keep telemetry production separate from telemetry storage and visualization.
+
+## What Director does not replace
+
+Director is not intended to replace:
+
+```text
+MongoDB monitoring
+host metrics
+Kubernetes monitoring
+network observability
+application logging
+distributed tracing
+security monitoring
+authorization systems
+```
+
+Those systems answer different questions.
+
+Director focuses on Ambiten-specific execution behavior.
 
 ## What Director represents
 
-Director is not intended to become a generic metrics dashboard.
+Director is intended to become an execution-intelligence surface for Ambiten applications.
 
-It is designed as an execution intelligence layer for tenant-aware runtime systems.
+Its purpose is to help answer questions such as:
 
-The focus is on exposing runtime correctness, execution integrity, tenant operational behavior, transaction stability, and request-level cost visibility through the same execution model Ambiten already understands internally.
+```text
+Which tenant generated this workload?
 
-That distinction is what separates Director from traditional infrastructure monitoring systems.
+Which operations consumed the most execution time?
+
+Which executions exceeded their query budget?
+
+Which transactions aborted repeatedly?
+
+Which operations ran without an expected tenant scope?
+
+Which collections dominate runtime activity?
+
+Where are execution failures concentrated?
+```
+
+These are execution questions rather than generic infrastructure questions.
+
+That distinction defines Director's role.
+
+## Boundaries of interpretation
+
+Director can surface evidence.
+
+It should not claim more certainty than the telemetry supports.
+
+For example:
+
+```text
+High latency
+≠ automatically a MongoDB problem
+
+Missing tenantId
+≠ automatically a security breach
+
+Transaction abort
+≠ automatically a runtime defect
+
+High query count
+≠ automatically inefficient behavior
+```
+
+Operational intelligence should help teams investigate.
+
+It should not hide system complexity behind unsupported conclusions.
+
+## Direction, not released behavior
+
+Director is currently presented as a product direction.
+
+The dashboard preview illustrates the type of operational experience Ambiten is being designed to support.
+
+Individual capabilities such as:
+
+```text
+transaction scoring
+tenant heatmaps
+runtime alerts
+budget enforcement
+hosted deployment
+audit evidence
+policy dashboards
+```
+
+should not be treated as released APIs or compatibility guarantees until they are documented as available product features.
 
 ## Summary
 
-Director transforms Ambiten’s runtime telemetry into operational visibility teams can reason about.
+Director is the planned operational intelligence layer built around Ambiten execution telemetry.
 
-By combining tenant-aware execution data, transaction integrity, request scope, and structured instrumentation, Director allows teams to understand how applications behave under real production conditions rather than only how infrastructure behaves underneath them.
+Its purpose is to transform structured runtime signals into views around:
 
-The result is a clearer operational model where runtime behavior becomes measurable, traceable, and actionable as systems grow in scale and complexity.
+```text
+tenant activity
+execution scope
+query behavior
+transaction outcomes
+runtime budgets
+failure patterns
+operational trends
+```
+
+Ambiten Core provides the execution model and runtime metadata.
+
+Instrumentation exposes signals from that execution.
+
+Director is designed to correlate and present those signals in a form teams can investigate and act on.
+
+The architectural relationship is:
+
+```text
+Execution
+      ↓
+Context
+      ↓
+Instrumentation
+      ↓
+Telemetry
+      ↓
+Director
+      ↓
+Operational Insight
+```
+
+Director does not make runtime correctness, tenant isolation, or transaction integrity automatic.
+
+It makes the available evidence around those concerns easier to see.
 
 ## Related pages
 

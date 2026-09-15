@@ -1,8 +1,8 @@
-[**ambiten**](../README.md)
+[**ambiten**](../../README.md)
 
 ***
 
-[ambiten](../README.md) / adapter-runtime
+[ambiten](../../README.md) / adapter-runtime/src
 
 # adapter-runtime/src
 
