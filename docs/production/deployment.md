@@ -952,6 +952,6 @@ When those boundaries are designed deliberately, Ambiten can remain understandab
 
 - [Execution Guarantees](/architecture/execution-guarantees)
 - [Performance Tuning](/advanced/performance-tuning)
-- [Multi-Tenancy](/architecture/multi-tenancy)
+- [Multi-Tenancy](/multi-tenancy/overview)
 - [AmbitenClient](/reference/api/ambiten-client)
 - [Instrumentation](/core/instrumentation)

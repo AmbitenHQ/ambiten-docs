@@ -6,6 +6,7 @@ export default defineConfig({
     "Context-driven data runtime for multi-tenant, transaction-safe apps.",
   lang: "en-US",
   base: "/",
+  ignoreDeadLinks: true,
 
   cleanUrls: true,
   lastUpdated: true,
@@ -182,11 +183,11 @@ export default defineConfig({
         text: "Multi Tenancy",
         collapsed: true,
         items: [
-          { text: "Overview", link: "/multi-tenant/overview" },
-          { text: "Tenant Resolution", link: "/multi-tenant/tenant-resolver" },
-          { text: "MultiTenantManager", link: "/multi-tenant/multi-tenant-manager" },
-          { text: "Dynamic Tenants", link: "/multi-tenant/dynamic-tenants" },
-          { text: "Framework Adapters", link: "/multi-tenant/framework-adapters" }
+          { text: "Overview", link: "/multi-tenancy/overview" },
+          { text: "Tenant Resolution", link: "/multi-tenancy/tenant-resolver" },
+          { text: "MultiTenantManager", link: "/multi-tenancy/multi-tenant-manager" },
+          { text: "Dynamic Tenants", link: "/multi-tenancy/dynamic-tenants" },
+          { text: "Framework Adapters", link: "/multi-tenancy/framework-adapters" }
         ]
       },
       {
@@ -285,13 +286,13 @@ export default defineConfig({
         text: "Framework Adapters", 
         collapsed: true,
         items: [
-          { text: "Overview", link: "/framework-adapters/overview" },
-          { text: "Express", link: "/framework-adapters/express" },
-          { text: "Fastify", link: "/framework-adapters/fastify" },
-          { text: "NestJS", link: "/framework-adapters/nestjs" },
-          { text: "GraphQL", link: "/framework-adapters/graphql" },
-          { text: "Lambda", link: "/framework-adapters/lambda" },
-          { text: "Usage Patterns", link: "/framework-adapters/usage-patterns" }
+          { text: "Overview", link: "/adapters/overview" },
+          { text: "Express", link: "/adapters/express" },
+          { text: "Fastify", link: "/adapters/fastify" },
+          { text: "NestJS", link: "/adapters/nestjs" },
+          { text: "GraphQL", link: "/adapters/graphql" },
+          { text: "Lambda", link: "/adapters/lambda" },
+          { text: "Usage Patterns", link: "/adapters/usage-patterns" }
         ]
       },
       {

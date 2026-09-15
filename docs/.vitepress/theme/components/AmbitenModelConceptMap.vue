@@ -73,7 +73,7 @@
 
       <a
         class="ambiten-model-concept-card"
-        href="/architecture/multi-tenancy/multi-tenant-manager"
+        href="/multi-tenancy/multi-tenant-manager"
       >
         <span class="ambiten-model-concept-label">
           MultiTenantManager

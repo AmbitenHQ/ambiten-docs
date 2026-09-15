@@ -1166,6 +1166,6 @@ That makes the provider contract useful both for approachable Ambiten usage and 
 - [Context Binding](/models/context-binding)
 - [AmbitenClient](/reference/api/ambiten-client)
 - [Transactions](/core/transactions)
-- [Multi-Tenancy Overview](/architecture/multi-tenancy/overview)
-- [MultiTenantManager](/architecture/multi-tenancy/multi-tenant-manager)
+- [Multi-Tenancy Overview](/multi-tenancy/overview)
+- [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
 - [Runtime Execution Flow](/architecture/runtime-execution-flow)

@@ -120,5 +120,5 @@ The following pages expand on those concepts:
 - [Architecture](/architecture/whitepaper)
 - [Context](/core/context)
 - [Transactions](/core/transactions)
-- [Adatper Overview](/adapters/overview)
+- [Adatper Overview](/framework-adapters/overview)
 - [Bootstrap & CLI](/advanced/bootstrap-cli)

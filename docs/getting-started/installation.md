@@ -32,7 +32,7 @@ Adapters connect framework lifecycles to the Ambiten runtime boundary. They are 
 
 The execution model itself remains unchanged across runtimes. Only the integration boundary differs.
 
-Additional adapter details are available in [Adapters Overview](/adapters/overview).
+Additional adapter details are available in [Adapters Overview](/framework-adapters/overview).
 
 ## Environment configuration
 

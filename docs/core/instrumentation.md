@@ -187,4 +187,4 @@ It is part of the runtime contract itself.
 - [Performance Tuning](/advanced/performance-tuning)
 - [Context](/core/context)
 - [Middleware Lifecycle](/core/middleware)
-- [Multi-tenancy Strategies](/architecture/multi-tenancy)
+- [Multi-tenancy Strategies](/multi-tenancy/overview)

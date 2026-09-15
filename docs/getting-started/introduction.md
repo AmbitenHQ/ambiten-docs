@@ -86,7 +86,7 @@ To begin working with Ambiten:
 3. Explore the architecture and runtime model through:
    - [Context](/core/context) 
    - [Transactions](/core/transactions)
-   - [Adapters Overview](/adapters/overview) to understand how the runtime behaves in real applications.
+   - [Adapters Overview](/framework-adapters/overview) to understand how the runtime behaves in real applications.
 4. [Runtime Execution Flow](/architecture/runtime-execution-flow)
 
 ## Positioning

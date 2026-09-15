@@ -1228,11 +1228,11 @@ This allows generated applications to begin with a coherent runtime architecture
 ## Related Pages
 
 - [AmbitenBootstrapFactory](/advanced/bootstrap-cli)
-- [Adapters Overview](/adapters/overview)
-- [Multi-Tenancy Overview](/architecture/multi-tenancy/overview)
-- [Tenant Resolution](/architecture/multi-tenancy/tenant-resolution)
-- [MultiTenantManager](/architecture/multi-tenancy/multi-tenant-manager)
-- [Dynamic Tenants](/architecture/multi-tenancy/dynamic-tenants)
-- [Framework Adapters](/architecture/multi-tenancy/framework-adapters)
-- [Runtime Execution Flow](/architecture/runtime-execution-flow)
+- [Adapters Overview](/framework-adapters/overview)
+- [Multi-Tenancy Overview](/multi-tenancy/overview)
+- [Tenant Resolution](/multi-tenancy/tenant-resolution)
+- [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
+- [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
+- [Framework Adapters](/multi-tenancy/framework-adapters)
+- [Runtime Execution Flow](architecture/runtime-execution-flow)
 - [AmbitenClient](/reference/api/ambiten-client)

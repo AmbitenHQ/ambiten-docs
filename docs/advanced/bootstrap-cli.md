@@ -338,9 +338,9 @@ A `TenantConfigResolver` can extend that registry dynamically after startup.
 
 See:
 
-- [Multi-Tenancy Overview](/architecture/multi-tenancy/overview)
-- [MultiTenantManager](/architecture/multi-tenancy/multi-tenant-manager)
-- [Dynamic Tenants](/architecture/multi-tenancy/dynamic-tenants)
+- [Multi-Tenancy Overview](/multi-tenancy/overview)
+- [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
+- [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
 
 ## Dynamic Tenant Configuration
 
@@ -1044,10 +1044,10 @@ This separation keeps startup orchestration, request execution, tenant infrastru
 - [AmbitenClient](/reference/api/ambiten-client)
 - [Context](/core/context)
 - [Adapters Overview](/adapters/overview)
-- [Multi-Tenancy Overview](/architecture/multi-tenancy/overview)
-- [Tenant Resolution](/architecture/multi-tenancy/tenant-resolution)
-- [MultiTenantManager](/architecture/multi-tenancy/multi-tenant-manager)
-- [Dynamic Tenants](/architecture/multi-tenancy/dynamic-tenants)
-- [Framework Adapters](/architecture/multi-tenancy/framework-adapters)
+- [Multi-Tenancy Overview](/multi-tenancy/overview)
+- [Tenant Resolution](/multi-tenancy/tenant-resolution)
+- [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
+- [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
+- [Framework Adapters](/multi-tenancy/framework-adapters)
 - [Runtime Execution Flow](/architecture/runtime-execution-flow)
 - [CLI Init](/advanced/cli-init)

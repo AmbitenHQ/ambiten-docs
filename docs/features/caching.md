@@ -192,5 +192,5 @@ By combining tenant-aware key resolution, runtime-scoped execution, serializatio
 
 - [AmbitenContext](/core/context)
 - [Instrumentation & Observability](/core/instrumentation)
-- [Multi-Tenant Strategies](/architecture/multi-tenancy)
+- [Multi-Tenant Strategies](/multi-tenancy/overview)
 - [Perfomance Tuning](/advanced/performance-tuning)

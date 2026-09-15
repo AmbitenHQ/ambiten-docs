@@ -1099,6 +1099,6 @@ without changing the underlying principle:
 - [AmbitenClient](/reference/api/ambiten-client)
 - [Runtime Execution Flow](/architecture/runtime-execution-flow)
 - [Execution Guarantees](/architecture/execution-guarantees)
-- [Multi-Tenancy Overview](/architecture/multi-tenancy/overview)
-- [MultiTenantManager](/architecture/multi-tenancy/multi-tenant-manager)
+- [Multi-Tenancy Overview](/multi-tenancy/overview)
+- [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
 - [Architecture](/architecture/whitepaper)

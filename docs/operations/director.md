@@ -744,4 +744,4 @@ It makes the available evidence around those concerns easier to see.
 - [Events](/features/events)
 - [Transactions](/core/transactions)
 - [Context](/core/context)
-- [Multi-Tenancy](/architecture/multi-tenancy)
+- [Multi-Tenancy](/multi-tenancy/overview)

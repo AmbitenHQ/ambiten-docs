@@ -306,5 +306,5 @@ That visibility allows optimization work to become more precise, more measurable
 - [Instrumentation](/core/instrumentation)
 - [Transactions](/core/transactions)
 - [Middleware](/core/middleware)
-- [Multi-Tenancy](/architecture/multi-tenancy)
+- [Multi-Tenancy](/multi-tenancy/overview)
 - [AmbitenClient](/reference/api/ambiten-client)

@@ -163,5 +163,5 @@ By emitting structured, context-aware signals at execution boundaries, Ambiten a
 
 - [Instrumentation](/core/instrumentation)
 - [Transactions](/core/transactions)
-- [Multi-Tenancy](/architecture/multi-tenancy)
+- [Multi-Tenancy](/multi-tenancy/overview)
 - [Performance Tuning](/advanced/performance-tuning)
