@@ -153,11 +153,55 @@ export default defineConfig({
         collapsed: true,
         items: [
           { text: "Overview", link: "/tutorials/" },
-
-          { text: "Build a SaaS", link: "/tutorials/pdf-saas" },
-          // { text: "GraphQL API", link: "/tutorials/graphql-api" },
-          // { text: "Multi-Tenant System", link: "/tutorials/multi-tenant-app" },
-          // { text: "Background Jobs", link: "/tutorials/worker-jobs" }
+          {
+            text: "Start Here",
+            collapsed: true,
+            items: [
+              { text: "01 First Ambiten Application", link: "/tutorials/01-first-ambiten-app" },
+              { text: "02 Schema and Model", link: "/tutorials/02-schema-and-model" },
+              { text: "03 CRUD With Ambiten", link: "/tutorials/03-crud-with-ambiten" }
+            ]
+          },
+          {
+            text: "Build an Application",
+            collapsed: true,
+            items: [
+              { text: "04 Build an Express API", link: "/tutorials/04-express-api" },
+              { text: "05 Execution Context", link: "/tutorials/05-execution-context" },
+              { text: "06 Multi-Tenant API", link: "/tutorials/06-multi-tenant-api" },
+              { text: "07 Tenant Infrastructure Resolution", link: "/tutorials/07-tenant-infrastructure-resolution" },
+              { text: "08 Transaction Continuity", link: "/tutorials/08-transaction-continuity" },
+              { text: "09 Middleware and Lifecycle", link: "/tutorials/09-middleware-and-lifecycle" }
+            ]
+          },
+          {
+            text: "Operate the Runtime",
+            collapsed: true,
+            items: [
+              { text: "10 Instrumentation", link: "/tutorials/10-instrumentation" },
+              { text: "11 Background Worker Execution", link: "/tutorials/11-background-worker" },
+              { text: "12 Production Runtime", link: "/tutorials/12-production-runtime" }
+            ]
+          },
+          {
+            text: "Bonus — Agentic Development",
+            collapsed: false,
+            items: [
+              { text: "Build an Agent-Ready MCP Server", link: "/tutorials/bonus-mcp-server" }
+            ]
+          },
+          {
+            text: "Framework Tracks",
+            collapsed: true,
+            items: [
+              { text: "Overview", link: "/tutorials/frameworks/" },
+              { text: "Fastify", link: "/tutorials/frameworks/fastify" },
+              { text: "NestJS", link: "/tutorials/frameworks/nestjs" },
+              { text: "GraphQL", link: "/tutorials/frameworks/graphql" },
+              { text: "Lambda", link: "/tutorials/frameworks/lambda" }
+            ]
+          },
+          { text: "Build a Document-to-PDF SaaS", link: "/tutorials/pdf-saas" }
         ]
       },
       {

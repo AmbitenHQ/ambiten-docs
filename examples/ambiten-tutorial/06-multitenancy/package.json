@@ -1,0 +1,25 @@
+{
+  "name": "ambiten-tutorial-06-multi-tenant-execution",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --env-file=.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --env-file=.env dist/index.js"
+  },
+  "dependencies": {
+    "@ambiten/adapter-express": "^1.0.2",
+    "@ambiten/core": "^1.2.4",
+    "express": "^5.1.0",
+    "mongodb": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

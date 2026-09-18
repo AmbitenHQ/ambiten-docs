@@ -1,5 +1,46 @@
 # Tutorials
 
+Build one Workspace API from your first MongoDB connection to a production-oriented Ambiten runtime.
+
+## Core Learning Path — 01–12
+
+### Start Here
+
+1. [First Ambiten Application](/tutorials/01-first-ambiten-app)
+2. [Schema and Model](/tutorials/02-schema-and-model)
+3. [CRUD With Ambiten](/tutorials/03-crud-with-ambiten)
+
+### Build an Application
+
+4. [Build an Express API](/tutorials/04-express-api)
+5. [Execution Context](/tutorials/05-execution-context)
+6. [Multi-Tenant API](/tutorials/06-multi-tenant-api)
+7. [Tenant Infrastructure Resolution](/tutorials/07-tenant-infrastructure-resolution)
+8. [Transaction Continuity](/tutorials/08-transaction-continuity)
+9. [Middleware and Lifecycle](/tutorials/09-middleware-and-lifecycle)
+
+### Operate the Runtime
+
+10. [Instrumentation](/tutorials/10-instrumentation)
+11. [Background Worker Execution](/tutorials/11-background-worker)
+12. [Production Runtime](/tutorials/12-production-runtime)
+
+The 12-part core path is complete. Tutorial 12 consolidates process, execution, and operation lifetimes; the [framework tracks](/tutorials/frameworks/) are separate follow-up work. Deployment hardening and tenant authorization remain application and infrastructure responsibilities.
+
+## Bonus — Agentic Development
+
+[Build an Agent-Ready MCP Server with Ambiten](/tutorials/bonus-mcp-server) exposes the existing application through two tenant-scoped MCP tools. REST requests, background jobs, and agent tool calls reuse the same model policies, instrumentation, and tenant infrastructure.
+
+This is a separate bonus after Tutorial 12, not Tutorial 13.
+
+## Framework Tracks
+
+[Fastify, NestJS, GraphQL, and Lambda](/tutorials/frameworks/) demonstrate different ingress points using the same Ambiten runtime. They complement the primary Express series instead of repeating it.
+
+### Separate complete application tutorial
+
+The existing [Document-to-PDF SaaS tutorial](/tutorials/pdf-saas) remains a separate, standalone tutorial.
+
 Learn Ambiten by building complete systems instead of isolated examples.
 
 Tutorials show how Ambiten behaves across real application workflows: execution boundaries, context propagation, model operations, middleware, transactions, tenant-aware infrastructure, instrumentation, and persistence working together inside one system.

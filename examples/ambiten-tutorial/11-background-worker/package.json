@@ -1,0 +1,32 @@
+{
+  "name": "ambiten-tutorial-11-background-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "tsx --env-file=.env src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "start": "node --import tsx --env-file=.env dist/index.js",
+    "test:smoke": "npm run build && node scripts/smoke.mjs",
+    "worker": "tsx --env-file=.env src/worker.ts",
+    "worker:start": "node --import tsx --env-file=.env dist/worker.js"
+  },
+  "dependencies": {
+    "@ambiten/adapter-express": "1.0.2",
+    "@ambiten/core": "1.2.4",
+    "express": "^5.1.0",
+    "mongodb": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/express-serve-static-core": "^5.1.1",
+    "@types/node": "^22.0.0",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

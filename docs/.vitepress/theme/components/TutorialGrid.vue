@@ -1,6 +1,15 @@
 <script setup lang="ts">
 const tutorials = [
   {
+    title: "Agent-Ready MCP Server",
+    status: "Bonus — Available",
+    href: "/tutorials/bonus-mcp-server",
+    summary:
+      "Expose workspace capabilities to AI hosts through MCP while reusing Ambiten tenant scope, lifecycle policies, and instrumentation.",
+    accent: "tenant",
+    metrics: ["MCP tools", "Execution scope", "Shared runtime"]
+  },
+  {
     title: "Document-to-PDF SaaS",
     status: "Available",
     href: "/tutorials/pdf-saas",
