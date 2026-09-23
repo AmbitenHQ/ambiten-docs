@@ -5,11 +5,15 @@ description: Connect GraphQL operation and resolver execution to AmbitenContext,
 
 # GraphQL Adapter
 
+::: warning Adapter 1.0.2 compatibility
+The published package is `@ambiten/adapter-graphql`. Its context factories scope context construction, but do not by themselves keep `AmbitenContext` active in later resolvers. The [runnable GraphQL framework track](/tutorials/frameworks/graphql) provides and tests a shared resolver-scope bridge for Apollo and Yoga. It also configures Yoga's native Fetch classes because adapter 1.0.2 does not recognize Yoga's default Headers implementation. Treat the factory-only snippets below as conceptual unless these execution and header boundaries are supplied.
+:::
+
 The GraphQL adapter connects GraphQL operation execution to Ambiten's runtime model.
 
 Unlike Express or Fastify, GraphQL does not primarily establish application execution through a middleware or request-hook chain.
 
-Instead, Ambiten integrates through the GraphQL context creation boundary so resolver execution begins with an active runtime context.
+Instead, Ambiten resolves runtime state at the GraphQL context creation boundary. With adapter 1.0.2, the resolver execution boundary described above is also required to make that state active during model calls.
 
 Conceptually:
 
@@ -98,7 +102,7 @@ Ambiten provides GraphQL context factories for supported GraphQL runtimes.
 ```ts
 import {
   createApolloContextFactory
-} from "@ambiten/graphql";
+} from "@ambiten/adapter-graphql";
 
 const context =
   createApolloContextFactory({
@@ -129,7 +133,7 @@ Resolver Execution
 ```ts
 import {
   createYogaContextFactory
-} from "@ambiten/graphql";
+} from "@ambiten/adapter-graphql";
 
 const context =
   createYogaContextFactory({

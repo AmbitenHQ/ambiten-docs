@@ -74,7 +74,7 @@ Wrap the Lambda handler with `createLambdaAdapter(...)`.
 ```ts
 import {
   createLambdaAdapter
-} from "@ambiten/lambda";
+} from "@ambiten/adapter-lambda";
 
 export const handler =
   createLambdaAdapter(
@@ -133,7 +133,7 @@ import {
 
 import {
   createLambdaAdapter
-} from "@ambiten/lambda";
+} from "@ambiten/adapter-lambda";
 
 const runtime =
   await AmbitenBootstrapFactory.create();
@@ -258,7 +258,7 @@ Conceptually:
 ```text
 Lambda Event
       ↓
-@ambiten/lambda
+@ambiten/adapter-lambda
       ↓
 AmbitenRequestLike
       ↓

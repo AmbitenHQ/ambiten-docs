@@ -79,7 +79,7 @@ import {
 
 import {
   AmbitenNestAdapterModule
-} from "@ambiten/nestjs";
+} from "@ambiten/adapter-nestjs";
 
 @Module({
   imports: [
@@ -434,7 +434,7 @@ import {
 
 import {
   AmbitenNestAdapterModule
-} from "@ambiten/nestjs";
+} from "@ambiten/adapter-nestjs";
 
 @Module({
   imports: [

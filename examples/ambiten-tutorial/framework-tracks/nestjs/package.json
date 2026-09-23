@@ -1,0 +1,33 @@
+{
+  "name": "ambiten-framework-track-nestjs",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "dev": "npm run start:dev",
+    "typecheck": "tsc --noEmit",
+    "build": "nest build",
+    "test": "npm run build && node --test test/runtime.test.cjs"
+  },
+  "dependencies": {
+    "@ambiten/adapter-nestjs": "1.0.2",
+    "@ambiten/core": "1.2.4",
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "dotenv": "^16.4.7",
+    "mongodb": "^6.21.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -7,16 +7,14 @@ description: Connect Fastify request execution to AmbitenContext, tenant resolut
 
 The Fastify adapter connects Fastify's request lifecycle to Ambiten's runtime execution model.
 
-It establishes a request-scoped execution boundary before route handlers run, allowing tenant identity, request metadata, transaction state, and other runtime information to remain available throughout the request lifecycle.
+It establishes a request-scoped execution boundary for route handlers and their awaited application work, making tenant identity, request metadata, and transaction state available to services and models.
 
-Once installed, downstream Fastify request execution enters `AmbitenContext` automatically.
+Use `@ambiten/adapter-fastify` 1.0.4 or later. The [runnable Fastify framework track](/tutorials/frameworks/fastify) uses `createFastifyAdapter().install(...)` directly; no consumer-side boundary implementation is required.
 
 ```text
 Fastify Request
       ↓
 Fastify Adapter
-      ↓
-adapter-runtime
       ↓
 AmbitenContext
       ↓
@@ -114,7 +112,7 @@ After installation, incoming requests enter Ambiten's runtime boundary before ro
 
 ## Integration Model
 
-The Fastify adapter integrates with Fastify's request lifecycle and delegates shared runtime behavior to `@ambiten/adapter-runtime`.
+Install the public adapter before registering routes that use Ambiten. It owns the execution boundary; application code supplies tenant policy and then reads `AmbitenContext` in handlers and services.
 
 Conceptually:
 
@@ -124,10 +122,6 @@ Fastify Request
 Fastify Lifecycle
       ↓
 @ambiten/adapter-fastify
-      ↓
-AmbitenRequestLike
-      ↓
-@ambiten/adapter-runtime
       ↓
 Tenant Resolution
       ↓
@@ -141,7 +135,7 @@ Route Handler
   :items='[
     "Fastify Request",
     "Fastify Lifecycle",
-    "Adapter Runtime",
+    "Fastify Adapter",
     "AmbitenContext",
     "Route Handler",
     "MongoDB"
@@ -150,9 +144,7 @@ Route Handler
 
 The Fastify-specific adapter handles framework integration.
 
-The shared adapter runtime handles Ambiten execution concerns.
-
-This keeps Fastify-specific request behavior out of Ambiten Core.
+Consumers do not need to convert Fastify requests or implement context propagation. The checkpoint verifies handlers and awaited application work; do not assume unrelated Fastify lifecycle hooks inherit that execution context.
 
 ## Lifecycle Ordering
 
@@ -993,59 +985,14 @@ Shutdown belongs to the process lifecycle, not individual requests.
 
 ## ESM and CommonJS
 
-The Fastify adapter supports Ambiten's ESM and CommonJS consumer boundaries.
-
-For ESM:
-
-```text
-ESM Application
-      ↓
-@ambiten/adapter-fastify ESM
-      ↓
-@ambiten/adapter-runtime ESM
-      ↓
-@ambiten/core ESM
-```
-
-For CommonJS:
-
-```text
-CommonJS Application
-      ↓
-@ambiten/adapter-fastify CJS
-      ↓
-@ambiten/adapter-runtime CJS
-      ↓
-@ambiten/core CJS
-```
-
-This matters because request-scoped runtime state must remain consistent across the adapter and Core package boundary.
-
-Applications should use public package imports:
+Use the public package exports in either module format. The checkpoint uses CommonJS output; an ESM application uses the same package names.
 
 ```ts
-import {
-  createFastifyAdapter
-} from "@ambiten/adapter-fastify";
+import { createFastifyAdapter } from "@ambiten/adapter-fastify";
+import { AmbitenContext, MultiTenantManager } from "@ambiten/core";
 ```
 
-and:
-
-```ts
-import {
-  AmbitenContext
-} from "@ambiten/core";
-```
-
-Do not import internal build paths such as:
-
-```text
-@ambiten/adapter-fastify/dist/...
-@ambiten/adapter-runtime/dist/...
-@ambiten/core/dist/...
-```
-
-Public package exports select the appropriate module format for the consumer.
+Do not deep-import build files or install adapter implementation packages directly. The published adapter owns its dependencies and context propagation.
 
 ## Testing Fastify Integration
 

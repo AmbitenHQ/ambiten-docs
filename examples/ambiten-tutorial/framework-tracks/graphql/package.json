@@ -1,0 +1,33 @@
+{
+  "name": "ambiten-framework-track-graphql",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.15.0"
+  },
+  "scripts": {
+    "dev:apollo": "tsx watch src/apollo.ts",
+    "dev:yoga": "tsx watch src/yoga.ts",
+    "start:apollo": "node dist/apollo.js",
+    "start:yoga": "node dist/yoga.js",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/runtime.test.cjs"
+  },
+  "dependencies": {
+    "@ambiten/adapter-graphql": "^2.0.1",
+    "@ambiten/core": "^1.2.4",
+    "@apollo/server": "^5.5.1",
+    "@graphql-tools/schema": "10.0.23",
+    "dotenv": "^16.4.7",
+    "graphql": "^16.0.0",
+    "graphql-yoga": "^5.24.1",
+    "mongodb": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}

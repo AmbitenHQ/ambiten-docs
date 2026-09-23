@@ -9,6 +9,11 @@ export default defineConfig({
   ignoreDeadLinks: true,
 
   cleanUrls: true,
+  // Keep existing public URLs while grouping each framework's sources together.
+  rewrites: {
+    "tutorials/frameworks/fastify/fastify.md": "tutorials/frameworks/fastify.md",
+    "tutorials/frameworks/nestjs/nestjs.md": "tutorials/frameworks/nestjs.md"
+  },
   lastUpdated: true,
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: "/ambiten_favicon_pack/favi-512x512.svg" }],
@@ -195,10 +200,28 @@ export default defineConfig({
             collapsed: true,
             items: [
               { text: "Overview", link: "/tutorials/frameworks/" },
-              { text: "Fastify", link: "/tutorials/frameworks/fastify" },
-              { text: "NestJS", link: "/tutorials/frameworks/nestjs" },
-              { text: "GraphQL", link: "/tutorials/frameworks/graphql" },
-              { text: "Lambda", link: "/tutorials/frameworks/lambda" }
+              {
+                text: "Fastify",
+                collapsed: false,
+                items: [
+                  { text: "Overview", link: "/tutorials/frameworks/fastify" },
+                  { text: "Runtime Boundary & Tenant-Aware API (planned)", link: "/tutorials/frameworks/fastify/tenant-aware-api" },
+                  { text: "Transaction Continuity (planned)", link: "/tutorials/frameworks/fastify/transaction-continuity" },
+                  { text: "Middleware, Instrumentation & Production Notes (planned)", link: "/tutorials/frameworks/fastify/middleware-instrumentation-production" }
+                ]
+              },
+              {
+                text: "NestJS",
+                collapsed: false,
+                items: [
+                  { text: "Overview & Runtime Boundary", link: "/tutorials/frameworks/nestjs" },
+                  { text: "Tenant-Aware Services and Models (planned)", link: "/tutorials/frameworks/nestjs/tenant-aware-services" },
+                  { text: "Transaction Continuity Across Services (planned)", link: "/tutorials/frameworks/nestjs/transaction-continuity" },
+                  { text: "Middleware, Instrumentation & Production Structure (planned)", link: "/tutorials/frameworks/nestjs/middleware-instrumentation-production" }
+                ]
+              },
+              { text: "GraphQL (Apollo & Yoga)", link: "/tutorials/frameworks/graphql" },
+              { text: "AWS Lambda", link: "/tutorials/frameworks/lambda" }
             ]
           },
           { text: "Build a Document-to-PDF SaaS", link: "/tutorials/pdf-saas" }

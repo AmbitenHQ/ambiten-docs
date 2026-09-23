@@ -467,10 +467,14 @@ Use the boundary that matches the application's consistency requirements.
 
 GraphQL enters Ambiten through context creation rather than HTTP middleware.
 
+::: warning Published GraphQL adapter 1.0.2
+The context factory alone scopes construction, not subsequent resolver execution. Use the [tested Apollo/Yoga framework track](/tutorials/frameworks/graphql), including its shared resolver-scope bridge and Yoga native-Fetch configuration, before relying on `AmbitenContext` inside resolvers. The snippets in Patterns 6 and 7 illustrate the API shape, not the complete compatibility setup.
+:::
+
 ```ts
 import {
   createApolloContextFactory
-} from "@ambiten/graphql";
+} from "@ambiten/adapter-graphql";
 
 const context =
   createApolloContextFactory({
@@ -574,7 +578,7 @@ import {
 
 import {
   AmbitenNestAdapterModule
-} from "@ambiten/nestjs";
+} from "@ambiten/adapter-nestjs";
 
 @Module({
   imports: [
@@ -680,7 +684,7 @@ import {
 
 import {
   createLambdaAdapter
-} from "@ambiten/lambda";
+} from "@ambiten/adapter-lambda";
 
 const runtime =
   await AmbitenBootstrapFactory

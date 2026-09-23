@@ -1,0 +1,27 @@
+{
+  "name": "ambiten-framework-track-lambda",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "invoke": "tsx src/invoke.ts",
+    "invoke:built": "node dist/invoke.js",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/runtime.test.cjs"
+  },
+  "dependencies": {
+    "@ambiten/adapter-lambda": "1.0.2",
+    "@ambiten/core": "1.2.4",
+    "dotenv": "^16.4.7",
+    "mongodb": "^6.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  }
+}
