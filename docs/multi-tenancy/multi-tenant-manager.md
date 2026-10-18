@@ -7,79 +7,43 @@ description: Manage tenant registration, dynamic discovery, MongoDB client resol
 
 `MultiTenantManager` is Ambiten's runtime registry and resource manager for multi-tenant applications.
 
-It is responsible for knowing which tenants are currently registered, resolving tenants that are not yet known locally, managing their MongoDB client lifecycle, and exposing runtime tenancy state.
+It tracks registered tenants, discovers configuration for tenants not yet known locally, creates and reuses tenant MongoDB clients, and exposes runtime tenancy state.
 
-It does **not** determine which tenant an incoming request belongs to.
+Request-facing tenant resolution determines which tenant an execution belongs to. `AmbitenContext` carries that identity through the execution.
 
-That responsibility belongs to tenant resolution and `AmbitenContext`.
+| Component | Responsibility |
+| --- | --- |
+| `TenantResolver` | Derives tenant identity from a request. |
+| `AmbitenContext` | Carries tenant identity and other execution state. |
+| `MultiTenantManager` | Registers tenants and resolves their configuration and clients. |
+| `TenantConfigResolver` | Supplies external configuration for an unregistered tenant. |
+| Tenant-aware provider | Selects the database used by model operations. |
 
-```text
-Request
-   ↓
-TenantResolver
-   ↓
-AmbitenContext.tenantId
-   ↓
-MultiTenantManager
-   ├── registered tenant?
-   │      ↓ yes
-   │   use config
-   │
-   └── no
-          ↓
-      TenantConfigResolver
-          ↓
-      resolve configuration
-          ↓
-      register tenant
-          ↓
-      getClient()
-          ↓
-      tenant database
-```
-
-At a high level:
-
-```text
-AmbitenContext
-→ Which tenant belongs to this execution?
-
-MultiTenantManager
-→ What configuration and resources belong to that tenant?
-```
-
-This separation allows request-scoped identity and process-level tenant infrastructure to remain independent while still participating in the same runtime flow.
+The manager's registry persists across requests within the application process. It is separate from request-scoped context.
 
 ## Responsibilities
 
-`MultiTenantManager` coordinates four primary concerns:
+`MultiTenantManager` coordinates:
 
-- tenant registration,
-- tenant lookup,
-- dynamic tenant discovery,
-- MongoDB client lifecycle.
+- Tenant registration.
+- Local tenant lookup.
+- Dynamic tenant discovery.
+- MongoDB client creation and reuse.
+- Inspection of registered, connected, and lazy tenant state.
 
-It also exposes runtime information such as the number of registered, connected, and lazy tenants.
+Registration and connection are separate actions.
 
-A registered tenant can exist without having an active MongoDB connection.
+A tenant can be registered without having a MongoDB client. In lazy mode, its connection is deferred until an operation requests the client.
 
-This distinction is central to Ambiten's lazy tenancy model.
-
-```text
-registered
-    ≠
-connected
-```
-
-A tenant may therefore be known to the runtime while its MongoDB client remains unopened until the first database operation requires it.
+Removing a registry entry is also separate from closing its client. Registry cleanup behavior is described below.
 
 ## Tenant Configuration
 
-A tenant configuration represents the infrastructure information Ambiten needs in order to work with a tenant.
-
-Conceptually:
+A registered tenant contains both infrastructure configuration and manager-owned runtime state:
 
 ```ts
+import type { MongoClient } from "mongodb";
+
 interface TenantConfig {
   tenantId: string;
   uri: string;
@@ -90,849 +54,632 @@ interface TenantConfig {
 }
 ```
 
-For example:
+For example, a lazily registered tenant may contain:
 
 ```ts
 const tenant = {
   tenantId: "tenant5",
-  uri: "mongodb://localhost:27017",
+  uri: "mongodb://localhost:27017/db_tenant5",
   dbName: "db_tenant5",
+  client: undefined,
   lazy: true,
   metadata: {
     region: "de-west-1",
-    tier: "supreme"
-  }
+    tier: "supreme",
+  },
 };
 ```
 
-The important distinction is that this configuration belongs to the runtime registry.
+This record belongs to the runtime registry.
 
-It is not request-scoped state.
+A request can carry only its tenant identity through `AmbitenContext`, while the manager holds the configuration needed to reach that tenant.
 
-It is not request-scoped state.
+`TenantConfig` differs from `ResolvedTenantConfig`, which describes the external configuration returned by a dynamic resolver. The resolver supplies `uri`, optional `dbName`, and optional `metadata`; the manager supplies tenant identity, client, and lazy state.
 
-A request may carry:
-
-```ts
-{
-  tenantId: "tenant5"
-}
-```
-
-while `MultiTenantManager` holds the infrastructure required to actually reach that tenant.
+## getTenant()
 
 ```ts
-getTenant()
-MultiTenantManager.getTenant(tenantId)
+const tenant = MultiTenantManager.getTenant("tenant5");
 ```
 
-`getTenant()` performs a synchronous lookup against the current local tenant registry.
+`getTenant()` performs a synchronous lookup against the local registry.
 
-It does not perform external tenant discovery.
-
-```ts
-const tenant =
-  MultiTenantManager.getTenant("tenant5");
-```
-
-If `"tenant5"` is already registered, the corresponding tenant configuration is returned.
-
-If it is not registered, no external resolver is consulted.
-
-Think of `getTenant()` as:
-
-```text
-local registry lookup only
-```
-
-This makes it suitable when you specifically want to inspect the runtime's currently known tenant state.
+- If the tenant is registered, it returns its configuration.
+- If the tenant is absent, it returns `undefined`.
+- It does not invoke the external resolver.
 
 For example:
 
 ```ts
-const tenant =
-  MultiTenantManager.getTenant("tenant5");
+const tenant = MultiTenantManager.getTenant("tenant5");
 
 if (tenant) {
-  console.log(tenant.dbName);
+  console.log({
+    tenantId: tenant.tenantId,
+    dbName: tenant.dbName,
+    lazy: tenant.lazy,
+    hasClient: Boolean(tenant.client),
+  });
 }
 ```
 
-## When to use `getTenant()`
+The returned record is a shallow copy. Nested metadata and the client instance are not deep-cloned. Treat lookup results as inspection data rather than a supported way to modify registration state.
+
+Pass a non-empty tenant ID. Invalid tenant IDs throw rather than behaving as ordinary missing-tenant lookups.
+
+### When to Use getTenant()
 
 Use it when you want to:
 
-- inspect a tenant that should already be registered,
-- read runtime tenant metadata,
-- examine lazy or connected state,
-- avoid triggering external discovery.
+- Inspect a tenant expected to be registered.
+- Read registered tenant metadata.
+- Examine lazy state or client presence.
+- Avoid triggering external discovery.
 
-Do not use it when your application needs to discover tenants dynamically.
+Use `resolveTenant()` when the tenant may need to be discovered.
 
-For that, use `resolveTenant()`.
-
-```ts
-resolveTenant()
-await MultiTenantManager.resolveTenant(tenantId)
-```
-
-`resolveTenant()` is the runtime-aware tenant lookup operation.
-
-It first checks the local registry.
-
-If the tenant is not registered and a dynamic tenant configuration resolver is available, Ambiten can use that resolver to discover the tenant externally.
-
-Conceptually:
-
-```text
-resolveTenant("tenant5")
-        ↓
-registered locally?
-   ┌────┴────┐
-  yes        no
-   ↓          ↓
-return     TenantConfigResolver
-config          ↓
-             found?
-          ┌────┴────┐
-         yes        no
-          ↓          ↓
-      register    unresolved
-          ↓
-      return config
-```
-
-Example:
+## resolveTenant()
 
 ```ts
-const tenant =
-  await MultiTenantManager.resolveTenant("tenant5");
+const tenant = await MultiTenantManager.resolveTenant("tenant5");
+```
+
+`resolveTenant()` checks the local registry first.
+
+If the tenant is absent and a configuration resolver is installed, it invokes that resolver. A successfully discovered tenant is registered lazily before its configuration is returned.
+
+```ts
+const tenant = await MultiTenantManager.resolveTenant("tenant5");
 
 if (!tenant) {
-  throw new Error("Tenant not found.");
+  throw new Error('Tenant "tenant5" could not be resolved.');
 }
+
+console.log(tenant.dbName);
 ```
 
-This is the correct operation when the tenant may exist outside the current runtime registry.
+The method returns `undefined` when:
 
-## Local and dynamic resolution
+- The tenant is absent and no resolver is configured.
+- The resolver returns `null` or `undefined`.
 
-The distinction between the two lookup methods is intentional:
+Invalid configuration or failures inside the resolver can throw.
+
+Resolving configuration does not open the discovered tenant's MongoDB connection. The external lookup may perform its own database or network operations.
+
+### Local and Dynamic Resolution
+
+| Method | Local lookup | External discovery | Opens a tenant connection |
+| --- | --- | --- | --- |
+| `getTenant()` | Yes | No | No |
+| `resolveTenant()` | Yes | When needed and configured | No |
+| `getClient()` | Yes, through tenant resolution | When needed and configured | For a resolved lazy tenant |
+
+Once registered, a tenant is returned from the local registry without repeating the external lookup.
+
+Changes in an external tenant source are not automatically refreshed in an existing registration.
+
+Concurrent discovery calls for the same tenant ID share an in-flight lookup within the process. This does not imply the same coordination for concurrent client creation or across separate processes.
+
+## getClient()
 
 ```ts
-getTenant()
-    = local registry only
-
-resolveTenant()
-    = local registry
-      +
-      external discovery when required
+const client = await MultiTenantManager.getClient("tenant5");
 ```
 
-This allows callers to be explicit about whether tenant discovery is permitted.
+`getClient()` resolves the tenant and attempts to obtain its MongoDB client.
 
-`getClient()`
+It:
+
+1. Resolves the tenant configuration.
+2. Returns the registered client when one exists.
+3. Creates and connects a client when the tenant is lazy.
+4. Stores the client and sets `lazy` to `false` after a successful connection.
+
+The return type is `Promise<MongoClient | null>`.
+
+An unresolved tenant produces `null`. Resolution and connection failures can throw. The method does not guarantee that every call succeeds.
+
+For direct database access:
 
 ```ts
-await MultiTenantManager.getClient(tenantId)
+const tenantId = "tenant5";
+
+const tenant = await MultiTenantManager.resolveTenant(tenantId);
+
+if (!tenant) {
+  throw new Error(`Tenant "${tenantId}" could not be resolved.`);
+}
+
+const client = await MultiTenantManager.getClient(tenantId);
+
+if (!client) {
+  throw new Error(`No MongoDB client is available for "${tenantId}".`);
+}
+
+const db = client.db(tenant.dbName);
 ```
 
-`getClient()` resolves the tenant and guarantees that a usable MongoDB client is available.
+In ordinary model operations, application code usually does not need to call `getClient()` directly.
 
-It is the resource-oriented operation in the manager.
-
-Conceptually:
-
-```text
-getClient("tenant5")
-        ↓
-resolve tenant
-        ↓
-tenant found?
-        ↓
-client already connected?
-   ┌────┴────┐
-  yes        no
-   ↓          ↓
-return     establish client
-client          ↓
-            update runtime state
-                 ↓
-             return client
-```
-
-Example:
-
-```ts
-const client =
-  await MultiTenantManager.getClient("tenant5");
-
-const db =
-  client.db("db_tenant5");
-```
-
-In normal Ambiten model operations, application code usually does not need to call `getClient()` directly.
-
-Ambiten's runtime uses the active tenant context to resolve the appropriate database resource when a model operation requires it.
-
-For example:
+With a tenant-aware provider configured, the model uses the active execution context to obtain the appropriate database resources:
 
 ```ts
 const user = await UserModel.create({
   username: "Abinod Ltd",
-  email: "aemma@abinod.com"
+  email: "aemma@abinod.com",
 });
 ```
 
-If the active context contains:
-
-```ts
-{
-  tenantId: "tenant5"
-}
-```
-
-the runtime can resolve the correct tenant client without requiring the application to manually call:
-
-```ts
-MultiTenantManager.getClient("tenant5");
-```
-
-Direct client access is therefore mainly useful for infrastructure-level operations or advanced integrations.
+Direct client access is mainly useful for infrastructure operations and advanced integrations.
 
 ## Lazy Tenant Activation
 
-Ambiten separates tenant registration from MongoDB connection establishment.
-
-Consider an application initialized with three tenants in lazy mode.
+Consider an application with three tenants registered lazily and a dynamic resolver configured.
 
 At startup:
 
 ```ts
-MultiTenantManager.getStats();
+const stats = MultiTenantManager.getStats();
 ```
 
-might return:
+The result might be:
 
-```ts
+```json
 {
-  registeredTenants: 3,
-  connectedTenants: 0,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
+  "registeredTenants": 3,
+  "connectedTenants": 0,
+  "lazyTenants": 3,
+  "dynamicResolverEnabled": true
 }
 ```
 
-The tenants are known, but no tenant-specific MongoDB clients are active.
+Now a request arrives for `"tenant5"`.
 
-Now suppose a request arrives for a tenant that is not yet registered:
+If the external resolver finds its configuration, the manager registers it lazily. A subsequent database operation requests its client and establishes the connection.
 
-```ts
-x-tenant-id: tenant5
-```
-
-The adapter resolves:
+To inspect its resulting state:
 
 ```ts
-AmbitenContext.get().tenantId;
-// "tenant5"
+const tenant = MultiTenantManager.getTenant("tenant5");
+
+const summary = tenant
+  ? {
+      tenantId: tenant.tenantId,
+      dbName: tenant.dbName,
+      connected: Boolean(tenant.client),
+      lazy: tenant.lazy,
+      metadata: tenant.metadata,
+    }
+  : undefined;
+
+console.log(summary);
 ```
 
-When a model operation requires database access:
+`connected` is a derived value in this example. It is not a property of `TenantConfig`.
 
-```text
-tenant5
-   ↓
-not registered locally
-   ↓
-TenantConfigResolver
-   ↓
-configuration found
-   ↓
-tenant5 registered
-   ↓
-getClient()
-   ↓
-MongoDB client established
-```
+After successful connection, the summary may contain:
 
-The tenant may then appear as:
-
-```ts
+```json
 {
-  tenantId: "tenant5",
-  dbName: "db_tenant5",
-  connected: true,
-  lazy: false,
-  metadata: {
-    region: "de-west-1",
-    tier: "supreme"
+  "tenantId": "tenant5",
+  "dbName": "db_tenant5",
+  "connected": true,
+  "lazy": false,
+  "metadata": {
+    "region": "de-west-1",
+    "tier": "supreme"
   }
 }
 ```
 
-while runtime statistics become:
+Runtime statistics would then reflect:
 
-```ts
+```json
 {
-  registeredTenants: 4,
-  connectedTenants: 1,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
+  "registeredTenants": 4,
+  "connectedTenants": 1,
+  "lazyTenants": 3,
+  "dynamicResolverEnabled": true
 }
 ```
 
 The three unused tenants remain lazy.
 
-Only the tenant that required a database operation has transitioned to an active connection.
+For bootstrap configuration, `multiTenant.initOptions.lazy` controls initialization of the static tenant map. Dynamically discovered tenants are registered lazily by the manager.
 
 ## Dynamic Tenant Configuration
 
-Dynamic tenants are resolved through a `TenantConfigResolver`.
+Dynamic discovery uses a `TenantConfigResolver` function.
 
-This allows tenant infrastructure to live outside the running application.
-
-For example:
+A minimal, self-contained example is:
 
 ```ts
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const config =
-      await lookupTenant(tenantId);
+import { MultiTenantManager } from "@ambiten/core";
+import type { TenantConfigResolver } from "@ambiten/core";
 
-    if (!config) {
-      return undefined;
-    }
-
-    return {
-      tenantId,
-      uri: config.uri,
-      dbName: config.dbName,
-      lazy: true,
-      metadata: config.metadata
-    };
+const resolver: TenantConfigResolver = (tenantId) => {
+  if (tenantId !== "tenant5") {
+    return undefined;
   }
-});
+
+  return {
+    uri: "mongodb://localhost:27017/db_tenant5",
+    dbName: "db_tenant5",
+    metadata: {
+      region: "de-west-1",
+      tier: "supreme",
+    },
+  };
+};
+
+MultiTenantManager.setTenantConfigResolver(resolver);
 ```
 
-The external lookup can be backed by any application-defined source, such as:
+This example recognizes one tenant. Replace the function body with an external lookup when configuration lives in a control database, registry service, configuration API, or another application-defined source.
 
-- a control database,
-- a tenant registry service,
-- an internal configuration API,
-- an infrastructure service,
-- a secrets-backed configuration store.
+The resolver may be synchronous or asynchronous.
 
-Ambiten only needs the resolver to produce the tenant configuration required by the runtime.
-
-A dynamically discovered tenant then enters the same registry as tenants that were configured at startup.
-
-```ts 
-const tenant =
-  await MultiTenantManager.resolveTenant(
-    "tenant5"
-  );
-```
-
-At this point, if resolution succeeds, the tenant is known to the runtime.
-
-A client can then be requested:
+Its result follows this contract:
 
 ```ts
-const client =
-  await MultiTenantManager.getClient(
-    "tenant5"
-  );
+interface ResolvedTenantConfig {
+  uri: string;
+  dbName?: string;
+  metadata?: Record<string, unknown>;
+}
 ```
 
-The first operation answers:
+Return `null` or `undefined` when the tenant does not exist.
 
-> Does this tenant exist, and what is its configuration?
+`setTenantConfigResolver()` validates and stores the function. It does not call it or register tenants immediately.
 
-The second answers:
+The setter accepts a function, not an object containing a `resolve()` method.
 
-> Give me a usable MongoDB client for this tenant.
-
-`getAllTenants()`
+If the application organizes its resolver as an object, pass a callback that invokes the method:
 
 ```ts
-MultiTenantManager.getAllTenants()
+const tenantResolver = {
+  resolve: resolver,
+};
+
+MultiTenantManager.setTenantConfigResolver((tenantId) =>
+  tenantResolver.resolve(tenantId)
+);
 ```
 
-Returns the tenants currently registered in the runtime.
+Use this as an alternative to registering the function directly.
 
-This includes tenants that may not yet have active MongoDB clients.
-
-Conceptually:
-
-```rexr
-Runtime Registry
-
-tenant1  registered  lazy
-tenant2  registered  lazy
-tenant3  registered  lazy
-tenant5  registered  connected
-```
-
-`getAllTenants()` represents the registry as a whole, not just active connections.
-
-It is useful for runtime inspection, diagnostics, administration, and observability.
-
-`getAllConnectedTenants()`
-
-```text
-MultiTenantManager.getAllConnectedTenants()
-```
-
-Returns only tenants that currently have active clients.
-
-For example:
-
-```text
-tenants: 4
-Connected tenants: 1
-```
-
-could mean:
-
-```text
-tenant1  lazy
-tenant2  lazy
-tenant3  lazy
-tenant5  connected
-```
-
-Calling:
+To trigger discovery:
 
 ```ts
-MultiTenantManager.getAllConnectedTenants();
+const tenant = await MultiTenantManager.resolveTenant("tenant5");
 ```
 
-would therefore return only the connected tenant state.
-
-This is useful when application infrastructure needs to reason specifically about active database resources rather than every registered tenant.
-
-`getStats()`
+To request database access:
 
 ```ts
-MultiTenantManager.getStats()
+const client = await MultiTenantManager.getClient("tenant5");
+
+if (!client) {
+  throw new Error('Tenant "tenant5" could not provide a client.');
+}
 ```
 
-Returns a summary of the current multi-tenant runtime state.
+Bootstrap can register the resolver through `multiTenant.tenantConfigResolver`. JSON configuration can reference its exported function through `multiTenant.tenantConfigResolverModule`.
+
+See [Dynamic Tenants](./dynamic-tenants) for complete configuration examples.
+
+### Clearing the Resolver
+
+```ts
+MultiTenantManager.clearTenantConfigResolver();
+```
+
+This removes the configured resolver function.
+
+Existing registrations and clients remain in the registry. Clearing the resolver does not close connections or remove registered tenants.
+
+## getAllTenants()
+
+```ts
+const tenants = MultiTenantManager.getAllTenants();
+```
+
+Returns a `TenantConfig[]` containing the tenants currently registered with the manager.
+
+This includes:
+
+- Statically configured tenants.
+- Manually registered tenants.
+- Dynamically discovered tenants that have already been registered.
+- Lazy tenants without clients.
+- Tenants with registered clients.
+
+It does not enumerate every tenant that exists in an external configuration source.
 
 For example:
 
 ```ts
-const stats =
-  MultiTenantManager.getStats();
+const summaries = MultiTenantManager.getAllTenants().map((tenant) => ({
+  tenantId: tenant.tenantId,
+  dbName: tenant.dbName,
+  lazy: tenant.lazy,
+  hasClient: Boolean(tenant.client),
+}));
+
+console.log(summaries);
+```
+
+Each returned record is a shallow copy. Nested metadata and client instances retain their references.
+
+## getAllConnectedTenants()
+
+```ts
+const tenantIds = MultiTenantManager.getAllConnectedTenants();
+```
+
+Returns a `string[]` of tenant IDs whose registry records contain a client.
+
+For example:
+
+```ts
+["tenant5"]
+```
+
+It does not return tenant configuration objects.
+
+To inspect the corresponding records:
+
+```ts
+for (const tenantId of MultiTenantManager.getAllConnectedTenants()) {
+  const tenant = MultiTenantManager.getTenant(tenantId);
+
+  console.log({
+    tenantId,
+    dbName: tenant?.dbName,
+  });
+}
+```
+
+The result reflects client presence in the registry. It is not a live connectivity check.
+
+## getStats()
+
+```ts
+const stats = MultiTenantManager.getStats();
 
 console.log(stats);
 ```
 
-```ts
+Example:
+
+```json
 {
-  registeredTenants: 4,
-  connectedTenants: 1,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
+  "registeredTenants": 4,
+  "connectedTenants": 1,
+  "lazyTenants": 3,
+  "dynamicResolverEnabled": true
 }
 ```
 
-These values describe different aspects of the runtime:
+| Field | Meaning |
+| --- | --- |
+| `registeredTenants` | Number of tenant records in the local registry. |
+| `connectedTenants` | Number of records containing a client instance. |
+| `lazyTenants` | Number of records whose `lazy` flag is `true`. |
+| `dynamicResolverEnabled` | Whether a tenant configuration resolver is installed. |
 
-| Field                    | Meaning                                                             |
-| ------------------------ | ------------------------------------------------------------------- |
-| `registeredTenants`      | Number of tenants currently known to the runtime                    |
-| `connectedTenants`       | Number of tenants with active MongoDB clients                       |
-| `lazyTenants`            | Number of registered tenants still waiting for on-demand connection |
-| `dynamicResolverEnabled` | Whether external tenant discovery is configured                     |
+These statistics are useful for runtime inspection, diagnostics, and operational dashboards.
 
-This makes `getStats()` useful for:
+They describe registry state rather than database health. Closing a client externally does not automatically remove its registry reference.
 
-- runtime diagnostics,
-- health endpoints,
-- operational dashboards,
-- development inspection,
-- observability integrations.
+The counts cover tenant registrations managed here. A separate base connection opened during application bootstrap is not included.
 
-`getTenant()`, `resolveTenant()`, and `getClient()`
+## Choosing the Appropriate Lookup
 
-These methods deliberately represent different levels of responsibility.
-
-```text
-getTenant()
-    ↓
-local registry lookup
-
-resolveTenant()
-    ↓
-local registry
-+
-dynamic discovery
-
-getClient()
-    ↓
-tenant resolution
-+
-connection guarantee
-```
-
-Or more directly:
-
-```text
-getTenant()
-    ≠ external discovery
-
-resolveTenant()
-    = registry + external discovery
-
-getClient()
-    = resolution + usable MongoDB client
-```
-
-Choosing the correct method depends on what the caller actually needs.
-
-### Inspect local state
+### Inspect Local State
 
 ```ts
-const tenant =
-  MultiTenantManager.getTenant("tenant5");
+const tenant = MultiTenantManager.getTenant("tenant5");
 ```
-Use this when the tenant should already exist in the runtime.
 
-### Discover a tenant if necessary
+Use this when you want local state without external discovery.
+
+### Discover a Tenant if Necessary
 
 ```ts
-const tenant =
-  await MultiTenantManager.resolveTenant(
-    "tenant5"
-  );
+const tenant = await MultiTenantManager.resolveTenant("tenant5");
 ```
 
-Use this when the tenant may need to be resolved externally.
+Use this when the tenant may exist outside the local registry.
 
-### Require database access
+### Require Database Access
 
 ```ts
-const client =
-  await MultiTenantManager.getClient(
-    "tenant5"
-  );
+const client = await MultiTenantManager.getClient("tenant5");
+
+if (!client) {
+  throw new Error('Tenant "tenant5" could not provide a client.');
+}
 ```
 
-Use this when a live tenant client is required.
+Use this when infrastructure code needs the tenant's MongoDB client.
+
+### Read the Database Name
+
+For a local-only lookup:
+
+```ts
+const dbName = MultiTenantManager.getTenant("tenant5")?.dbName;
+```
+
+To allow discovery:
+
+```ts
+const dbName = await MultiTenantManager.resolveTenantDbName("tenant5");
+```
+
+`getTenantDbName()` is also asynchronous in the current implementation and can fall back to dynamic resolution:
+
+```ts
+const dbName = await MultiTenantManager.getTenantDbName("tenant5");
+```
+
+Use the local `getTenant()` lookup when external discovery must not occur.
 
 ## MultiTenantManager vs AmbitenContext
 
-`MultiTenantManager` and `AmbitenContext` solve different problems.
+### AmbitenContext
 
-### AmbitenContext Solves
-
-`AmbitenContext` describes the current execution.
+`AmbitenContext` describes the active execution.
 
 ```ts
-AmbitenContext.get();
-```
+const context = AmbitenContext.get();
 
-might return:
-
-```ts
-{
-  tenantId: "tenant5",
-  requestId: "req_123",
-  dbName: undefined,
-  collectionName: undefined
-}
+console.log({
+  tenantId: context.tenantId,
+  requestId: context.requestId,
+});
 ```
 
 Its question is:
 
-> What belongs to this request or operation?
+> What identity and state belong to this request or operation?
 
-### MultiTenantManager Solves
+### MultiTenantManager
 
-`MultiTenantManager` describes tenant infrastructure known to the process.
-
-```ts
-MultiTenantManager.getTenant("tenant5");
-```
-
-might represent:
+`MultiTenantManager` describes tenant infrastructure registered in the process.
 
 ```ts
-{
-  tenantId: "tenant5",
-  uri: "...",
-  dbName: "db_tenant5",
-  lazy: false,
-  metadata: {
-    region: "de-west-1"
-  }
-}
+const tenant = MultiTenantManager.getTenant("tenant5");
+
+console.log({
+  tenantId: tenant?.tenantId,
+  dbName: tenant?.dbName,
+  lazy: tenant?.lazy,
+});
 ```
 
 Its question is:
 
 > What configuration and resources belong to this tenant?
 
-The distinction is:
+A request can carry its tenant ID while the manager holds the URI, database name, client, lazy state, and metadata.
 
-```text
-AmbitenContext
-→ execution-scoped state
-
-MultiTenantManager
-→ runtime tenant state
-```
-
-A request can therefore carry only:
-
-```text
-tenantId = tenant5
-```
-
-while the manager knows:
-
-```text
-tenant5
-├── MongoDB URI
-├── database name
-├── connection state
-├── lazy state
-└── metadata
-```
-
-The request does not need to carry infrastructure configuration.
-
-```text
-HTTP Request
-   ↓
-Framework Adapter
-   ↓
-TenantResolver
-   ↓
-tenantId = tenant5
-   ↓
-AmbitenContext
-   ↓
-Application
-   ↓
-UserModel.create(...)
-   ↓
-AmbitenClient
-   ↓
-MultiTenantManager
-   ↓
-resolveTenant("tenant5")
-   ↓
-getClient("tenant5")
-   ↓
-db_tenant5
-   ↓
-MongoDB operation
-```
-
-Application code remains focused on the operation:
-
-```ts
-await UserModel.create({
-  username: "Abinod Ltd",
-  email: "aemma@abinod.com"
-});
-```
-
-rather than manually coordinating:
-
-```text
-tenant lookup
-+
-tenant registration
-+
-client creation
-+
-database selection
-+
-request context
-```
-
-That coordination belongs to the runtime.
+When the model uses a tenant-aware provider, these responsibilities cooperate during database access without requiring application code to coordinate each step manually.
 
 ## Using the Resolved Tenant Identity
 
-Once a framework adapter has resolved the request's tenant, `AmbitenContext` should be treated as the runtime source of that execution identity.
-
-For example:
+After the framework adapter establishes tenant context, use that context as the source of the execution's tenant identity:
 
 ```ts
-const { tenantId } =
-  AmbitenContext.get();
+const { tenantId } = AmbitenContext.get();
 
 if (!tenantId) {
-  throw new Error(
-    "Tenant context is required."
-  );
+  throw new Error("Tenant context is required.");
 }
 ```
 
-This is preferable to repeatedly reading the original transport-specific value:
+The tenant may have been resolved from a header, cookie, route parameter, subdomain, or custom authentication-aware resolver.
 
-```ts
-req.headers["x-tenant-id"];
-```
+Reading the context keeps downstream application code independent of the original request mechanism.
 
-because the tenant may have been resolved from another source.
-
-For example:
-
-```text
-header
-cookie
-route parameter
-subdomain
-token claim
-custom resolver
-```
-
-All of these can ultimately result in:
-
-```ts
-AmbitenContext.get().tenantId;
-```
-
-The rest of the application can therefore remain independent of the original request mechanism.
+The manager's inspection methods do not identify the current request's tenant. That identity comes from the active context.
 
 ## Application Code Usually Does Not Call the Manager Per Request
 
-Although `MultiTenantManager` is publicly available, ordinary request handlers generally do not need to perform tenant management manually.
+Ordinary request handlers generally do not need to call `resolveTenant()` and `getClient()` before every model operation.
 
-You normally do not need this:
+With tenant context established and a tenant-aware provider configured:
 
 ```ts
-app.post("/users", async (req, res) => {
-  const tenantId =
-    AmbitenContext.get().tenantId;
+app.post("/users", async (req, res, next) => {
+  try {
+    const user = await UserModel.create(req.body);
 
-  await MultiTenantManager
-    .resolveTenant(tenantId);
-
-  await MultiTenantManager
-    .getClient(tenantId);
-
-  const user =
-    await UserModel.create(req.body);
-
-  res.json(user);
+    res.status(201).json(user);
+  } catch (error) {
+    next(error);
+  }
 });
 ```
 
-Instead:
+The provider uses the active context to obtain tenant resources when the operation needs them.
 
-```ts
-app.post("/users", async (req, res) => {
-  const user =
-    await UserModel.create(req.body);
+With `AmbitenBootstrapFactory`, enable `multiTenant.enabled` so bootstrap configures the tenant-aware provider. Manually constructed providers require the corresponding tenant resolver configuration.
 
-  res.json(user);
-});
-```
+Direct manager access remains useful for:
 
-The active Ambiten context supplies the tenant identity and the runtime handles resource resolution when the model operation requires it.
-
-Direct manager access is most useful for:
-
-- tenant administration,
-- diagnostics,
-- infrastructure services,
-- explicit tenant preloading,
-- runtime inspection,
-- advanced integration code.
+- Tenant registration and preloading.
+- Tenant validation.
+- Runtime inspection and diagnostics.
+- Infrastructure services.
+- Advanced integrations.
 
 ## Avoid Mixing Request Identity and Tenant Infrastructure
 
-A tenant identifier and a tenant configuration are not the same thing.
+A tenant ID identifies the tenant associated with an execution.
 
-This:
+A tenant configuration describes how the runtime reaches that tenant and what resources it has registered.
+
+Keep connection URIs, client instances, and registration state in the infrastructure layer.
+
+`AmbitenContext` may contain execution-specific database overrides, sessions, or application metadata. It should not become a replacement for the tenant registry.
+
+Tenant metadata is not automatically copied into the execution context.
+
+## Registry Removal and Client Cleanup
+
+To remove one registration:
 
 ```ts
-{
-  tenantId: "tenant5"
-}
+const removed = MultiTenantManager.removeTenant("tenant5");
 ```
 
-is enough to identify the tenant within an execution.
+The method returns `true` when a registered entry was removed and `false` when it was absent.
 
-This:
+To clear all registrations:
 
 ```ts
-{
-  tenantId: "tenant5",
-  uri: "...",
-  dbName: "db_tenant5",
-  lazy: true,
-  metadata: {
-    region: "de-west-1"
-  }
-}
+MultiTenantManager.clearTenants();
 ```
 
-belongs to tenant infrastructure.
+These methods remove registry entries. They do not call `MongoClient.close()`.
 
-Avoid propagating database URIs, connection state, or infrastructure metadata through application request layers.
+Coordinate client shutdown separately, taking account of active operations and any shared client ownership.
 
-Use:
+Removing a tenant also does not delete its external configuration. If the configured resolver can still find that tenant, a later lookup can register it again.
 
-```text
-AmbitenContext
-```
+`clearTenants()` leaves the configured resolver installed. Use `clearTenantConfigResolver()` separately when external discovery should also be disabled.
 
-for execution identity and:
-
-```text
-MultiTenantManager
-```
-
-for tenant resources.
+Registry removal is therefore not a complete tenant-deactivation or authorization mechanism.
 
 ## Operational Model
 
-A useful mental model is:
+The manager's registry is local to the application process and persists across requests.
 
-```text
-                    PROCESS
-                       │
-              MultiTenantManager
-                       │
-       ┌───────────────┼───────────────┐
-       │               │               │
-    tenant1         tenant2         tenant5
-    lazy            lazy            connected
-                                       │
-                                  db_tenant5
+Each request or explicitly established background execution has its own `AmbitenContext`.
 
-                     REQUEST
-                       │
-                AmbitenContext
-                       │
-                tenantId=tenant5
-                       │
-                 model operation
-                       │
-                       └──────────────→ tenant5
-```
+For example:
 
-`MultiTenantManager` exists across requests.
+| Scope | Example state |
+| --- | --- |
+| Runtime registry | `tenant1` and `tenant2` are lazy; `tenant5` has a client. |
+| Current execution | `tenantId` is `"tenant5"`. |
+| Model operation | The tenant-aware provider obtains resources for `"tenant5"`. |
 
-`AmbitenContext` exists for the active execution.
+Separate application processes maintain their own registrations and clients. Registering a tenant in one process does not populate another process's registry.
 
-That separation is what allows one application process to safely coordinate many tenant resources while each request retains its own tenant identity.
+An external tenant configuration source can provide shared configuration, while each process maintains the resources it needs locally.
 
 ## Related Pages
 
 Continue with:
 
-- [Multi-Tenancy](./multi-tenant-manager) Overview — the overall Ambiten tenancy architecture.
+- [Multi-Tenancy Overview](./overview) — the overall Ambiten tenancy architecture.
 - [Tenant Resolution](./tenant-resolver) — how a request becomes a tenant identity.
 - [Dynamic Tenants](./dynamic-tenants) — resolving tenants that are not registered at startup.
-- [Framework Adapters](./framework-adapters) — connecting framework request lifecycles to Ambiten's runtime context.
+- [Framework Adapters](./framework-adapters) — connecting framework request lifecycles to Ambiten's execution context.
 
-For exact method signatures, parameter types, and generated declarations, see the `MultiTenantManager` API reference.
+For exact method signatures and parameter types, see the `MultiTenantManager` API reference.

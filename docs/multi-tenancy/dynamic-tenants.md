@@ -59,6 +59,8 @@ Ambiten supports both static and dynamic tenant registration.
 
 A static tenant is known when multi-tenancy is initialized.
 
+The following example assumes `runtime` `was bootstrapped with` ` multiTenant.enabled: true`.
+
 For example:
 
 ```ts
@@ -116,55 +118,193 @@ Its responsibility is simple:
 
 > Given a tenant ID, return the infrastructure configuration required for that tenant.
 
-Conceptually:
-
-```text
-tenantId
-   ↓
-TenantConfigResolver
-   ↓
-TenantConfig
-```
-
-A resolver may look like this:
+The external configuration contract is:
 
 ```ts
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const config =
-      await lookupTenant(tenantId);
+export interface ResolvedTenantConfig {
+  uri: string;
+  dbName?: string;
+  metadata?: Record<string, unknown>;
+}
 
-    if (!config) {
-      return undefined;
-    }
+export type TenantConfigResolver = (
+  tenantId: string
+) =>
+  | ResolvedTenantConfig
+  | null
+  | undefined
+  | Promise<ResolvedTenantConfig | null | undefined>;
+```
 
-    return {
-      tenantId,
-      uri: config.uri,
-      dbName: config.dbName,
-      lazy: true,
-      metadata: config.metadata
-    };
+The resolver may be synchronous or asynchronous. Return `null` or `undefined` when the tenant does not exist.
+
+A minimal, self-contained resolver module may look like this:
+
+```ts
+// src/tenantResolver.ts
+import type { TenantConfigResolver } from "@ambiten/core";
+
+export const resolveTenantConfig: TenantConfigResolver = (tenantId) => {
+  if (tenantId !== "tenant5") {
+    return undefined;
   }
+
+  return {
+    uri: "mongodb://localhost:27017/db_tenant5",
+    dbName: "db_tenant5",
+    metadata: {
+      tier: "standard",
+    },
+  };
+};
+```
+
+This example resolves only `"tenant5"`; other tenant IDs return `undefined`. The `tenantId` argument tells the function which tenant's configuration to return. An application can replace this simple condition with a database or service lookup and make the function asynchronous when needed; the external-store examples below show how.
+
+Defining or registering the resolver does not register `"tenant5"` immediately. The manager calls the resolver when it needs configuration for a tenant that is absent from its local registry.
+
+The resolver returns external configuration only. `tenantId` is already supplied as its argument; client instances and lazy or connected state belong to `MultiTenantManager`. Do not return `tenantId`, `client`, or `lazy` as resolver configuration.
+
+`uri` must be a valid `mongodb://` or `mongodb+srv://` connection URI. When `dbName` is omitted, the manager uses its URI-based database-name resolution and tenant-ID fallback.
+
+The resolver does not need to know anything about Express, Fastify, NestJS, HTTP headers, route parameters, cookies, controllers, or models.
+
+It receives a resolved tenant identity and returns tenant infrastructure. This keeps transport concerns separate from tenant configuration.
+
+## Configuring Dynamic Tenants
+
+### Programmatic Configuration
+
+Pass the resolver function through `multiTenant.tenantConfigResolver` when bootstrapping with a configuration object:
+
+```ts
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+import { resolveTenantConfig } from "./tenantResolver.js";
+
+const runtime = await AmbitenBootstrapFactory.create({
+  config: {
+    projectName: "my-app",
+    connection: {
+      uri: "mongodb://localhost:27017/my-app",
+    },
+    multiTenant: {
+      enabled: true,
+      tenants: {
+        tenant1: "mongodb://localhost:27017/db_tenant1",
+      },
+      tenantConfigResolver: resolveTenantConfig,
+      initOptions: {
+        lazy: true,
+      },
+    },
+  },
 });
 ```
 
-The resolver does not need to know anything about:
+Bootstrap forwards the resolver to multi-tenancy initialization. The static `tenants` map may be empty or omitted when tenants are supplied entirely by the resolver.
 
-```text
-Express
-Fastify
-NestJS
-HTTP headers
-route parameters
-cookies
-controllers
-models
+For manual manager setup, register the same function directly:
+
+```ts
+import { MultiTenantManager } from "@ambiten/core";
+import { resolveTenantConfig } from "./tenantResolver.js";
+
+MultiTenantManager.setTenantConfigResolver(resolveTenantConfig);
 ```
 
-It receives a resolved tenant identity and returns tenant infrastructure.
+This is an alternative registration path; bootstrap already registers the function when it is provided in its configuration.
 
-This keeps transport concerns separate from tenant configuration.
+The setter's `resolver` parameter is the function itself. `setTenantConfigResolver()` checks that it is a function and stores it; it does not invoke the function or open a database connection. Later, `resolveTenant(tenantId)` passes the tenant ID into the stored function when that tenant is not already registered.
+
+An object with a `resolve()` method is not itself a function. Passing that object directly would throw `"TenantConfigResolver must be a function."`. If your application organizes its resolver in an object, keep that structure and pass a callback that invokes its method:
+
+```ts
+const tenantResolver = {
+  resolve: resolveTenantConfig,
+};
+
+MultiTenantManager.setTenantConfigResolver((tenantId) =>
+  tenantResolver.resolve(tenantId)
+);
+```
+
+Use this as an alternative to registering `resolveTenantConfig` directly. The callback forwards `tenantId` and preserves the method's object receiver if its implementation uses `this`.
+
+To remove the configured resolver later:
+
+```ts
+MultiTenantManager.clearTenantConfigResolver();
+```
+
+This clears the stored resolver function. It does not remove tenants already registered with the manager or close their connections.
+
+## JSON Configuration
+
+JSON configuration references the module that exports the resolver function:
+
+```json
+{
+  "configVersion": "1.0.0",
+  "projectName": "my-app",
+  "connection": {
+    "uri": "mongodb://localhost:27017/my-app"
+  },
+  "multiTenant": {
+    "enabled": true,
+    "tenants": {},
+    "tenantConfigResolverModule": {
+      "path": "./src/tenantResolver.ts",
+      "exportName": "resolveTenantConfig"
+    },
+    "initOptions": {
+      "lazy": true
+    }
+  }
+}
+```
+
+Place this configuration in `ambiten.config.json`, then load it through bootstrap:
+
+```ts
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+
+const runtime = await AmbitenBootstrapFactory.create({
+  config: "./ambiten.config.json",
+});
+```
+
+The `ambiten.config.schema.json` schema describes the valid configuration structure. The resolver module contains the executable lookup logic.
+
+- `path` identifies a local module file, relative to the JSON configuration file's directory.
+- `exportName` selects the exported resolver function. It defaults to `"default"` when omitted.
+- The selected export must be the resolver function itself, not an object containing a `resolve()` method or a factory that returns a resolver.
+- Use either `tenantConfigResolver` or `tenantConfigResolverModule` in a configuration object. Supplying both is rejected.
+- When a module reference is supplied in a programmatic configuration object, its path is resolved relative to `process.cwd()`.
+The loader imports the module when multi-tenancy is enabled and passes the selected function into bootstrap initialization.
+
+## TypeScript Modules and Production Builds
+
+Ambiten imports the referenced module using native `import()`. For a `.ts` resolver path, the application process must support importing TypeScript. For example, install `tsx` for development and start the application with it:
+
+```bash
+pnpm add -D tsx
+node --import tsx src/main.ts
+```
+
+CommonJS require hooks alone do not provide TypeScript support for this native import. In a CommonJS application, keep bootstrap calls that use `await` inside an async startup function, as in the generated application entry file.
+
+For a production build that emits `src/tenantResolver.ts` as `dist/tenantResolver.js`, update the reference accordingly:
+
+```json
+{
+  "path": "./dist/tenantResolver.js",
+  "exportName": "resolveTenantConfig"
+}
+```
+
+This object replaces `multiTenant.tenantConfigResolverModule`; keep the path relative to the configuration file deployed with the application. Deploy the emitted module and its dependencies alongside that configuration.
+
+`multiTenant.initOptions.lazy` controls initialization of the static tenant map. Dynamically discovered tenants are registered lazily by `MultiTenantManager`; the resolver does not select their connection state.
 
 ## TenantResolver vs TenantConfigResolver
 
@@ -210,7 +350,6 @@ TenantConfigResolver
 MongoDB URI
 database name
 metadata
-lazy configuration
 ```
 
 Conceptually:
@@ -218,7 +357,6 @@ Conceptually:
 ```text
 TenantResolver
 → request → tenantId
-
 TenantConfigResolver
 → tenantId → tenant configuration
 ```
@@ -241,7 +379,7 @@ tenant3
 
 and all three are registered in lazy mode.
 
-Runtime statistics may initially show:
+With the resolver configured, `MultiTenantManager.getStats()` may initially return:
 
 ```ts
 {
@@ -282,7 +420,7 @@ getTenant("tenant5")
         ↓
 not registered
         ↓
-TenantConfigResolver.resolve("tenant5")
+tenantConfigResolver("tenant5")
         ↓
 configuration found
         ↓
@@ -315,7 +453,21 @@ client     ↓
          return client
 ```
 
-The resulting tenant state may look like:
+A summary of the resulting tenant state may look like this. `connected` is derived from `Boolean(tenant.client)`; it is not a field returned by `getTenant()`:
+
+```ts
+const tenant = MultiTenantManager.getTenant("tenant5");
+
+const summary = tenant && {
+  tenantId: tenant.tenantId,
+  dbName: tenant.dbName,
+  connected: Boolean(tenant.client),
+  lazy: tenant.lazy,
+  metadata: tenant.metadata,
+};
+```
+
+Example summary:
 
 ```ts
 {
@@ -330,7 +482,7 @@ The resulting tenant state may look like:
 }
 ```
 
-while the aggregate runtime statistics become:
+while MultiTenantManager.getStats() returns:
 
 ```ts
 {
@@ -357,7 +509,7 @@ await MultiTenantManager.resolveTenant(
 );
 ```
 
-succeeds, the tenant can become registered without necessarily opening a MongoDB client immediately.
+finds a previously unknown tenant, the manager registers that tenant lazily without opening its MongoDB client.
 
 Conceptually:
 
@@ -403,13 +555,13 @@ This separation helps prevent unnecessary tenant connections from being opened s
 
 In normal application code, developers usually do not need to manually orchestrate dynamic resolution.
 
+The following example assumes the framework adapter has established the tenant context and `UserModel` uses the tenant-aware provider configured by bootstrap.
+
 For example:
 
 ```ts
 app.post("/users", async (req, res) => {
-  const user =
-    await UserModel.create(req.body);
-
+  const user = await UserModel.create(req.body);
   res.status(201).json(user);
 });
 ```
@@ -523,28 +675,20 @@ This avoids requiring the application to preload every valid tenant during start
 
 ## Missing Dynamic Tenants
 
-A dynamic resolver may return no configuration.
+A dynamic resolver may return `null` or `undefined` when the tenant does not exist.
 
-For example:
+In that case, `resolveTenant()` returns `undefined`, and `getClient()` returns `null`. Resolver failures or invalid configuration can still throw. The tenant-aware database provider rejects an operation when its tenant cannot be resolved.
+
+Using the earlier resolver, and assuming `"tenant999"` is not already registered:
 
 ```ts
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const config =
-      await lookupTenant(tenantId);
+import { MultiTenantManager } from "@ambiten/core";
+import { resolveTenantConfig } from "./tenantResolver.js";
 
-    if (!config) {
-      return undefined;
-    }
+MultiTenantManager.setTenantConfigResolver(resolveTenantConfig);
 
-    return {
-      tenantId,
-      uri: config.uri,
-      dbName: config.dbName,
-      lazy: true
-    };
-  }
-});
+const tenant = await MultiTenantManager.resolveTenant("tenant999");
+// tenant is undefined: this example's resolver only recognizes "tenant5".
 ```
 
 For an unknown tenant:
@@ -625,7 +769,9 @@ Request C → tenant5
 
 Without coordination, all three requests could attempt the same external lookup or registration work.
 
-`MultiTenantManager.resolveTenant()` is designed as the central resolution path so that dynamic resolution can be coordinated at the runtime level rather than independently by controllers or services.
+`MultiTenantManager.resolveTenant()` shares an in-flight external lookup between concurrent resolution calls for the same tenant ID in the current process.
+
+This coordinates tenant discovery and registration. It does not provide coordination across separate application processes or imply that MongoDB connection creation has the same concurrency protection.
 
 Application code should therefore prefer:
 
@@ -678,26 +824,21 @@ async function lookupTenant(
 The resolver can then map the stored record into the configuration expected by Ambiten:
 
 ```ts
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const record =
-      await lookupTenant(tenantId);
+MultiTenantManager.setTenantConfigResolver(async (tenantId) => {
+  const record = await lookupTenant(tenantId);
 
-    if (!record) {
-      return undefined;
-    }
-
-    return {
-      tenantId,
-      uri: record.mongoUri,
-      dbName: record.databaseName,
-      lazy: true,
-      metadata: {
-        region: record.region,
-        tier: record.tier
-      }
-    };
+  if (!record) {
+    return undefined;
   }
+
+  return {
+    uri: record.mongoUri,
+    dbName: record.databaseName,
+    metadata: {
+      region: record.region,
+      tier: record.tier,
+    },
+  };
 });
 ```
 
@@ -748,19 +889,16 @@ For example:
 
 ```ts
 return {
-  tenantId,
   uri: config.uri,
   dbName: config.dbName,
-  lazy: true,
-
   metadata: {
     region: config.region,
-    tier: config.tier
-  }
+    tier: config.tier,
+  },
 };
 ```
 
-The resulting registered tenant may expose:
+The manager attaches the tenant identity to the returned configuration. A selected view of the registered tenant may expose:
 
 ```ts
 {
@@ -783,7 +921,7 @@ Metadata can be useful for:
 
 Metadata is runtime tenant information.
 
-It should not be confused with request-scoped context.
+It should not be confused with request-scoped context. Ambiten stores tenant metadata with the registration; it does not automatically copy it into `AmbitenContext.meta`.
 
 ## Dynamic Tenant Metadata vs AmbitenContext Metadata
 
@@ -912,6 +1050,8 @@ getTenant("tenant5")
 ```
 
 This means external discovery is not required every time the tenant is referenced during the lifetime of that runtime registration.
+
+The registry is local to the application process. Other processes resolve and register tenants independently. Changes in an external tenant record do not automatically refresh a registration already held in memory.
 
 ## `getTenant()` vs `resolveTenant()` for Dynamic Tenants
 
@@ -1153,11 +1293,10 @@ Applications should preserve this distinction where operationally important.
 For example:
 
 ```ts
-async resolve(tenantId) {
+const resolveTenantConfig: TenantConfigResolver = async (tenantId) => {
   try {
-    const config =
-      await tenantService.find(tenantId);
-
+    // tenantService.find returns ResolvedTenantConfig | null | undefined.
+    const config = await tenantService.find(tenantId);
     return config ?? undefined;
   } catch (error) {
     throw new Error(
@@ -1165,10 +1304,10 @@ async resolve(tenantId) {
       { cause: error }
     );
   }
-}
+};
 ```
 
-Returning `undefined` should generally mean:
+Returning `null` or `undefined` should generally mean:
 
 ```text
 tenant not found

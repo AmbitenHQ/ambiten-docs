@@ -103,14 +103,11 @@ Each Ambiten execution boundary receives its own execution context.
 Conceptually:
 
 ```text
-Request A
-→ AmbitenContext A
+Request A → AmbitenContext A
 
-Request B
-→ AmbitenContext B
+Request B → AmbitenContext B
 
-Job C
-→ AmbitenContext C
+Job C → AmbitenContext C
 ```
 
 Context state from one active execution is not intended to become the execution state of another concurrent boundary.
@@ -148,11 +145,9 @@ This remains true even when both executions reuse long-lived runtime infrastruct
 The important distinction is:
 
 ```text
-runtime resources
-→ may be shared
+runtime resources → may be shared
 
-execution state
-→ remains scoped
+execution state → remains scoped
 ```
 
 ## 2. Async Context Continuity
@@ -167,13 +162,9 @@ await AmbitenContext.run(
   },
 
   async () => {
-    const before =
-      AmbitenContext.get();
-
+    const before =  AmbitenContext.get();
     await someAsyncOperation();
-
-    const after =
-      AmbitenContext.get();
+    const after = AmbitenContext.get(); 
   }
 );
 ```
@@ -217,20 +208,15 @@ Supported framework adapters establish Ambiten context around the framework's ac
 Conceptually:
 
 ```text
-Express
-→ downstream middleware / route execution
+Express → downstream middleware / route execution
 
-Fastify
-→ downstream lifecycle / handler execution
+Fastify → downstream lifecycle / handler execution
 
-NestJS
-→ downstream Observable execution
+NestJS → downstream Observable execution
 
-GraphQL
-→ operation / resolver execution
+GraphQL → operation / resolver execution
 
-Lambda
-→ invocation handler execution
+Lambda → invocation handler execution
 ```
 
 Once execution has entered the Ambiten boundary, downstream Ambiten-aware application work participates in the active runtime context.
@@ -423,8 +409,7 @@ When an Ambiten transaction boundary is active, participating Ambiten model oper
 For example:
 
 ```ts
-await AmbitenContext
-  .withTransaction(
+await AmbitenContext.withTransaction(
     async () => {
       await UserModel.create(
         data
@@ -462,8 +447,7 @@ The component that creates the transaction boundary owns its completion.
 For explicit transactions:
 
 ```ts
-await AmbitenContext
-  .withTransaction(
+await AmbitenContext.withTransaction(
     async () => {
       // transactional work
     }
@@ -766,10 +750,7 @@ Work that intentionally outlives the original execution should capture the ident
 For example:
 
 ```ts
-const {
-  tenantId,
-  requestId
-} = AmbitenContext.get();
+const { tenantId, requestId } = AmbitenContext.get();
 
 await queue.publish({
   tenantId,
@@ -1017,8 +998,7 @@ MongoDB transactions cannot automatically make unrelated external systems transa
 For example:
 
 ```ts
-await AmbitenContext
-  .withTransaction(
+await AmbitenContext.withTransaction(
     async () => {
       await chargeCustomer();
 
@@ -1058,8 +1038,7 @@ Ambiten does not protect application code that stores execution identity in shar
 For example:
 
 ```ts
-let currentTenant:
-  string | undefined;
+let currentTenant: string | undefined;
 ```
 
 can create its own concurrency bugs regardless of Ambiten's context isolation.

@@ -5,193 +5,114 @@ description: Initialize and manage the Ambiten runtime before application execut
 
 # AmbitenBootstrapFactory
 
-`AmbitenBootstrapFactory` is the public startup entry point for an Ambiten-powered application.
+`AmbitenBootstrapFactory` is the public startup entry point for an Ambiten application.
 
-It creates and initializes the Ambiten runtime before requests, workers, GraphQL resolvers, queue consumers, scheduled tasks, or other execution entry points begin using application infrastructure.
+It loads configuration, resolves referenced configuration modules, and initializes the configured database provider, logger, schema, model, and optional services.
 
-Database connectivity, models, schemas, logging, multi-tenancy, Redis integration, GraphQL capabilities, garbage collection, and other configured runtime services are assembled before the application begins handling work.
-
-The underlying bootstrap implementation is internal.
-
-Applications should interact with the runtime returned by:
+Applications should await initialization before accepting requests or starting background work:
 
 ```ts
-AmbitenBootstrapFactory.create(...)
+const runtime = await AmbitenBootstrapFactory.create({
+  config: "./ambiten.config.json"
+});
 ```
 
-The architectural boundary is:
+The returned `AmbitenRuntime` provides access to the initialized services.
 
-```text
-AmbitenBootstrapFactory
-→ prepares process-level runtime infrastructure
+The underlying bootstrap implementation is internal. Application code should use the factory and the runtime’s public methods.
 
-Framework Adapter
-→ connects an execution entry point to Ambiten
+## Runtime Responsibilities
 
-AmbitenContext
-→ carries request or operation state
+Ambiten separates application startup from request and operation execution.
 
-MultiTenantManager
-→ manages tenant infrastructure
+| Component | Responsibility |
+| --- | --- |
+| `AmbitenBootstrapFactory` | Loads configuration and initializes application infrastructure. |
+| `AmbitenRuntime` | Exposes initialized services and runtime lifecycle methods. |
+| Framework adapter | Connects a framework’s request or invocation boundary to Ambiten. |
+| `AmbitenContext` | Carries state for the current execution. |
+| `MultiTenantManager` | Manages tenant configuration, discovery, registration, and clients. |
+| `AmbitenModel` | Performs operations using the database resources selected for the execution. |
 
-AmbitenModel
-→ performs data operations
-```
+Create the runtime once during application startup and reuse it throughout the application’s lifetime.
 
-In short:
-
-```text
-Factory prepares the runtime.
-
-Adapters enter the runtime.
-
-Context carries execution state.
-
-Models use the runtime.
-```
-
-## Why the Factory Exists
-
-Application startup often becomes fragmented as a system grows.
-
-Without a dedicated startup boundary, infrastructure may be initialized independently across:
-
-```text
-database setup
-logging
-Redis
-tenant configuration
-GraphQL
-garbage collection
-framework bootstrap
-application services
-```
-
-That can lead to runtime infrastructure being assembled during request execution rather than before it.
-
-`AmbitenBootstrapFactory` centralizes this initialization phase behind one supported public API.
-
-```text
-Without Factory
-→ infrastructure may be assembled during execution
-
-With Factory
-→ infrastructure is prepared before execution
-```
-
-This creates a clearer lifecycle:
-
-```text
-Application starts
-      ↓
-AmbitenBootstrapFactory.create()
-      ↓
-Runtime initialized
-      ↓
-Framework adapters installed
-      ↓
-Application begins accepting work
-```
-
-## Runtime Responsibility Model
-
-Ambiten separates startup orchestration from execution flow.
-
-```text
-AmbitenBootstrapFactory
-        ↓
-creates runtime infrastructure
-
-AmbitenRuntime
-        ↓
-exposes initialized services
-
-Framework Adapter
-        ↓
-establishes request/invocation boundary
-
-AmbitenContext
-        ↓
-carries execution state
-
-AmbitenModel
-        ↓
-executes data operations
-```
-
-The runtime is initialized once during application startup.
-
-Adapters operate at framework or invocation boundaries.
-
-Models execute using the runtime state associated with the active execution.
-
-This keeps bootstrap concerns separate from request processing.
+The factory does not enforce a singleton. Calling `create()` again starts another initialization sequence.
 
 ## Basic Initialization
 
-Most applications start Ambiten through the factory.
+When the application uses the default configuration location:
 
 ```ts
-import {
-  AmbitenBootstrapFactory
-} from "@ambiten/core";
+import { AmbitenBootstrapFactory } from "@ambiten/core";
 
-export async function initAmbiten() {
-  return AmbitenBootstrapFactory.create();
+export async function run() {
+  const runtime = await AmbitenBootstrapFactory.create();
+
+  const provider = runtime.getMongoClient();
+  const logger = runtime.getLogger();
+  const model = runtime.getModel();
+  const schema = runtime.getSchema();
+
+  logger.info("Application infrastructure initialized");
+
+  return {
+    runtime,
+    provider,
+    logger,
+    model,
+    schema
+  };
 }
 ```
 
-Then:
+`getMongoClient()` returns Ambiten’s configured database provider. It does not directly return the MongoDB driver’s `MongoClient` instance.
 
-```ts
-const runtime =
-  await initAmbiten();
-```
-
-The returned runtime exposes initialized Ambiten services.
-
-For example:
-
-```ts
-const client =
-  runtime.getMongoClient();
-
-const logger =
-  runtime.getLogger();
-
-const model =
-  runtime.getModel();
-
-const schema =
-  runtime.getSchema();
-```
-
-The runtime should normally be created once and reused for the lifetime of the application process.
+Use the runtime’s getters to access services. Internal fields such as `schema`, `model`, and `config` are not public application APIs.
 
 ## Configuration
 
-When no explicit configuration is supplied, Ambiten can resolve the application's default configuration.
+The factory accepts either a configuration file path or an `AmbitenConfig` object.
+
+### Default configuration discovery
 
 ```ts
-const runtime =
-  await AmbitenBootstrapFactory.create();
+await AmbitenBootstrapFactory.create();
 ```
 
-A configuration path can also be supplied:
+The loader searches these application locations in order:
+
+1. `./ambiten.config.json`
+2. `./config/ambiten.config.json`
+3. `./src/config/ambiten.config.json`
+
+These paths are resolved from the process working directory. The CommonJS build also retains legacy package-directory fallback locations.
+
+For predictable deployment behavior, supply an explicit path when the working directory or configuration location may vary.
+
+### Explicit configuration file
 
 ```ts
-const runtime =
-  await AmbitenBootstrapFactory.create({
-    config: "./ambiten.config.json"
-  });
+await AmbitenBootstrapFactory.create({
+  config: "./ambiten.config.json"
+});
 ```
 
-For tests, embedded runtimes, or custom orchestration, configuration can be supplied directly.
+A relative configuration file path is resolved from `process.cwd()`.
+
+`ambiten.config.json` contains the application configuration. The accompanying `ambiten.config.schema.json` describes the accepted configuration structure for validation and editor support.
+
+### Programmatic configuration
+
+Configuration can also be supplied directly:
 
 ```ts
-const runtime =
-  await AmbitenBootstrapFactory.create({
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+
+export async function run() {
+  return AmbitenBootstrapFactory.create({
     config: {
+      projectName: "my-app",
+
       connection: {
         uri: "mongodb://localhost:27017/my-app",
         options: {
@@ -208,6 +129,13 @@ const runtime =
         email: {
           type: "string",
           required: true
+        },
+
+        createdAt: {
+          type: "date",
+          default: {
+            $runtime: "now"
+          }
         }
       },
 
@@ -216,836 +144,759 @@ const runtime =
       }
     }
   });
+}
 ```
 
-Generated applications should normally keep persistent runtime configuration in `ambiten.config.json` so startup behavior remains consistent across environments.
+Each schema field uses a field-options object.
+
+Runtime defaults such as `{ "$runtime": "now" }` are evaluated when defaults are applied to a document. They are not evaluated once during bootstrap.
+
+See [Schema](/models/schema) for field definitions, validation, and runtime defaults.
+
+## Configuration Modules
+
+Schema definitions, model options, and dynamic tenant resolution can live in separate modules.
+
+This keeps the main configuration small while allowing application code to remain in the relevant source directories.
+
+For example, `ambiten.config.json` can contain:
+
+```json
+{
+  "configVersion": "1.0.0",
+  "projectName": "my-app",
+  "connection": {
+    "uri": "mongodb://localhost:27017/my-app",
+    "options": {
+      "dbName": "my-app"
+    }
+  },
+  "schema": {
+    "path": "./src/schemas/user.schema.ts",
+    "exportName": "userSchema"
+  },
+  "model": {
+    "path": "./src/models/user.model.ts",
+    "exportName": "userModelOptions"
+  },
+  "multiTenant": {
+    "enabled": true,
+    "tenants": {
+      "tenant1": "mongodb://localhost:27017/my-app_tenant1"
+    },
+    "tenantConfigResolverModule": {
+      "path": "./src/tenantResolver.ts",
+      "exportName": "resolveTenantConfig"
+    },
+    "initOptions": {
+      "lazy": true
+    }
+  },
+  "logger": {
+    "enabled": true,
+    "level": "info",
+    "transportConfigs": [
+      {
+        "type": "console",
+        "options": {}
+      },
+      {
+        "type": "rotating-file",
+        "options": {
+          "filename": "./logs/ambiten.log",
+          "frequency": "daily",
+          "compress": false,
+          "flushInterval": 1000
+        }
+      }
+    ]
+  },
+  "features": {
+    "models": "./src/models",
+    "schemas": "./src/schemas"
+  }
+}
+```
+
+`configVersion` identifies the configuration format. It is independent of the installed `@ambiten/core` package version.
+
+### Schema module
+
+Create `src/schemas/user.schema.ts`:
+
+```ts
+import type { SchemaDefinition } from "@ambiten/core";
+
+export const userSchema: SchemaDefinition = {
+  tenantId: {
+    type: "string",
+    required: true,
+    default: {
+      $runtime: "context",
+      key: "tenantId"
+    }
+  },
+
+  username: {
+    type: "string",
+    required: true
+  },
+
+  email: {
+    type: "string",
+    required: true
+  },
+
+  createdAt: {
+    type: "date",
+    default: {
+      $runtime: "now"
+    }
+  }
+};
+```
+
+Export the schema definition object. Bootstrap constructs and registers the schema instance.
+
+Do not export a `Schema.create(...)` result as the configuration module’s selected export.
+
+### Model module
+
+Create `src/models/user.model.ts`:
+
+```ts
+import type { BootstrapModelOptions } from "@ambiten/core";
+
+export const userModelOptions: BootstrapModelOptions = {
+  collectionName: "users"
+};
+```
+
+Export the model options object. Bootstrap supplies the initialized schema and provider when it constructs the model.
+
+Do not export an already constructed `Model(...)` instance as the selected model configuration export.
+
+### Tenant resolver module
+
+Create `src/tenantResolver.ts`:
+
+```ts
+import type { TenantConfigResolver } from "@ambiten/core";
+
+export const resolveTenantConfig: TenantConfigResolver = (
+  tenantId
+) => {
+  if (tenantId !== "tenant5") {
+    return undefined;
+  }
+
+  return {
+    uri: "mongodb://localhost:27017/my-app_tenant5",
+    dbName: "my-app_tenant5",
+    metadata: {
+      tier: "standard"
+    }
+  };
+};
+```
+
+This example resolves one additional tenant without registering it in the static `tenants` map.
+
+The function can also be asynchronous when configuration comes from an external service or database.
+
+Its result contains:
+
+- `uri`: the tenant’s MongoDB connection URI.
+- `dbName`: an optional database name.
+- `metadata`: optional application-defined information.
+
+Return `undefined` or `null` when the tenant cannot be resolved.
+
+The result does not need `tenantId`, `lazy`, or a MongoDB client. Registration and connection state belong to `MultiTenantManager`.
+
+### Module loading rules
+
+| Setting | Behavior |
+| --- | --- |
+| `path` | Identifies the module to load. |
+| `exportName` | Selects an export; defaults to `"default"` when omitted. |
+| Module path in a JSON configuration | Resolved relative to the configuration file’s directory. |
+| Module path in a programmatic configuration object | Resolved relative to `process.cwd()`. |
+
+A `schema` or `model` value can be either inline configuration or a module reference. Do not mix inline fields with `path` and `exportName` in the same object.
+
+The loader resolves the referenced exports before bootstrap creates the schema and model.
+
+The `features.schemas` and `features.models` paths describe scaffolding directories. They do not make bootstrap scan those directories or automatically register every file.
+
+Runtime configuration is connected through the top-level `schema` and `model` properties.
+
+### TypeScript modules
+
+Configuration modules are loaded through native dynamic import.
+
+When referencing `.ts` files, run the application with TypeScript support that also handles those imports. For example:
+
+```bash
+pnpm add -D tsx
+pnpm exec node --import tsx src/main.ts
+```
+
+A CommonJS TypeScript require hook alone may not handle these dynamically imported `.ts` modules.
+
+For a compiled JavaScript deployment, update the configuration paths to the emitted files, for example:
+
+```json
+{
+  "schema": {
+    "path": "./dist/schemas/user.schema.js",
+    "exportName": "userSchema"
+  },
+  "model": {
+    "path": "./dist/models/user.model.js",
+    "exportName": "userModelOptions"
+  }
+}
+```
+
+This fragment assumes the configuration file remains in the project root and the build emits those files beneath `dist`.
 
 ## What the Factory Initializes
 
 <BootstrapCapabilitiesOverview />
 
-The exact services initialized depend on the runtime configuration.
+Initialization follows the configured startup sequence:
 
-The important distinction is that the factory prepares **process-level infrastructure**.
+| Stage | Behavior |
+| --- | --- |
+| Configuration | Loads, normalizes, validates, and resolves configuration modules. |
+| Logger | Initializes logging and prepares configured file destinations. |
+| Redis | Connects when Redis caching is enabled and a Redis URI is supplied. |
+| Database provider | Initializes and connects the configured provider. |
+| Schema | Constructs and registers the configured schema definition. |
+| Model | Constructs the model using the schema and provider. |
+| Multi-tenancy | Registers configured static tenants and installs the dynamic resolver when enabled. |
+| GraphQL | Initializes GraphQL and generates its schema when enabled. |
+| Garbage collector | Constructs the configured garbage-collection runner when enabled. |
 
-It does not establish request-specific execution state.
+If no schema is supplied, bootstrap creates an empty schema and logs a warning.
 
-For example:
+If no model configuration is supplied, the default collection name is `"default"`.
+
+The factory prepares application infrastructure. Request-specific identity is established later by a framework adapter or an explicit execution context.
+
+## Logging During Bootstrap
+
+With the built-in defaults, bootstrap configures console logging and a rotating file destination at:
 
 ```text
-Factory
-→ creates database infrastructure
-→ initializes model/schema
-→ prepares logging
-→ configures multi-tenancy
-→ initializes optional runtime services
+./logs/ambiten.log
 ```
 
-while:
+Before constructing file transports, bootstrap creates missing parent directories and opens the destination file in append mode.
 
-```text
-Adapter
-→ resolves request identity
-→ creates request context
-→ enters application execution
-```
+Existing log contents are preserved.
+
+Relative log filenames are resolved from `process.cwd()`, independently of the configuration file’s location.
+
+### Explicit transport configuration
+
+A non-empty `logger.transportConfigs` list selects the configured transports.
+
+Include a `"file"` or `"rotating-file"` transport when file logging is required. An explicit console-only list does not create a log directory.
+
+The configuration example above includes both console and rotating-file transports.
+
+When logging is disabled through `logger.enabled: false`, bootstrap does not prepare file transports.
+
+When a programmatic configuration supplies a logger instance or executable transport instances, those instances define their own destinations. Bootstrap does not automatically add its default file transport to them.
+
+### Buffered output
+
+The destination file is prepared during initialization, but a transport may buffer log entries before writing them.
+
+Await `runtime.shutdown()` during application shutdown so the logger’s shutdown hook can flush buffered output.
 
 ## Multi-Tenancy During Bootstrap
 
-Multi-tenancy has two distinct phases in Ambiten:
+Enable multi-tenancy in the configuration before creating the runtime:
 
-```text
-startup-time tenant infrastructure
-+
-request-time tenant identity
+```json
+{
+  "multiTenant": {
+    "enabled": true,
+    "tenants": {
+      "tenant1": "mongodb://localhost:27017/my-app_tenant1"
+    },
+    "initOptions": {
+      "lazy": true
+    }
+  }
+}
 ```
 
-The factory and runtime are responsible for preparing tenant infrastructure.
+Bootstrap automatically processes this configuration. An additional registration call is unnecessary for tenants already listed there.
 
-Framework adapters are responsible for resolving the tenant associated with a particular request.
-
-For statically configured tenants, the runtime can register tenant configuration during startup.
-
-For example:
+Additional static tenants can be registered through the runtime:
 
 ```ts
 await runtime.registerMultiTenancy({
   tenants: {
-    tenant1:
-      "mongodb://localhost:27017/db_tenant1",
-
-    tenant2:
-      "mongodb://localhost:27017/db_tenant2",
-
-    tenant3:
-      "mongodb://localhost:27017/db_tenant3"
+    tenant2: "mongodb://localhost:27017/my-app_tenant2",
+    tenant3: "mongodb://localhost:27017/my-app_tenant3"
   },
-
   lazy: true
 });
 ```
 
-With lazy tenancy enabled, registration does not require every tenant connection to be opened immediately.
+`registerMultiTenancy()` requires the runtime configuration to have `multiTenant.enabled: true`. It does not enable multi-tenancy on an otherwise disabled runtime.
 
-The runtime may therefore begin with:
+Existing registered tenants are skipped.
 
-```ts
-{
-  registeredTenants: 3,
-  connectedTenants: 0,
-  lazyTenants: 3
-}
-```
+### Lazy tenant connections
 
-Connections can then be activated when a tenant is actually used.
+With `lazy: true`, static tenant registration does not immediately open each tenant’s MongoDB connection.
 
-## Static and Dynamic Tenants
-
-Bootstrap does not require the application to know every tenant in advance.
-
-Static tenants can be registered during startup:
-
-```text
-Application starts
-      ↓
-tenant1
-tenant2
-tenant3
-registered
-```
-
-Dynamic tenants can be discovered later:
-
-```text
-Request references tenant5
-      ↓
-tenant5 not registered
-      ↓
-TenantConfigResolver
-      ↓
-tenant5 configuration found
-      ↓
-MultiTenantManager registers tenant5
-```
-
-This distinction is important.
-
-`AmbitenBootstrapFactory` prepares the tenancy system.
-
-`MultiTenantManager` owns the runtime tenant registry.
-
-A `TenantConfigResolver` can extend that registry dynamically after startup.
-
-See:
-
-- [Multi-Tenancy Overview](/multi-tenancy/overview)
-- [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
-- [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
-
-## Dynamic Tenant Configuration
-
-Applications that discover tenants dynamically can configure a tenant configuration resolver against `MultiTenantManager`.
-
-For example:
+For the earlier configuration, before any tenant is used:
 
 ```ts
-import {
-  MultiTenantManager
-} from "@ambiten/core";
-
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const config =
-      await lookupTenant(tenantId);
-
-    if (!config) {
-      return undefined;
-    }
-
-    return {
-      tenantId,
-      uri: config.uri,
-      dbName: config.dbName,
-      lazy: true,
-      metadata: config.metadata
-    };
-  }
-});
-```
-
-The bootstrap/runtime boundary remains process-level:
-
-```text
-Factory
-→ prepares tenancy infrastructure
-
-MultiTenantManager
-→ owns tenant registry
-
-TenantConfigResolver
-→ discovers unknown tenant configuration
-
-Adapter
-→ determines which tenant belongs to this request
-```
-
-The request-facing resolver and infrastructure-facing resolver should remain separate.
-
-## Adapter Integration
-
-Adapters are installed where the real framework application exists.
-
-The factory prepares Ambiten.
-
-The adapter binds framework execution to the prepared runtime.
-
-For Express:
-
-```ts
-import express from "express";
-
-import {
-  AmbitenBootstrapFactory,
-  MultiTenantManager
-} from "@ambiten/core";
-
-import {
-  createExpressAdapter
-} from "@ambiten/adapter-express";
-
-const app = express();
-
-app.use(express.json());
-
-const runtime =
-  await AmbitenBootstrapFactory.create();
-
-const adapter =
-  createExpressAdapter();
-
-await adapter.install(app, {
-  tenancy: {
-    header: "x-tenant-id",
-
-    validate: async (tenantId) => {
-      const tenant =
-        await MultiTenantManager.resolveTenant(
-          tenantId
-        );
-
-      if (!tenant) {
-        throw new Error(
-          `Tenant with ID "${tenantId}" not found.`
-        );
-      }
-
-      return true;
-    }
-  }
-});
-
-app.listen(3000);
-```
-
-The resulting architecture is:
-
-```text
-Application Startup
-      ↓
-AmbitenBootstrapFactory
-      ↓
-Ambiten runtime ready
-      ↓
-Adapter installed
-      ↓
-Server accepts request
-      ↓
-TenantResolver
-      ↓
-AmbitenContext
-      ↓
-Application logic
-```
-
-The factory does not need to know which tenant a future request will use.
-
-The adapter does not need to know how the tenant's MongoDB infrastructure is configured.
-
-## Request-Time Tenant Flow
-
-After bootstrap, a request may follow this path:
-
-```text
-POST /users
-x-tenant-id: tenant5
-      ↓
-Framework Adapter
-      ↓
-TenantResolver
-      ↓
-tenant5
-      ↓
-validation
-      ↓
-AmbitenContext
-tenantId = tenant5
-      ↓
-UserModel.create(...)
-      ↓
-MultiTenantManager
-      ↓
-tenant5 configuration
-      ↓
-tenant5 MongoClient
-      ↓
-db_tenant5
-```
-
-This separation means the factory does not perform request routing.
-
-It prepares the runtime that request routing will use later.
-
-## Bootstrap and AmbitenContext
-
-`AmbitenBootstrapFactory` and `AmbitenContext` operate at different scopes.
-
-```text
-AmbitenBootstrapFactory
-→ process/application lifetime
-
-AmbitenContext
-→ request/operation lifetime
-```
-
-The factory creates long-lived infrastructure.
-
-The context contains state associated with one active execution.
-
-For example:
-
-```ts
-AmbitenContext.get();
+MultiTenantManager.getStats();
 ```
 
 may return:
 
 ```ts
 {
-  tenantId: "tenant5",
-  requestId: "req_123",
-  dbName: undefined,
-  collectionName: undefined
+  registeredTenants: 1,
+  connectedTenants: 0,
+  lazyTenants: 1,
+  dynamicResolverEnabled: true
 }
 ```
 
-That state is not created during application bootstrap.
+These statistics describe the tenant registry.
 
-It is established when an adapter or another execution boundary enters Ambiten's runtime context.
+Bootstrap still connects its main database provider during initialization. Lazy tenant registration does not mean that startup performs no database connection.
 
-## Bootstrap and MultiTenantManager
+## Static and Dynamic Tenants
 
-`MultiTenantManager` is the runtime owner of tenant infrastructure.
+Static tenants are supplied in `multiTenant.tenants` and registered during startup.
 
-The factory may initialize multi-tenancy, but tenant registration and runtime tenant state belong to the manager.
+Dynamic tenants are discovered when an unknown tenant ID is resolved through `MultiTenantManager`.
 
-Conceptually:
+A resolver-only configuration is supported: the static tenant map can be omitted or empty.
 
-```text
-AmbitenBootstrapFactory
-        ↓
-initializes multi-tenancy
-        ↓
-MultiTenantManager
-        ↓
-runtime tenant registry
-```
+The factory loads the configured resolver module and installs its function. It does not call the resolver to enumerate every external tenant at startup.
 
-After startup, the manager may contain:
+Once discovered, a tenant is registered locally and can obtain a MongoDB client when an operation requires one.
 
-```text
-tenant1 → registered, lazy
-tenant2 → registered, lazy
-tenant3 → registered, lazy
-```
+### Registering a resolver programmatically
 
-Later, a dynamic request may extend that registry:
-
-```text
-tenant5 → dynamically resolved, connected
-```
-
-Application bootstrap does not need to restart when that happens.
-
-## Bootstrap Does Not Select a Request Tenant
-
-The factory should not be used to select which tenant a request belongs to.
-
-Avoid treating startup code as request routing logic.
-
-For example, this responsibility:
-
-```text
-x-tenant-id
-→ tenant5
-```
-
-belongs to the framework adapter and tenant resolver.
-
-This responsibility:
-
-```text
-tenant5
-→ MongoDB URI
-→ database
-→ client lifecycle
-```
-
-belongs to `MultiTenantManager`.
-
-The factory's role is to prepare those systems before they are used.
-
-## Model Initialization
-
-The runtime returned by the factory exposes the configured model:
+`setTenantConfigResolver()` accepts a function:
 
 ```ts
-const model =
-  runtime.getModel();
+import { MultiTenantManager } from "@ambiten/core";
+import { resolveTenantConfig } from "./tenantResolver";
+
+MultiTenantManager.setTenantConfigResolver(
+  resolveTenantConfig
+);
 ```
 
-Model initialization should be understood as structural runtime preparation.
+It does not accept an object containing a `resolve()` method.
 
-Actual database selection happens when an operation executes.
+For programmatic bootstrap configuration, the same function can be supplied as `multiTenant.tenantConfigResolver`.
 
-This matters for multi-tenant applications.
+Use either `tenantConfigResolver` or `tenantConfigResolverModule` in a configuration, not both.
 
-The model itself does not need to permanently bind to one tenant database during bootstrap.
+When the module reference is already configured, bootstrap installs the resolver automatically; a separate setter call is unnecessary.
 
-Instead:
-
-```text
-bootstrap
-→ model prepared
-
-request
-→ tenant resolved
-
-model operation
-→ active tenant database selected
-```
-
-For example:
+To remove the installed resolver:
 
 ```ts
-await UserModel.create({
-  username: "Abinod Ltd"
+MultiTenantManager.clearTenantConfigResolver();
+```
+
+Clearing the resolver does not remove registered tenants or close their clients.
+
+See [Dynamic Tenants](/multi-tenancy/dynamic-tenants) for the discovery lifecycle.
+
+## Adapter Integration
+
+Install the framework adapter on the actual framework application after bootstrap completes and before application routes begin handling requests.
+
+For Express:
+
+```ts
+await adapter.install(app, {
+  tenancy: {
+    header: "x-tenant-id",
+
+    validate: async (tenantId) => {
+      const tenant =
+        await MultiTenantManager.resolveTenant(tenantId);
+
+      return Boolean(tenant);
+    }
+  }
 });
 ```
 
-may execute against:
+This validation can discover an externally configured tenant. A local-only check such as `hasTenant()` would reject a tenant that has not yet been discovered.
 
-```text
-db_tenant5
-```
+Tenant existence validation establishes that configuration is available. Authorization must also establish that the caller is permitted to access the selected tenant.
 
-when the active Ambiten context contains:
+Passing an adapter through the factory’s options does not install it on an Express application. Framework installation remains an explicit application step.
+
+The request flow is:
+
+1. The adapter resolves the request’s tenant ID.
+2. Configured tenant validation runs.
+3. The adapter enters `AmbitenContext`.
+4. Application code invokes a model operation.
+5. Ambiten resolves the tenant’s database resources.
+6. The operation executes against the selected database.
+
+The factory is not involved in selecting the tenant for each request.
+
+## Models and Execution Context
+
+The runtime exposes the initialized schema and model:
 
 ```ts
-{
-  tenantId: "tenant5"
-}
+const schema = runtime.getSchema();
+const UserModel = runtime.getModel();
 ```
 
-The same model can therefore participate in different tenant executions.
+A model prepared during bootstrap can participate in different tenant executions.
+
+Within an adapter-established context:
+
+```ts
+const user = await UserModel.create({
+  username: "Abinod Ltd",
+  email: "hello@abinod.com"
+});
+```
+
+The schema shown earlier obtains `tenantId` from `AmbitenContext` and generates `createdAt` when the document is validated.
+
+For work outside a framework adapter, establish the execution context explicitly:
+
+```ts
+import { AmbitenContext } from "@ambiten/core";
+
+await AmbitenContext.run(
+  {
+    tenantId: "tenant5"
+  },
+  async () => {
+    const UserModel = runtime.getModel();
+
+    await UserModel.create({
+      username: "Abinod Ltd",
+      email: "hello@abinod.com"
+    });
+  }
+);
+```
+
+This example assumes the runtime has already initialized the configuration shown above.
+
+A schema default that requests `tenantId` cannot resolve it when no tenant ID exists in the active context. Bootstrap does not supply a request tenant automatically.
 
 ## Runtime Lifecycle
 
-A typical application lifecycle looks like:
-
 <BootstrapLifecycleFlow />
 
-Conceptually:
+A typical application lifecycle has three phases:
 
-```text
-Process starts
-      ↓
-Load configuration
-      ↓
-AmbitenBootstrapFactory.create()
-      ↓
-Initialize runtime infrastructure
-      ↓
-Register configured tenant infrastructure
-      ↓
-Install framework adapter
-      ↓
-Application accepts work
-      ↓
-Requests/jobs execute
-      ↓
-Shutdown signal
-      ↓
-runtime.shutdown()
-```
+1. **Startup:** create the runtime, complete application setup, and install adapters.
+2. **Execution:** accept requests or jobs and perform operations within their execution contexts.
+3. **Shutdown:** stop accepting work, allow active work to finish, and close owned resources.
 
-Startup and execution remain separate phases.
+Create the runtime before opening the server’s listening port.
+
+Keep shutdown at the application lifecycle boundary. Do not shut down the shared runtime after an individual request.
 
 ## Lifecycle Hooks
 
-The returned runtime exposes connection lifecycle hooks for operational visibility.
-
-For example:
+The runtime exposes `onConnect()`:
 
 ```ts
 runtime.onConnect(() => {
-  console.log("Ambiten runtime ready");
+  console.log("Ambiten database provider connected");
 });
 ```
 
-Lifecycle hooks can be useful for:
+When registered on the runtime returned by `create()`, the provider is already connected, so the callback is invoked immediately.
 
-- readiness diagnostics,
-- deployment coordination,
-- startup telemetry,
-- infrastructure visibility.
+`onConnect()` returns `void`. An asynchronous callback registered after connection is not awaited by the caller.
 
-Application-specific error handling can remain at the surrounding bootstrap boundary.
-
-For example:
+For application setup that must finish before serving requests, await that work directly after creating the runtime:
 
 ```ts
-try {
-  const runtime =
-    await AmbitenBootstrapFactory.create();
+const runtime = await AmbitenBootstrapFactory.create({
+  config: "./ambiten.config.json"
+});
 
-  runtime.onConnect(() => {
-    console.log(
-      "Ambiten runtime ready"
-    );
-  });
-} catch (error) {
-  console.error(
-    "Ambiten startup failed:",
-    error
-  );
+// Perform and await application-specific setup here.
 
-  process.exitCode = 1;
-}
+runtime.getLogger().info("Application startup complete");
 ```
+
+Awaiting `create()` is the startup boundary for the factory’s configured initialization sequence.
 
 ## Shutdown
 
-Applications should shut down the runtime gracefully when the application itself terminates.
+The runtime provides:
 
 ```ts
 await runtime.shutdown();
 ```
 
-For a server:
+In v1.3.0, this:
+
+- Disconnects the shared Redis client when it is open.
+- Closes the runtime’s configured database provider.
+- Logs shutdown completion.
+- Invokes the logger’s available shutdown, close, or stop hook.
+
+The logger shutdown hook is preferred so buffered file output can be flushed.
+
+### Resources the application must coordinate
+
+`runtime.shutdown()` does not close the HTTP server, explicitly close clients stored in `MultiTenantManager`, or stop application-owned workers and schedulers.
+
+The application should coordinate shutdown in this order:
+
+1. Stop accepting requests and new jobs.
+2. Wait for active work to finish.
+3. Stop any application-owned recurring tasks.
+4. Close tenant clients owned by the application.
+5. Shut down the Ambiten runtime.
+
+`MultiTenantManager.clearTenants()` only clears registry entries. It does not close MongoDB clients.
+
+Close clients before discarding their registry entries.
+
+## Recommended Startup Pattern
+
+The following example uses the module-based configuration above.
+
+It initializes Ambiten, installs the Express adapter, registers a route, and coordinates shutdown for the HTTP server, tenant clients, and runtime.
 
 ```ts
-process.on(
-  "SIGTERM",
-  async () => {
-    await runtime.shutdown();
-    process.exit(0);
+import { createServer } from "node:http";
+import express from "express";
+
+import {
+  AmbitenBootstrapFactory,
+  MultiTenantManager,
+  type AmbitenRuntime
+} from "@ambiten/core";
+
+import { createExpressAdapter } from "@ambiten/adapter-express";
+
+async function closeRuntime(
+  runtime: AmbitenRuntime
+): Promise<void> {
+  const clients = new Set(
+    MultiTenantManager.getAllTenants().flatMap(
+      (tenant) => tenant.client ? [tenant.client] : []
+    )
+  );
+
+  const results = await Promise.allSettled(
+    [...clients].map((client) => client.close())
+  );
+
+  // Attempt runtime shutdown even if a tenant client failed to close.
+  results.push(
+    ...await Promise.allSettled([
+      runtime.shutdown()
+    ])
+  );
+
+  const failure = results.find(
+    (result) => result.status === "rejected"
+  );
+
+  if (failure?.status === "rejected") {
+    throw failure.reason;
   }
-);
-```
 
-Shutdown belongs to the process lifecycle.
+  MultiTenantManager.clearTenants();
+  MultiTenantManager.clearTenantConfigResolver();
+}
 
-It should not be performed at the end of an individual request.
+async function main(): Promise<void> {
+  const runtime = await AmbitenBootstrapFactory.create({
+    config: "./ambiten.config.json"
+  });
 
-Avoid:
+  const app = express();
+  const server = createServer(app);
 
-```ts
-app.post("/users", async (req, res) => {
-  const user =
-    await UserModel.create(req.body);
+  try {
+    app.use(express.json());
 
-  await runtime.shutdown();
+    const adapter = createExpressAdapter();
 
-  res.json(user);
+    await adapter.install(app, {
+      tenancy: {
+        header: "x-tenant-id",
+
+        validate: async (tenantId) => {
+          const tenant =
+            await MultiTenantManager.resolveTenant(tenantId);
+
+          return Boolean(tenant);
+        }
+      }
+    });
+
+    const UserModel = runtime.getModel();
+
+    app.post("/users", async (req, res, next) => {
+      try {
+        const user = await UserModel.create({
+          username: req.body?.username,
+          email: req.body?.email
+        });
+
+        res.status(201).json(user);
+      } catch (error) {
+        next(error);
+      }
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+
+      server.listen(3000, () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+  } catch (error) {
+    await closeRuntime(runtime);
+    throw error;
+  }
+
+  runtime.getLogger().info(
+    "Application listening on port 3000"
+  );
+
+  let shutdownPromise: Promise<void> | undefined;
+
+  function shutdown(): Promise<void> {
+    shutdownPromise ??= (async () => {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+
+      await closeRuntime(runtime);
+    })();
+
+    return shutdownPromise;
+  }
+
+  function handleShutdown(): void {
+    void shutdown().catch((error) => {
+      console.error("Application shutdown failed:", error);
+      process.exitCode = 1;
+    });
+  }
+
+  process.once("SIGINT", handleShutdown);
+  process.once("SIGTERM", handleShutdown);
+}
+
+void main().catch((error) => {
+  console.error("Application startup failed:", error);
+  process.exitCode = 1;
 });
 ```
 
-The runtime is shared application infrastructure and should normally remain active until the process is shutting down.
+The cleanup example assumes this application owns the tenant clients in the process-wide registry.
 
-## What Shutdown Manages
+Applications that also start workers, subscriptions, scheduled tasks, or other long-lived services should stop those services before closing the database resources they use.
 
-Depending on the enabled runtime capabilities, shutdown can coordinate managed resources such as:
+The example uses `async main()` so it does not require top-level `await` in a CommonJS application.
 
-```text
-MongoDB clients
-tenant clients
-Redis clients
-logging transports
-runtime schedulers
-garbage collection
-internal services
-```
+## Optional Runtime Services
 
-The purpose is to give the application one lifecycle boundary for resources initialized through Ambiten.
+Additional services are available when enabled in configuration.
+
+| Runtime method | Purpose |
+| --- | --- |
+| `getGraphQL()` | Retrieves the initialized GraphQL service. |
+| `getGCRunner()` | Retrieves the initialized garbage-collection runner. |
+| `cache()` | Uses the runtime’s Redis-backed cache helper. |
+| `invalidateCache()` | Invalidates cached data for a tenant and optional namespace. |
+
+`getGraphQL()` and `getGCRunner()` throw when their services have not been initialized.
+
+Enable and configure the corresponding service before using it.
 
 ## Relationship with AmbitenClient
 
 `AmbitenClient` provides lower-level database infrastructure access.
 
-`AmbitenBootstrapFactory` prepares the larger application runtime around that infrastructure.
+`AmbitenBootstrapFactory` assembles the broader application runtime around its configured provider, schema, model, logger, and optional services.
 
-```text
-AmbitenBootstrapFactory
-→ application/runtime startup orchestration
+Use the factory when the application needs this coordinated startup sequence.
 
-AmbitenClient
-→ MongoDB infrastructure access
+A smaller script or specialized integration can use lower-level APIs directly and manage its own resource lifecycle.
 
-MultiTenantManager
-→ tenant infrastructure and client lifecycle
+## ESM and CommonJS
 
-Framework Adapter
-→ execution boundary
+Ambiten provides package entry points for ESM and CommonJS consumers.
 
-AmbitenContext
-→ execution state
-```
+Framework adapters and Core must participate in the same compatible runtime context so tenant identity remains available across package boundaries.
 
-Use `AmbitenBootstrapFactory` when building a complete Ambiten-powered application.
-
-Use lower-level infrastructure APIs directly when building a smaller script or specialized integration that does not require the complete runtime.
-
-## Relationship with Framework Adapters
-
-The factory and adapters are complementary.
-
-They should not replace one another.
-
-```text
-Factory
-→ prepares infrastructure
-
-Adapter
-→ enters execution
-```
-
-For example:
-
-```text
-AmbitenBootstrapFactory.create()
-        ↓
-MongoDB ready
-schema ready
-model ready
-tenancy ready
-logging ready
-        ↓
-Express Adapter installed
-        ↓
-request arrives
-        ↓
-AmbitenContext created
-```
-
-This is the intended lifecycle.
-
-## ESM and CommonJS Runtime Boundaries
-
-Ambiten supports both ESM and CommonJS consumers.
-
-Framework adapters and the shared adapter runtime resolve through the corresponding package boundary so the application participates in the same compatible Core runtime context.
-
-Conceptually:
-
-```text
-ESM application
-    ↓
-ESM framework adapter
-    ↓
-ESM adapter-runtime
-    ↓
-ESM Core
-```
-
-and:
-
-```text
-CommonJS application
-    ↓
-CommonJS framework adapter
-    ↓
-CommonJS adapter-runtime
-    ↓
-CommonJS Core
-```
-
-This is important for context-aware applications because request-scoped execution state must remain consistent across the adapter and Core boundary.
-
-Package-boundary behavior is tested using external consumer fixtures for both supported module formats.
-
-## Recommended Startup Pattern
-
-A typical server application can follow this structure:
+Use supported public package imports:
 
 ```ts
-import express from "express";
-
 import {
   AmbitenBootstrapFactory,
-  MultiTenantManager
+  AmbitenContext
 } from "@ambiten/core";
-
-import {
-  createExpressAdapter
-} from "@ambiten/adapter-express";
-
-async function start() {
-  const runtime =
-    await AmbitenBootstrapFactory.create();
-
-  MultiTenantManager
-    .setTenantConfigResolver({
-      async resolve(tenantId) {
-        const tenant =
-          await lookupTenant(tenantId);
-
-        if (!tenant) {
-          return undefined;
-        }
-
-        return {
-          tenantId,
-          uri: tenant.uri,
-          dbName: tenant.dbName,
-          lazy: true,
-          metadata: tenant.metadata
-        };
-      }
-    });
-
-  const app = express();
-
-  app.use(express.json());
-
-  const adapter =
-    createExpressAdapter();
-
-  await adapter.install(app, {
-    tenancy: {
-      header: "x-tenant-id",
-
-      validate: async (tenantId) => {
-        const tenant =
-          await MultiTenantManager
-            .resolveTenant(tenantId);
-
-        return Boolean(tenant);
-      }
-    }
-  });
-
-  app.post(
-    "/users",
-    async (req, res) => {
-      const model =
-        runtime.getModel();
-
-      const user =
-        await model.create(req.body);
-
-      res.status(201).json(user);
-    }
-  );
-
-  app.listen(3000);
-
-  return runtime;
-}
-
-const runtime =
-  await start();
 ```
 
-The responsibilities remain clear:
+Avoid importing implementation files from package `dist` directories.
 
-```text
-Factory
-→ prepare runtime
-
-TenantConfigResolver
-→ discover tenant infrastructure
-
-Adapter
-→ resolve request tenant
-
-AmbitenContext
-→ carry request identity
-
-Model
-→ execute against the active tenant
-```
+ESM and CommonJS package support does not automatically make every application module format loadable. Referenced TypeScript modules still require appropriate runtime support or compilation to JavaScript.
 
 ## Best Practices
 
-Initialize the Ambiten runtime once during application startup.
-
-Keep framework wiring in the application entry point where the real framework instance exists.
-
-Use `AmbitenBootstrapFactory` as the supported public startup boundary instead of manually constructing internal bootstrap classes.
-
-Keep startup tenant registration separate from request-time tenant resolution.
-
-Use `MultiTenantManager` for tenant infrastructure and dynamic discovery.
-
-Use framework adapters to establish request-scoped execution context.
-
-Allow models to resolve database resources at operation time rather than manually binding request tenants during bootstrap.
-
-Keep runtime shutdown at the application lifecycle boundary.
-
-Avoid manually calling `AmbitenContext.run()` inside ordinary framework routes when an Ambiten adapter already owns the request boundary.
-
-## Summary
-
-`AmbitenBootstrapFactory` is the public startup boundary for Ambiten applications.
-
-It prepares long-lived runtime infrastructure before execution begins.
-
-Framework adapters then connect incoming execution to that prepared runtime.
-
-`AmbitenContext` carries request-scoped state.
-
-`MultiTenantManager` owns tenant infrastructure.
-
-Models execute against resources selected for the active context.
-
-The resulting lifecycle is:
-
-```text
-Bootstrap
-   ↓
-Runtime Ready
-   ↓
-Adapter
-   ↓
-Execution Context
-   ↓
-Tenant Resolution
-   ↓
-Model Operation
-   ↓
-Tenant Resource
-```
-
-This separation keeps startup orchestration, request execution, tenant infrastructure, and data access independently understandable while allowing them to participate in one coherent runtime.
+- Create and await the runtime before accepting application work.
+- Use an explicit configuration path when startup locations vary.
+- Keep large schema definitions and model options in configuration modules.
+- Export definition and options objects from schema and model configuration modules.
+- Configure the tenant resolver as a function.
+- Enable multi-tenancy in configuration before relying on tenant-aware provider access.
+- Install adapters on the actual framework application.
+- Use explicit execution contexts for background work.
+- Include a file transport when customizing logging and file output is required.
+- Drain application work before closing tenant clients and the runtime.
 
 ## Related Pages
 
+- [Schema](/models/schema)
 - [AmbitenClient](/reference/api/ambiten-client)
 - [Context](/core/context)
 - [Adapters Overview](/adapters/overview)
 - [Multi-Tenancy Overview](/multi-tenancy/overview)
-- [Tenant Resolution](/multi-tenancy/tenant-resolution)
+- [Tenant Resolution](/multi-tenancy/tenant-resolver)
 - [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
 - [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
 - [Framework Adapters](/multi-tenancy/framework-adapters)

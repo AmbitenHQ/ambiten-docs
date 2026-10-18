@@ -1,147 +1,96 @@
 ---
 title: CLI Init
-description: Scaffold an Ambiten application with configuration, runtime bootstrap, framework adapters, and operational infrastructure aligned to Ambiten's execution model.
+description: Scaffold an Ambiten application with configuration, runtime bootstrap, schemas, models, and optional infrastructure.
 ---
 
 # CLI Init
 
-The Ambiten CLI scaffolds the architectural foundation for an Ambiten-powered application.
+The Ambiten CLI generates the starting structure for an Ambiten application.
 
-Rather than generating isolated starter files, it creates a runtime-oriented project structure where configuration, startup orchestration, framework integration, models, and optional operational services are already organized around Ambiten's runtime model.
+It creates configuration, TypeScript source files, package scripts, and optional GraphQL or garbage-collection starter files. It can also install the generated dependencies.
 
-The CLI does **not** execute the Ambiten runtime itself.
+Application initialization happens later, when the generated entry point calls `AmbitenBootstrapFactory`.
 
-It prepares the application structure that `AmbitenBootstrapFactory` will initialize later.
-
-```text
-CLI
-→ scaffolds application architecture
-
-AmbitenBootstrapFactory
-→ prepares runtime infrastructure
-
-Framework Adapter
-→ establishes execution boundaries
-
-AmbitenContext
-→ carries execution state
-
-MultiTenantManager
-→ manages tenant infrastructure
-
-AmbitenModel
-→ performs data operations
-```
-
-In short:
-
-```text
-The CLI creates the structure.
-
-The factory prepares the runtime.
-
-Adapters enter the runtime.
-
-Context carries execution state.
-
-Models perform operations.
-```
-
-## Why the CLI Exists
-
-Runtime-oriented applications often begin small and gradually accumulate infrastructure across unrelated files:
-
-```text
-database initialization
-logging
-Redis
-GraphQL
-tenant configuration
-framework setup
-garbage collection
-models
-startup hooks
-```
-
-Over time, startup behavior can become fragmented and difficult to reason about.
-
-The Ambiten CLI establishes a consistent architecture from the beginning.
-
-```text
-Without CLI scaffolding
-→ runtime structure evolves independently
-
-With CLI scaffolding
-→ runtime boundaries are established from the first commit
-```
-
-The generated project is designed around the same lifecycle used by Ambiten itself:
-
-```text
-Configuration
-      ↓
-Bootstrap
-      ↓
-Runtime Infrastructure
-      ↓
-Framework Adapter
-      ↓
-Execution Context
-      ↓
-Application Logic
-```
+| Component | Responsibility |
+| --- | --- |
+| CLI | Generates project files and optionally installs dependencies. |
+| `AmbitenBootstrapFactory` | Loads configuration and initializes the runtime. |
+| Framework adapter | Connects framework requests or invocations to Ambiten. |
+| `AmbitenContext` | Carries state for the current execution. |
+| `MultiTenantManager` | Manages tenant configuration, discovery, and clients. |
+| Ambiten model | Performs operations using the selected database resources. |
 
 ## Quick Start
 
-Create a new Ambiten project:
+The `ambiten` command is provided by `@ambiten/core`.
+
+Run it through an explicit package reference:
 
 ```bash
-npx ambiten init my-app
+pnpm --package=@ambiten/core@latest dlx ambiten init my-app
 ```
 
-Then enter the generated project:
+With npm:
+
+```bash
+npx --yes --package=@ambiten/core@latest ambiten init my-app
+```
+
+Complete the prompts, then enter the generated directory:
 
 ```bash
 cd my-app
 ```
 
-If dependencies were not installed during generation:
+If dependency installation was skipped:
 
 ```bash
-npm install
+pnpm install
 ```
 
-Start development using the generated project scripts:
+Review `ambiten.config.json`, make sure the configured MongoDB service is available, and start the application:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
-## Interactive Mode
+The generated entry point initializes Ambiten. It does not start an HTTP server automatically.
 
-Run the CLI without a project name:
+To reproduce scaffolding from a specific release, replace `@latest` in the CLI command with the version, such as `@1.3.0`.
+
+Selecting a CLI version and selecting the generated application's dependency versions are separate decisions.
+
+## Interactive Configuration
+
+Run without a project name to include the project-name prompt:
 
 ```bash
-npx ambiten init
+pnpm --package=@ambiten/core@latest dlx ambiten init
 ```
 
-The CLI enters interactive mode and guides project generation through the available runtime capabilities.
+Supplying a project name skips that prompt, but other unanswered configuration questions remain interactive.
 
-Depending on the CLI version and selected options, prompts may include capabilities such as:
+The CLI collects settings for:
 
-```text
-MongoDB configuration
-multi-tenancy
-GraphQL
-Redis
-logging
-garbage collection
-dependency installation
-```
+- MongoDB connection details.
+- Bootstrap schema definitions.
+- Bootstrap model options.
+- GraphQL.
+- Multi-tenancy.
+- Logging.
+- Redis caching.
+- Project garbage collection.
+- Dependency installation.
 
-Interactive mode is not only a convenience layer.
+When schema configuration is selected, the CLI requests a JSON definition.
 
-It allows the generated project structure to reflect the operational requirements of the application before runtime execution begins.
+When model configuration is selected, it requests a collection name and optional model-specific `gcConfig`.
+
+The CLI displays a scaffold summary and asks for confirmation before generating files.
+
+Flags preselect their corresponding settings. They do not make the current CLI fully non-interactive.
+
+The npm `--yes` option in the earlier command accepts npm’s package-execution prompt; it does not answer Ambiten’s configuration prompts.
 
 ## Command Structure
 
@@ -149,903 +98,626 @@ It allows the generated project structure to reflect the operational requirement
 ambiten init [projectName] [options]
 ```
 
+To inspect the available options:
+
+```bash
+pnpm --package=@ambiten/core@latest dlx ambiten init --help
+```
+
 ## Options
 
 | Option | Description |
 | --- | --- |
-| `--with-graphql` | Enable GraphQL runtime scaffolding |
-| `--with-redis` | Enable Redis integration |
-| `--logger` | Enable runtime logging |
-| `--multi-tenant` | Enable multi-tenant configuration |
-| `--uri <mongodbUri>` | Configure the MongoDB connection URI |
-| `--rbac` | Enable RBAC support when available |
-| `--with-garbage-collector` | Enable lifecycle cleanup support |
-| `--install` | Install generated dependencies automatically |
+| `--uri <mongodbUri>` | Supplies the main MongoDB connection URI. |
+| `--schema` | Enables the bootstrap schema configuration questions. |
+| `--no-schema` | Skips bootstrap schema configuration. |
+| `--model` | Enables the bootstrap model configuration questions. |
+| `--no-model` | Skips bootstrap model configuration. |
+| `--with-graphql` | Enables GraphQL configuration and starter files. |
+| `--with-redis` | Enables Redis caching defaults. |
+| `--logger` | Enables logger configuration. |
+| `--multi-tenant` | Enables multi-tenancy and a starter tenant mapping. |
+| `--with-garbage-collector` | Enables project garbage-collection configuration and starter files. |
+| `--install` | Requests dependency installation after generation. |
+| `--rbac` | Reserved; the current CLI rejects this option because RBAC scaffolding is not implemented. |
 
-The exact generated surface depends on the capabilities selected during initialization.
+`--no-schema` and `--no-model` omit those explicit configuration sections. They do not disable the bootstrap runtime’s fallback schema and model.
+
+Without explicit configuration, bootstrap uses an empty schema and the default collection name `"default"`.
 
 ## Example: Multi-Tenant Application
 
-A larger Ambiten application might be scaffolded with:
+```bash
+pnpm --package=@ambiten/core@latest dlx ambiten init my-saas --multi-tenant --schema --model --logger --install
+```
+
+The CLI still asks for the selected schema and model details and any remaining configuration choices.
+
+To include additional infrastructure:
 
 ```bash
-npx ambiten init my-saas \
-  --multi-tenant \
-  --with-graphql \
-  --with-redis \
-  --logger \
-  --with-garbage-collector \
-  --install
+pnpm --package=@ambiten/core@latest dlx ambiten init my-saas --multi-tenant --with-graphql --with-redis --logger --with-garbage-collector --install
 ```
 
-This prepares a project structure capable of supporting:
-
-```text
-MongoDB
-multi-tenancy
-runtime context
-GraphQL
-Redis
-logging
-garbage collection
-framework integration
-```
-
-without requiring those concerns to be assembled manually after generation.
+Enable services that the application will use, and review their generated settings before starting the runtime.
 
 ## Generated Project Structure
 
-A generated project typically follows a structure similar to:
+The v1.3.0 generator creates these files and directories:
 
-```text
-my-app/
-├── ambiten.config.json
-├── package.json
-├── tsconfig.json
-│
-├── src/
-│   ├── main.ts
-│   │
-│   ├── core/
-│   │   └── initAmbiten.ts
-│   │
-│   ├── models/
-│   ├── utils/
-│   ├── types/
-│   │
-│   ├── graphql/       (optional)
-│   └── gc/            (optional)
-│
-└── scripts/
-    └── runGC.ts       (optional)
+| Path | Purpose |
+| --- | --- |
+| `ambiten.config.json` | Application runtime configuration. |
+| `package.json` | Dependencies and development, build, and start scripts. |
+| `tsconfig.json` | TypeScript compiler configuration. |
+| `.gitignore` | Generated exclusions for dependencies, build output, and environment files. |
+| `src/main.ts` | Application startup entry point. |
+| `src/core/init.runtime.ts` | Calls `AmbitenBootstrapFactory.create()`. |
+| `src/dtos/model/` | Initial model directory. |
+| `src/dtos/schema/` | Initial schema directory. |
+| `src/utils/helper.ts` | Starter utility file. |
+| `src/types/config.ts` | Starter type file. |
+| `src/graphql/schema.gql` | Optional GraphQL schema starter. |
+| `src/graphql/resolvers.ts` | Optional GraphQL resolver starter. |
+| `src/graphql/graphql.ts` | Optional GraphQL setup placeholder. |
+| `src/gc/gcManager.ts` | Optional garbage-collection helper. |
+| `src/gc/gcRunner.ts` | Optional runner that requires application-specific wiring. |
+
+The model and schema directories are initially empty. Selecting schema or model configuration writes configuration values; it does not generate separate user schema or model modules.
+
+The generator does not automatically create an Express application, install a framework adapter, or create a tenant resolver module.
+
+### Directory names in v1.3.0
+
+The current generator creates:
+
+- `src/dtos/model`
+- `src/dtos/schema`
+
+However, its default `features.models` and `features.schemas` values use the plural paths `src/dtos/models` and `src/dtos/schemas`.
+
+Align those metadata paths with the directories you use.
+
+Runtime module loading depends on the explicit `schema.path` and `model.path` references, not on the `features` directory values.
+
+## Generated Runtime Initialization
+
+The generated `src/core/init.runtime.ts` exports a `run()` function:
+
+```ts
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+import type { AmbitenRuntime } from "@ambiten/core";
+
+export async function run(): Promise<AmbitenRuntime> {
+  return AmbitenBootstrapFactory.create();
+}
 ```
 
-The structure is intentionally organized around runtime boundaries rather than framework conventions alone.
+The generated `src/main.ts` calls this function and reports successful initialization.
 
-A generated project separates:
+The factory loads `ambiten.config.json` and initializes the configured services.
 
-```text
-configuration
-startup
-framework integration
-execution
-application code
-operational infrastructure
+If a different configuration location is needed, update the helper:
+
+```ts
+import { AmbitenBootstrapFactory } from "@ambiten/core";
+import type { AmbitenRuntime } from "@ambiten/core";
+
+export async function run(): Promise<AmbitenRuntime> {
+  return AmbitenBootstrapFactory.create({
+    config: "./config/ambiten.config.json"
+  });
+}
 ```
 
-so those concerns can evolve independently.
+An explicit relative configuration path is resolved from the process working directory.
 
-## Configuration-First Runtime
+## Runtime Capabilities
 
-The CLI generates:
+<BootstrapCapabilitiesOverview />
 
-```text
-ambiten.config.json
-```
+The generated configuration can enable MongoDB connectivity, schemas, models, logging, multi-tenancy, Redis, GraphQL, and a garbage-collection runner.
 
-as the central runtime configuration surface.
+Selecting a capability during scaffolding prepares its initial configuration or starter files. Application-specific integration may still be required.
 
-For example:
+For example, GraphQL starter files do not automatically create a listening GraphQL server, and the generated garbage-collection runner contains instructions to connect it to an application model.
+
+## Configuration
+
+`ambiten.config.json` is the generated runtime configuration file.
+
+For example, an application with an inline schema, a model, and one static tenant can use:
 
 ```json
 {
+  "configVersion": "1.0.0",
+  "projectName": "my-app",
   "connection": {
-    "uri": "mongodb://localhost:27017/my-app"
+    "uri": "mongodb://localhost:27017/my-app",
+    "options": {
+      "dbName": "my-app"
+    }
   },
-
+  "schema": {
+    "username": {
+      "type": "string",
+      "required": true
+    },
+    "email": {
+      "type": "string",
+      "required": true
+    },
+    "createdAt": {
+      "type": "date",
+      "default": {
+        "$runtime": "now"
+      }
+    }
+  },
+  "model": {
+    "collectionName": "users"
+  },
   "multiTenant": {
-    "enabled": true
+    "enabled": true,
+    "headerKey": "x-tenant-id",
+    "tenants": {
+      "tenant1": "mongodb://localhost:27017/my-app_tenant1"
+    },
+    "initOptions": {
+      "lazy": true
+    }
+  }
+}
+```
+
+This is a configuration example, not a verbatim copy of every generated default.
+
+`configVersion` identifies the configuration format. It does not need to match the installed Core version.
+
+Each schema field uses a field-options object. Runtime defaults use declarative values such as:
+
+```json
+{
+  "default": {
+    "$runtime": "now"
+  }
+}
+```
+
+See [Schema](/models/schema) for the complete field and runtime-default contract.
+
+## Moving Schema and Model Configuration into Modules
+
+Large schema definitions and model options can be moved out of the main JSON configuration.
+
+Replace the `schema` and `model` properties with module references:
+
+```json
+{
+  "schema": {
+    "path": "./src/dtos/schema/user.schema.ts",
+    "exportName": "userSchema"
+  },
+  "model": {
+    "path": "./src/dtos/model/user.model.ts",
+    "exportName": "userModelOptions"
+  }
+}
+```
+
+This example uses the singular directory names created by the v1.3.0 generator.
+
+Create `src/dtos/schema/user.schema.ts`:
+
+```ts
+import type { SchemaDefinition } from "@ambiten/core";
+
+export const userSchema: SchemaDefinition = {
+  username: {
+    type: "string",
+    required: true
   },
 
-  "graphql": {
+  email: {
+    type: "string",
+    required: true
+  },
+
+  createdAt: {
+    type: "date",
+    default: {
+      $runtime: "now"
+    }
+  }
+};
+```
+
+Create `src/dtos/model/user.model.ts`:
+
+```ts
+import type { BootstrapModelOptions } from "@ambiten/core";
+
+export const userModelOptions: BootstrapModelOptions = {
+  collectionName: "users"
+};
+```
+
+The selected exports must be a schema definition object and a model options object. Bootstrap constructs the actual schema and model instances.
+
+The current interactive schema prompt accepts an inline schema definition. Configure module references by editing the generated JSON afterward.
+
+Module paths in a JSON configuration are resolved relative to that configuration file’s directory. When `exportName` is omitted, the loader selects the default export.
+
+`features.models` and `features.schemas` do not scan directories or register their contents automatically.
+
+## Running TypeScript Configuration Modules
+
+The generated development script uses:
+
+```json
+{
+  "dev": "ts-node src/main.ts"
+}
+```
+
+Configuration modules are loaded through native dynamic import. A CommonJS TypeScript require hook alone may not load referenced `.ts` files.
+
+When using TypeScript schema, model, or tenant resolver modules, install a loader that handles those imports:
+
+```bash
+pnpm add -D tsx
+```
+
+Update the generated `scripts` section:
+
+```json
+{
+  "dev": "node --import tsx src/main.ts",
+  "build": "tsc",
+  "start": "node dist/main.js"
+}
+```
+
+For compiled JavaScript execution, update module references to the emitted files:
+
+```json
+{
+  "schema": {
+    "path": "./dist/dtos/schema/user.schema.js",
+    "exportName": "userSchema"
+  },
+  "model": {
+    "path": "./dist/dtos/model/user.model.js",
+    "exportName": "userModelOptions"
+  }
+}
+```
+
+Apply the same change to a tenant resolver module path.
+
+These paths assume that `ambiten.config.json` remains in the project root. TypeScript compilation does not rewrite paths inside that configuration file.
+
+## Configuration-Driven Multi-Tenancy
+
+When `multiTenant.enabled` is true, bootstrap registers the configured tenants and installs any configured tenant resolver.
+
+An additional registration call is unnecessary for the same initial tenant map.
+
+For additional static tenants, the initialized runtime can be used:
+
+```ts
+await runtime.registerMultiTenancy({
+  tenants: {
+    tenant2: "mongodb://localhost:27017/my-app_tenant2"
+  },
+  lazy: true
+});
+```
+
+The runtime must already have multi-tenancy enabled in its configuration.
+
+### Static tenants
+
+Static tenants are declared in `multiTenant.tenants`.
+
+The CLI’s starter mapping contains a local example tenant. Replace it with the connection information appropriate for the application.
+
+With `initOptions.lazy: true`, registration defers the tenant connection until it is needed.
+
+Bootstrap still connects its main database provider during startup. Lazy tenant registration does not defer that main connection.
+
+### Dynamic tenants
+
+Add a resolver module when tenant configuration should be discovered at runtime.
+
+For example, update the `multiTenant` section:
+
+```json
+{
+  "multiTenant": {
+    "enabled": true,
+    "headerKey": "x-tenant-id",
+    "tenants": {
+      "tenant1": "mongodb://localhost:27017/my-app_tenant1"
+    },
+    "tenantConfigResolverModule": {
+      "path": "./src/tenantResolver.ts",
+      "exportName": "resolveTenantConfig"
+    },
+    "initOptions": {
+      "lazy": true
+    }
+  }
+}
+```
+
+Create `src/tenantResolver.ts`:
+
+```ts
+import type { TenantConfigResolver } from "@ambiten/core";
+
+export const resolveTenantConfig: TenantConfigResolver = (
+  tenantId
+) => {
+  if (tenantId !== "tenant5") {
+    return undefined;
+  }
+
+  return {
+    uri: "mongodb://localhost:27017/my-app_tenant5",
+    dbName: "my-app_tenant5",
+    metadata: {
+      tier: "standard"
+    }
+  };
+};
+```
+
+The resolver can also be asynchronous.
+
+Return `undefined` or `null` when the tenant cannot be resolved. Return `uri`, optional `dbName`, and optional `metadata` when it can.
+
+Tenant registration and connection state are managed by `MultiTenantManager`; the resolver result does not need `tenantId`, `lazy`, or a MongoDB client.
+
+For manual registration, pass the function directly:
+
+```ts
+MultiTenantManager.setTenantConfigResolver(
+  resolveTenantConfig
+);
+```
+
+Do not pass an object containing a `resolve()` method.
+
+When `tenantConfigResolverModule` is configured, bootstrap installs the function automatically.
+
+See [Dynamic Tenants](/multi-tenancy/dynamic-tenants) for the discovery lifecycle.
+
+## Adding a Framework Adapter
+
+The generated entry point initializes Ambiten without selecting an HTTP framework.
+
+For an Express application, install the framework and adapter:
+
+```bash
+pnpm add express @ambiten/adapter-express
+pnpm add -D @types/express
+```
+
+In the application startup function, initialize the runtime, create the Express application, and install the adapter before registering application routes:
+
+```ts
+import express from "express";
+
+import { MultiTenantManager } from "@ambiten/core";
+import { createExpressAdapter } from "@ambiten/adapter-express";
+import { run } from "./core/init.runtime";
+
+export async function createHttpApplication() {
+  const runtime = await run();
+
+  try {
+    const app = express();
+
+    app.use(express.json());
+
+    const adapter = createExpressAdapter();
+
+    await adapter.install(app, {
+      tenancy: {
+        header: "x-tenant-id",
+
+        validate: async (tenantId) => {
+          const tenant =
+            await MultiTenantManager.resolveTenant(tenantId);
+
+          return Boolean(tenant);
+        }
+      }
+    });
+
+    return {
+      app,
+      runtime
+    };
+  } catch (error) {
+    await runtime.shutdown();
+    throw error;
+  }
+}
+```
+
+This helper prepares the application. The application entry point must call it, register routes, and start the HTTP listener.
+
+The example assumes multi-tenancy is enabled in `ambiten.config.json`. For a single-tenant application, install the adapter without the `tenancy` option.
+
+A tenant configuration lookup establishes that the tenant exists. Application authorization must also establish that the caller can access that tenant.
+
+See [AmbitenBootstrapFactory](/advanced/bootstrap-cli) for a complete Express startup and shutdown example.
+
+## Models and Runtime Context
+
+Retrieve the configured model after initialization:
+
+```ts
+const UserModel = runtime.getModel();
+```
+
+Inside an adapter-established request context:
+
+```ts
+const user = await UserModel.create({
+  username: "Abinod Ltd",
+  email: "hello@abinod.com"
+});
+```
+
+Ambiten uses the active tenant context when selecting tenant database resources.
+
+Application services do not need to repeatedly inspect HTTP headers to recover the tenant ID.
+
+For background work, create an execution context explicitly:
+
+```ts
+import { AmbitenContext } from "@ambiten/core";
+
+await AmbitenContext.run(
+  {
+    tenantId: "tenant5"
+  },
+  async () => {
+    await runtime.getModel().create({
+      username: "Abinod Ltd",
+      email: "hello@abinod.com"
+    });
+  }
+);
+```
+
+This example assumes the runtime has initialized the tenant resolver shown earlier.
+
+The CLI creates project files. Adapters and explicit `AmbitenContext.run()` calls establish execution state when the application runs.
+
+## Logging
+
+The generated configuration includes logging defaults with console output and a rotating file destination.
+
+By default, the file destination is:
+
+```text
+./logs/ambiten.log
+```
+
+The directory and file are prepared when the application initializes logging, not when the CLI creates the project.
+
+Relative log paths are resolved from the application’s working directory.
+
+If the transport list is edited, retain a `"file"` or `"rotating-file"` transport when file logging is required. An explicit console-only list does not create a log directory.
+
+To disable bootstrap logging, explicitly set:
+
+```json
+{
+  "logger": {
     "enabled": false
   }
 }
 ```
 
-The exact configuration depends on the selected runtime capabilities.
-
-The important architectural principle is:
-
-```text
-configuration
-      ↓
-AmbitenBootstrapFactory
-      ↓
-runtime infrastructure
-```
-
-rather than scattering infrastructure setup throughout application entry points.
-
-## Generated Runtime Initialization
-
-The CLI creates a startup layer based on `AmbitenBootstrapFactory`.
-
-For example:
-
-```ts
-import {
-  AmbitenBootstrapFactory
-} from "@ambiten/core";
-
-export async function initAmbiten() {
-  return AmbitenBootstrapFactory.create();
-}
-```
-
-Then the application can initialize the runtime once:
-
-```ts
-const runtime =
-  await initAmbiten();
-```
-
-The factory reads the runtime configuration and prepares the configured infrastructure before application execution begins.
-
-The CLI therefore creates the startup structure.
-
-`AmbitenBootstrapFactory` performs the actual initialization.
-
-## What the Generated Runtime Can Initialize
-
-<BootstrapCapabilitiesOverview />
-
-Depending on configuration, the runtime may prepare capabilities such as:
-
-```text
-MongoDB
-schema
-model
-logging
-multi-tenancy
-Redis
-GraphQL
-garbage collection
-runtime services
-```
-
-Not every generated project uses every capability.
-
-The CLI selects the initial runtime surface according to the requested application architecture.
-
-## Generated Application Entry Point
-
-The generated application entry point connects the initialized runtime to the application's framework.
-
-A representative Express application may look like:
-
-```ts
-import express from "express";
-
-import {
-  initAmbiten
-} from "./core/initAmbiten";
-
-import {
-  createExpressAdapter
-} from "@ambiten/adapter-express";
-
-async function main() {
-  const runtime =
-    await initAmbiten();
-
-  const app =
-    express();
-
-  app.use(
-    express.json()
-  );
-
-  const adapter =
-    createExpressAdapter();
-
-  await adapter.install(app, {
-    tenancy: {
-      header: "x-tenant-id"
-    }
-  });
-
-  app.listen(3000);
-
-  return runtime;
-}
-
-main().catch((error) => {
-  console.error(
-    "Application startup failed:",
-    error
-  );
-
-  process.exitCode = 1;
-});
-```
-
-The responsibilities are deliberately separated:
-
-```text
-initAmbiten()
-→ prepares runtime
-
-createExpressAdapter()
-→ integrates framework execution
-
-adapter.install()
-→ establishes request boundary
-
-application routes
-→ execute inside that boundary
-```
-
-## Configuration-Driven Multi-Tenancy
-
-When multi-tenancy is defined through the generated Ambiten configuration, runtime initialization can prepare that tenant infrastructure during bootstrap.
-
-This means generated applications should not automatically duplicate configuration-driven tenancy with an unnecessary startup call such as:
-
-```ts
-await runtime.registerMultiTenancy();
-```
-
-if multi-tenancy has already been configured and initialized through the runtime configuration.
-
-The preferred flow is:
-
-```text
-ambiten.config.json
-      ↓
-AmbitenBootstrapFactory
-      ↓
-multi-tenancy initialized
-      ↓
-application starts
-```
-
-Programmatic registration remains useful when tenant infrastructure is intentionally supplied at runtime rather than through the configuration file.
-
-For example:
-
-```ts
-await runtime.registerMultiTenancy({
-  tenants: {
-    tenant1:
-      "mongodb://localhost:27017/db_tenant1",
-
-    tenant2:
-      "mongodb://localhost:27017/db_tenant2"
-  },
-
-  lazy: true
-});
-```
-
-The two approaches represent different startup strategies:
-
-```text
-Configuration-driven
-→ tenancy declared in runtime configuration
-
-Programmatic
-→ tenancy supplied explicitly during startup
-```
-
-Applications should normally choose one clear source for initial tenant configuration rather than duplicating registration.
-
-## Multi-Tenancy Architecture
-
-The CLI can prepare an application for multi-tenancy, but multi-tenancy itself spans several runtime responsibilities.
-
-```text
-CLI
-→ scaffolds tenancy-capable architecture
-
-BootstrapFactory
-→ initializes tenant infrastructure
-
-Framework Adapter
-→ resolves request tenant identity
-
-AmbitenContext
-→ carries tenant identity
-
-MultiTenantManager
-→ manages tenant configuration and clients
-
-AmbitenModel
-→ executes against the active tenant
-```
-
-This distinction is important because enabling multi-tenancy during scaffolding does not mean every tenancy concern belongs in the generated startup file.
-
-## Static Tenants
-
-Static tenants are known during runtime initialization.
-
-Conceptually:
-
-```text
-ambiten.config.json
-      ↓
-tenant1
-tenant2
-tenant3
-      ↓
-bootstrap
-      ↓
-MultiTenantManager
-```
-
-When lazy tenancy is enabled, tenants can be registered without immediately opening every MongoDB client.
-
-For example, startup state may become:
-
-```ts
-{
-  registeredTenants: 3,
-  connectedTenants: 0,
-  lazyTenants: 3
-}
-```
-
-Database connections are then activated when tenant operations actually require them.
-
-## Dynamic Tenants
-
-The CLI does not require every future tenant to be known during project generation.
-
-Applications can later extend the runtime with a `TenantConfigResolver`.
-
-For example:
-
-```ts
-import {
-  MultiTenantManager
-} from "@ambiten/core";
-
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const config =
-      await lookupTenant(tenantId);
-
-    if (!config) {
-      return undefined;
-    }
-
-    return {
-      tenantId,
-      uri: config.uri,
-      dbName: config.dbName,
-      lazy: true,
-      metadata: config.metadata
-    };
-  }
-});
-```
-
-This allows the generated application to evolve from:
-
-```text
-known startup tenants
-```
-
-to:
-
-```text
-known startup tenants
-+
-runtime tenant discovery
-```
-
-without changing the fundamental project architecture.
-
-Dynamic tenant discovery is runtime behavior, not CLI behavior.
-
-The CLI prepares the application structure in which that behavior can be added.
-
-## Framework Adapter Integration
-
-The CLI prepares adapter-ready application entry points.
-
-Framework adapters are responsible for connecting real framework execution to Ambiten.
-
-Conceptually:
-
-```text
-Express / Fastify / NestJS
-            ↓
-      Framework Adapter
-            ↓
-       adapter-runtime
-            ↓
-       AmbitenContext
-            ↓
-       application
-```
-
-The adapter resolves execution-specific information such as tenant identity.
-
-For example:
-
-```http
-x-tenant-id: tenant5
-```
-
-can become:
-
-```ts
-AmbitenContext.get().tenantId;
-// "tenant5"
-```
-
-The generated application's downstream services and models do not need to repeatedly inspect framework request objects to determine the tenant.
-
-## CLI vs Framework Adapters
-
-The CLI and adapters solve different problems.
-
-```text
-CLI
-→ creates application structure
-
-Framework Adapter
-→ handles runtime execution boundaries
-```
-
-The CLI may generate the adapter integration code, but the adapter only becomes operational when the generated application actually starts.
-
-Conceptually:
-
-```text
-Generation time
-───────────────
-CLI
- ↓
-project files
-
-
-Runtime
-───────
-BootstrapFactory
- ↓
-Adapter
- ↓
-AmbitenContext
- ↓
-Application
-```
-
-This distinction keeps scaffolding and runtime execution independent.
-
-## Tenant Resolution in Generated Applications
-
-For a multi-tenant generated application, adapter configuration may resolve tenancy from a header:
-
-```ts
-await adapter.install(app, {
-  tenancy: {
-    header: "x-tenant-id"
-  }
-});
-```
-
-A request:
-
-```http
-POST /users
-x-tenant-id: tenant5
-```
-
-can then become:
-
-```text
-Request
-   ↓
-Framework Adapter
-   ↓
-TenantResolver
-   ↓
-tenant5
-   ↓
-AmbitenContext
-   ↓
-Application
-```
-
-If tenant validation is required:
-
-```ts
-import {
-  MultiTenantManager
-} from "@ambiten/core";
-
-await adapter.install(app, {
-  tenancy: {
-    header: "x-tenant-id",
-
-    validate: async (tenantId) => {
-      const tenant =
-        await MultiTenantManager
-          .resolveTenant(tenantId);
-
-      if (!tenant) {
-        throw new Error(
-          `Tenant with ID "${tenantId}" not found.`
-        );
-      }
-
-      return true;
-    }
-  }
-});
-```
-
-This allows both statically registered and dynamically discovered tenants to participate in the same request flow.
-
-## Generated Models
-
-Models belong to the runtime layer, not to the HTTP framework.
-
-A generated application may obtain its configured model from the runtime:
-
-```ts
-const model =
-  runtime.getModel();
-```
-
-Inside a tenant-aware request:
-
-```ts
-const user =
-  await model.create({
-    username: "Abinod Ltd",
-    email: "aemma@abinod.com"
-  });
-```
-
-the active tenant can be resolved from `AmbitenContext`.
-
-Conceptually:
-
-```text
-route/controller
-      ↓
-model.create(...)
-      ↓
-AmbitenContext
-tenantId = tenant5
-      ↓
-MultiTenantManager
-      ↓
-db_tenant5
-```
-
-The model does not need to read:
-
-```text
-Express headers
-Fastify request
-NestJS ExecutionContext
-```
-
-to determine tenancy.
-
-## Runtime Context in Generated Projects
-
-The generated architecture allows request-specific state to remain separate from application startup configuration.
-
-For example:
-
-```ts
-import {
-  AmbitenContext
-} from "@ambiten/core";
-
-const context =
-  AmbitenContext.get();
-```
-
-may provide:
-
-```ts
-{
-  tenantId: "tenant5",
-  requestId: "req_123"
-}
-```
-
-This state exists for the active execution.
-
-It is different from process-level configuration stored in:
-
-```text
-ambiten.config.json
-```
-
-The distinction is:
-
-```text
-ambiten.config.json
-→ application/runtime configuration
-
-AmbitenContext
-→ current execution state
-```
-
-## Generated Architecture
-
-A useful mental model for a CLI-generated Ambiten application is:
-
-```text
-                  GENERATION TIME
-
-                       CLI
-                        ↓
-              Project Structure
-                        ↓
-              ambiten.config.json
-                        ↓
-                 source files
-
-
-                    RUNTIME
-
-             AmbitenBootstrapFactory
-                        ↓
-                 AmbitenRuntime
-                        ↓
-                Framework Adapter
-                        ↓
-                 AmbitenContext
-                        ↓
-                Application Logic
-                        ↓
-                  AmbitenModel
-                        ↓
-               MultiTenantManager
-                        ↓
-                    MongoDB
-```
-
-The CLI only participates in the first half.
-
-Everything below runtime startup happens when the application executes.
-
-## Running the Generated Project
-
-After generation:
-
-```bash
-cd my-app
-```
-
-Install dependencies when necessary:
-
-```bash
-npm install
-```
-
-Then start development:
-
-```bash
-npm run dev
-```
-
-The generated runtime initialization and framework entry point are already in place.
-
-Application development can then focus on:
-
-```text
-models
-routes/controllers
-services
-tenant policy
-application logic
-```
-
-instead of rebuilding the runtime foundation.
+Await runtime shutdown so buffered file output can be flushed.
 
 ## Installation Behavior
 
-Dependencies are not installed automatically unless requested.
+Dependencies are installed after scaffolding when:
 
-To install them during project generation:
+- `--install` is supplied, or
+- dependency installation is accepted in the interactive prompts.
+
+Otherwise, install them from the generated project directory:
 
 ```bash
-npx ambiten init my-app --install
+pnpm install
 ```
 
-Typical generated dependencies may include:
+The installer detects pnpm, Yarn, or npm from an existing lockfile and the package-manager environment, with npm as the fallback.
 
-```text
-@ambiten/core
-mongodb
-selected Ambiten adapter packages
+If automatic installation fails, the generated project files remain available. Resolve the reported installation error and run the chosen package manager manually.
+
+### Core version selection
+
+The current generator writes:
+
+```json
+{
+  "dependencies": {
+    "@ambiten/core": "latest"
+  }
+}
 ```
 
-and, when selected:
+A fresh installation resolves the registry’s `latest` tag.
 
-```text
-GraphQL dependencies
-Redis dependencies
-logging support
-other optional runtime packages
+This does not continuously upgrade an installed application. The installed dependency tree and lockfile record the resolved version.
+
+Check the installed Core version with:
+
+```bash
+pnpm list @ambiten/core --depth 0
 ```
 
-The exact dependency surface depends on the requested capabilities.
+### Generated dependencies
 
-## Relationship with AmbitenBootstrapFactory
+The baseline includes `@ambiten/core` and `mongodb`.
 
-The CLI and `AmbitenBootstrapFactory` occupy consecutive stages of the application lifecycle.
+Selected capabilities can add:
 
-```text
-CLI
-→ generates startup architecture
+| Capability | Additional dependencies |
+| --- | --- |
+| Logger configuration | `@ambiten/logger` |
+| GraphQL | `graphql`, `@apollo/server` |
+| Redis caching | `redis` |
 
-AmbitenBootstrapFactory
-→ executes startup architecture
+Express and framework adapter packages are added when the application integrates those frameworks.
+
+Other generated dependencies use their configured version ranges; the `"latest"` behavior described above applies to Core.
+
+## Development and Production Scripts
+
+The generated package includes:
+
+| Script | Default command |
+| --- | --- |
+| `dev` | `ts-node src/main.ts` |
+| `build` | `tsc` |
+| `start` | `node dist/main.js` |
+
+For development:
+
+```bash
+pnpm run dev
 ```
 
-For example:
+For compiled execution:
 
-```text
-npx ambiten init my-app
-        ↓
-src/core/initAmbiten.ts created
-        ↓
-application starts later
-        ↓
-AmbitenBootstrapFactory.create()
-        ↓
-runtime ready
+```bash
+pnpm run build
+pnpm start
 ```
 
-The CLI generates the bootstrap integration.
+When using referenced TypeScript configuration modules, apply the development loader and production path changes described earlier.
 
-The factory performs the actual runtime initialization.
+Keep the runtime configuration available at the path used by the application during deployment.
 
-## Relationship with MultiTenantManager
+## ESM and CommonJS
 
-The CLI can generate a tenancy-ready application, but it does not manage runtime tenants.
+The v1.3.0 scaffold generates a CommonJS application configuration:
 
-That responsibility belongs to `MultiTenantManager`.
+- `package.json` uses `"type": "commonjs"`.
+- TypeScript uses `"module": "commonjs"`.
 
-```text
-CLI
-→ scaffolds tenancy configuration
+Ambiten provides public package entry points for both CommonJS and ESM consumers.
 
-Bootstrap
-→ initializes tenant infrastructure
-
-MultiTenantManager
-→ owns runtime tenant registry
-```
-
-After startup, the manager may contain:
-
-```text
-tenant1 → registered, lazy
-tenant2 → registered, lazy
-tenant3 → registered, lazy
-```
-
-and later dynamically add:
-
-```text
-tenant5 → registered, connected
-```
-
-without any involvement from the CLI.
-
-## Relationship with AmbitenContext
-
-The CLI does not create runtime request context.
-
-Framework adapters do.
-
-```text
-CLI
-→ generated adapter integration
-
-Adapter
-→ creates execution boundary
-
-AmbitenContext
-→ contains current execution state
-```
-
-This separation prevents build-time/project-generation concerns from leaking into request-time behavior.
-
-## Architectural Position
-
-The complete lifecycle is:
-
-```text
-CLI
- ↓
-Scaffold
- ↓
-Configuration
- ↓
-AmbitenBootstrapFactory
- ↓
-AmbitenRuntime
- ↓
-Framework Adapter
- ↓
-Tenant Resolution
- ↓
-AmbitenContext
- ↓
-Application
- ↓
-AmbitenModel
- ↓
-MultiTenantManager
- ↓
-MongoDB
-```
-
-<SignalFlow
-  aria-label="CLI runtime architecture relationship"
-  :items='[
-    "CLI",
-    "Scaffold",
-    "Factory",
-    "Adapter",
-    "Context",
-    "Models",
-    "MongoDB"
-  ]'
-/>
-
-Each stage owns a different responsibility.
-
-## ESM and CommonJS Applications
-
-Generated applications should use the module configuration produced by the CLI and supported by the selected Ambiten packages.
-
-Ambiten's runtime and adapter packages support both ESM and CommonJS consumer boundaries.
-
-Conceptually:
-
-```text
-ESM application
-→ ESM adapter
-→ ESM adapter-runtime
-→ ESM Core
-```
-
-and:
-
-```text
-CommonJS application
-→ CommonJS adapter
-→ CommonJS adapter-runtime
-→ CommonJS Core
-```
-
-Applications should avoid manually mixing incompatible module entry points.
-
-Use public package imports:
+Use public imports:
 
 ```ts
 import {
@@ -1053,186 +725,164 @@ import {
 } from "@ambiten/core";
 ```
 
-and:
+If converting the generated application to ESM, update its package, TypeScript, and runtime settings together.
 
-```ts
-import {
-  createExpressAdapter
-} from "@ambiten/adapter-express";
-```
-
-rather than importing internal build paths.
-
-Avoid:
-
-```ts
-import something from
-  "@ambiten/core/dist/...";
-```
-
-Public package exports allow the correct module format to be selected for the consumer environment.
+Use an asynchronous startup function when working with the generated CommonJS configuration; it does not support top-level `await` as an ESM module would.
 
 ## Graceful Shutdown
 
-Generated long-running applications should shut down Ambiten at the application lifecycle boundary.
+Add shutdown coordination when extending the scaffold into a long-running service.
 
-For example:
+The application should:
 
-```ts
-const runtime =
-  await initAmbiten();
+1. Stop accepting requests and new jobs.
+2. Wait for active work to finish.
+3. Stop background tasks and schedulers.
+4. Close tenant clients owned by the application.
+5. Await `runtime.shutdown()`.
 
-process.on(
-  "SIGTERM",
-  async () => {
-    await runtime.shutdown();
-    process.exit(0);
-  }
-);
-```
+In v1.3.0, runtime shutdown disconnects the shared Redis client, closes the configured database provider, and invokes logger cleanup.
 
-Shutdown should not happen after individual requests.
+It does not automatically close an HTTP server or explicitly close clients stored in `MultiTenantManager`.
 
-The runtime represents long-lived application infrastructure.
+`MultiTenantManager.clearTenants()` clears registry entries; it does not close their clients.
 
-## Recommended Usage
+See [AmbitenBootstrapFactory](/advanced/bootstrap-cli) for the complete lifecycle example.
 
-The CLI is best suited for full applications and long-lived services where startup organization and runtime consistency matter.
+## Architecture
 
-It is especially useful for:
+<SignalFlow
+  aria-label="CLI and runtime responsibilities"
+  :items='[
+    "Scaffold",
+    "Bootstrap",
+    "Adapter",
+    "Context",
+    "Model"
+  ]'
+/>
 
-- multi-tenant SaaS applications,
-- API services,
-- GraphQL applications,
-- distributed services,
-- operationally sensitive systems,
-- applications using Redis or runtime logging,
-- teams standardizing Ambiten application structure.
+Project generation, application startup, and request execution happen at different times.
 
-Smaller scripts or isolated infrastructure tools may not require the complete generated architecture.
-
-For those cases, direct `AmbitenClient` usage may be more appropriate.
-
-## Best Practices
-
-Keep `ambiten.config.json` as the primary runtime configuration surface for generated applications unless there is a deliberate reason to manage configuration programmatically.
-
-Initialize the Ambiten runtime once during application startup.
-
-Do not duplicate configuration-driven multi-tenancy with unnecessary manual registration.
-
-Keep framework adapter setup in the real framework application entry point.
-
-Use adapters for request-time tenant resolution.
-
-Use `MultiTenantManager` for tenant infrastructure and dynamic discovery.
-
-Use `AmbitenContext` for request- or execution-scoped identity.
-
-Use public package exports instead of internal `dist` paths.
-
-Keep shutdown logic at the application lifecycle boundary.
-
-Allow the generated architecture to evolve intentionally rather than gradually scattering runtime initialization across unrelated files.
+The CLI prepares the initial files. The factory initializes configured infrastructure. Adapters establish request context, and models use that context during operations.
 
 ## Troubleshooting
 
-### CLI Does Not Prompt
+### The CLI command cannot be found
 
-If interactive prompts do not appear:
-
-- confirm that the terminal supports interactive input,
-- confirm that supplied command flags are not bypassing the corresponding prompts.
-
-### Dependencies Are Missing
-
-If dependencies were not installed during generation:
+Use the package-qualified command:
 
 ```bash
-npm install
+pnpm --package=@ambiten/core@latest dlx ambiten init my-app
 ```
 
-Or generate the application with:
+The executable is named `ambiten`, but the package supplying it is `@ambiten/core`.
+
+### The CLI still prompts after flags are supplied
+
+Flags preselect specific settings. Remaining questions and the final scaffold confirmation are still interactive.
+
+Run the command in a terminal that supports interactive input.
+
+### The CLI version banner differs from the Core version
+
+The v1.3.0 CLI implementation retains a separate `"1.0.0"` version banner.
+
+That banner is not a reliable indication of the Core version installed in the generated application.
+
+Check the dependency directly:
 
 ```bash
-npx ambiten init my-app --install
+pnpm list @ambiten/core --depth 0
 ```
 
-### ESM or CommonJS Errors
+### MongoDB peer dependency warning
 
-If module-resolution errors appear during startup, verify that the application uses public Ambiten package imports and that the project's TypeScript/Node module configuration matches the intended consumer format.
+The v1.3.0 template writes `mongodb: "^6.14.2"`, while the published `@ambiten/core@1.3.0` peer range is `"^5 || ^7"`.
 
-Avoid importing directly from:
+This is a template dependency mismatch.
 
-```text
-dist/esm
-dist/cjs
+Review the generated dependency and select a MongoDB driver version that satisfies both Core’s declared peer range and the application’s Node.js requirements.
+
+Inspect the published requirement with:
+
+```bash
+pnpm view @ambiten/core@1.3.0 peerDependencies --json
 ```
 
-Ambiten's package exports are responsible for selecting the correct runtime entry.
+### Referenced `.ts` modules cannot be loaded
 
-### Tenant Is Not Resolved
+Ensure the application process supports dynamically importing TypeScript modules.
 
-If a request reaches the application without the expected tenant context, verify:
+For development, use the `tsx` setup described above.
 
-```text
-adapter installation
-      ↓
-tenant resolver configuration
-      ↓
-middleware/interceptor ordering
-      ↓
-request identity
-```
+For compiled execution, point configuration references at emitted JavaScript files.
 
-Then inspect:
+### Model or schema files are not loaded
+
+Check:
+
+- The top-level `schema` or `model` module reference.
+- The path relative to the configuration file.
+- The selected `exportName`.
+- Whether the export is a definition or options object.
+- Whether the process can load the module’s file format.
+
+Putting a file in a directory listed under `features` does not register it automatically.
+
+### Configured directories do not exist
+
+In v1.3.0, the generated model and schema directories use singular names, while the default feature metadata uses plural names.
+
+Align the paths with the directories you choose, and make module references point to actual files.
+
+### Logging remains enabled after declining its prompt
+
+The current generator applies enabled logging defaults when logger options are omitted.
+
+Check the generated file and explicitly set `logger.enabled` to `false` when logging should be disabled.
+
+### The log directory is missing
+
+Confirm that:
+
+- The application has started and reached logger initialization.
+- Logging is enabled.
+- The selected transports include a file destination.
+- The process can write to that destination.
+- The directory is being checked relative to the process working directory.
+
+### The application initializes but no HTTP port opens
+
+The generated entry point initializes Ambiten. It does not create a framework server.
+
+Install the framework and adapter, register routes, and start the HTTP listener from the application entry point.
+
+### Tenant identity is missing
+
+Check that the adapter is installed before application routes and that its resolver matches the request’s tenant identity source.
+
+Inspect the context inside the active request:
 
 ```ts
-AmbitenContext.get().tenantId
+AmbitenContext.get().tenantId;
 ```
 
-inside the active request.
+For dynamic tenants, verify that the configured resolver returns database configuration for the requested ID.
 
-For dynamic tenants, also verify that the configured `TenantConfigResolver` can resolve the requested tenant.
-
-## Summary
-
-The Ambiten CLI scaffolds architecture rather than executing runtime behavior.
-
-It creates a configuration-first project where bootstrap, framework adapters, runtime context, models, and optional infrastructure are organized around Ambiten's execution model.
-
-The complete relationship is:
-
-```text
-CLI
-→ scaffolds
-
-AmbitenBootstrapFactory
-→ initializes
-
-Framework Adapter
-→ enters execution
-
-AmbitenContext
-→ carries request state
-
-MultiTenantManager
-→ manages tenant infrastructure
-
-AmbitenModel
-→ performs operations
-```
-
-This allows generated applications to begin with a coherent runtime architecture while remaining free to evolve their framework, tenancy, infrastructure, and application logic independently.
+Tenant configuration in `ambiten.config.json` does not install HTTP middleware by itself.
 
 ## Related Pages
 
 - [AmbitenBootstrapFactory](/advanced/bootstrap-cli)
-- [Adapters Overview](/framework-adapters/overview)
+- [Configuration Modules](/advanced/configuration-modules)
+- [Schema](/models/schema)
+- [Adapters Overview](/adapters/overview)
+- [Context](/core/context)
 - [Multi-Tenancy Overview](/multi-tenancy/overview)
-- [Tenant Resolution](/multi-tenancy/tenant-resolution)
+- [Tenant Resolution](/multi-tenancy/tenant-resolver)
 - [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
 - [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
 - [Framework Adapters](/multi-tenancy/framework-adapters)
-- [Runtime Execution Flow](architecture/runtime-execution-flow)
+- [Runtime Execution Flow](/architecture/runtime-execution-flow)
 - [AmbitenClient](/reference/api/ambiten-client)

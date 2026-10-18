@@ -90,17 +90,9 @@ provider
 For example:
 
 ```ts
-import {
-  AmbitenModel
-} from "@ambiten/core";
-
-import {
-  userSchema
-} from "./user.schema";
-
-import {
-  db
-} from "../infrastructure/database";
+import { AmbitenModel} from "@ambiten/core";
+ import {nuserSchemam} from "./user.schema";
+import { db } from "../infrastructure/database";
 
 export const UserModel =
   new AmbitenModel({
@@ -229,9 +221,7 @@ type relationships
 For example:
 
 ```ts
-import {
-  AmbitenSchema
-} from "@ambiten/core";
+import { AmbitenSchema } from "@ambiten/core";
 
 export const userSchema =
   new AmbitenSchema({
@@ -335,8 +325,7 @@ For tenant-aware execution, provider resolution may also cooperate with `MultiTe
 A simple application may use a stable provider:
 
 ```ts
-export const UserModel =
-  new AmbitenModel({
+export const UserModel = new AmbitenModel({
     collectionName: "users",
     schema: userSchema,
     provider: db
@@ -488,10 +477,8 @@ The application does not need a special "lazy tenant" model definition.
 Ambiten models support TypeScript generics for strongly typed operations.
 
 ```ts
-import type {
-  Document
-} from "@ambiten/core";
-
+import type { Document } from "@ambiten/core";
+  
 interface User
   extends Document {
   name: string;
@@ -515,8 +502,7 @@ const userSchema =
     }
   });
 
-export const UserModel =
-  new AmbitenModel<User>({
+export const UserModel = new AmbitenModel<User>({
     collectionName: "users",
     schema: userSchema,
     provider: db
@@ -880,8 +866,7 @@ A model should normally represent one clear collection boundary.
 For example:
 
 ```ts
-const UserModel =
-  new AmbitenModel({
+const UserModel = new AmbitenModel({
     collectionName: "users",
     schema: userSchema,
     provider: db
@@ -950,8 +935,7 @@ Tenant identity should already have been established by the execution boundary.
 Avoid patterns such as:
 
 ```ts
-const client =
-  new MongoClient(...);
+const client = new MongoClient(...);
 ```
 
 solely inside a model declaration.
@@ -963,8 +947,7 @@ Client and infrastructure lifecycle should remain separate from model structure.
 Avoid:
 
 ```ts
-UserModel.currentTenant =
-  tenantId;
+UserModel.currentTenant = tenantId;
 ```
 
 A model may be shared by concurrent executions.

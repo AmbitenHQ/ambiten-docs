@@ -1,6 +1,6 @@
 ---
 title: Tenant Resolution
-description: Resolve tenant identity from incoming requests and propagate it through Ambiten's request-scoped runtime context.
+description: Resolve tenant identity from incoming requests and propagate it through Ambiten's execution context.
 ---
 
 # Tenant Resolution
@@ -9,109 +9,63 @@ Tenant resolution answers one fundamental question:
 
 > **Which tenant does this execution belong to?**
 
-In Ambiten, identifying a tenant and locating that tenant's infrastructure are deliberately separate concerns.
+In Ambiten, identifying a tenant and locating that tenant's infrastructure are separate concerns.
 
-Tenant resolution determines the tenant identity associated with an incoming request:
+A request-facing resolver determines the tenant identity. The adapter validates that identity when a validator is configured, then establishes an `AmbitenContext` for application execution.
 
-```text
-Incoming Request
-      ↓
-TenantResolver
-      ↓
-tenantId
-      ↓
-Validation
-      ↓
-AmbitenContext
-```
+Application code can read the resolved identity without manually passing it through every service, model, or database operation.
 
-Once resolved, the tenant identifier becomes part of the active `AmbitenContext` and can travel through the rest of the request lifecycle without being manually passed through each service, model, or database operation.
+| Component | Responsibility |
+| --- | --- |
+| `TenantResolver` | Derives a tenant ID from a request. |
+| `AmbitenContext` | Carries that identity through the current execution. |
+| `MultiTenantManager` | Manages tenant configuration, discovery, registration, and MongoDB clients. |
+| `TenantConfigResolver` | Supplies database configuration for a tenant absent from the local registry. |
 
-Tenant resolution does **not** determine the tenant's MongoDB URI, database name, connection state, or other infrastructure configuration.
+The request resolver does not need to know the tenant's MongoDB URI or manage its connections.
 
-Those responsibilities belong to `MultiTenantManager` and, when dynamic discovery is enabled, `TenantConfigResolver`.
-
-```text
-TenantResolver
-→ Who is this request for?
-
-AmbitenContext
-→ What tenant belongs to this execution?
-
-MultiTenantManager
-→ What resources belong to that tenant?
-
-TenantConfigResolver
-→ Where can an unknown tenant be found?
-```
-
-This separation is central to Ambiten's multi-tenant architecture.
+The adapter examples below assume that the application and adapter have been initialized. Place startup examples containing `await` inside an async startup function.
 
 ## Resolution Flow
 
-A typical request follows this path:
+A typical request follows these stages:
 
-```text
-HTTP Request
-     ↓
-Framework Adapter
-     ↓
-TenantResolver
-     ↓
-tenantId = tenant5
-     ↓
-Tenant Validation
-     ↓
-AmbitenContext
-     ↓
-Application
-     ↓
-AmbitenModel
-     ↓
-MultiTenantManager
-     ↓
-Tenant Database
-```
+1. The framework adapter receives the request.
+2. The configured resolver derives a tenant ID.
+3. The runtime checks whether required tenant identity is present.
+4. A configured validator accepts or rejects the ID.
+5. The adapter establishes the execution context.
+6. Application logic runs inside that context.
+7. Tenant-aware model operations obtain the appropriate database resources.
 
-The framework adapter is responsible for entering application logic inside the resolved Ambiten runtime context.
-
-After that boundary, application code no longer needs to repeatedly inspect the original request source to determine the tenant.
-
-For example, a request may arrive with:
+For example:
 
 ```http
-POST /users
+POST /users HTTP/1.1
+Host: api.example.com
 x-tenant-id: tenant5
 ```
 
-and Ambiten can expose the resolved identity as:
+Inside the request handler:
 
 ```ts
 const context = AmbitenContext.get();
 
 console.log(context.tenantId);
-// tenant5
+// "tenant5"
 ```
 
-The important value is no longer the original HTTP header.
-
-It is the resolved runtime identity:
-
-```ts
-AmbitenContext.get().tenantId
-```
+After the adapter establishes context, application code can use the resolved tenant identity without repeatedly inspecting the original request.
 
 ## Header-Based Resolution
 
-A common tenancy strategy is to resolve the tenant from an HTTP header.
-
-For example:
+A common tenancy strategy resolves the tenant from an HTTP header:
 
 ```ts
 await adapter.install(app, {
   tenancy: {
-    header: "x-tenant-id"
-  }
+    header: "x-tenant-id",
+  },
 });
 ```
 
@@ -121,853 +75,513 @@ A request containing:
 x-tenant-id: tenant5
 ```
 
-can then produce an Ambiten context containing:
-
-```ts
-{
-  tenantId: "tenant5"
-}
-```
-
-Application code can access it through:
+makes the tenant ID available through:
 
 ```ts
 const { tenantId } = AmbitenContext.get();
+
+// tenantId === "tenant5"
 ```
 
-This is preferable to repeatedly doing:
+The default header name is `x-tenant-id` when a `tenancy` configuration is supplied without a different `header`.
 
-```ts
-req.headers["x-tenant-id"]
-```
+This example requires tenant identity, but does not check whether the tenant exists or whether the requester may access it. Configure validation and application authorization as appropriate.
 
-throughout the application.
-
-The HTTP header is a transport-level detail.
-
-`AmbitenContext.tenantId` is the resolved runtime identity.
+The built-in header reader uses the first value when the normalized header value is an array. Use a custom resolver when the application needs stricter handling or normalization.
 
 ## The Resolved Tenant Is the Runtime Source of Truth
 
-Consider:
+Downstream application code should use the tenant ID established at the adapter boundary.
+
+For example, inside a route with a configured tenant-aware `UserModel`:
 
 ```ts
-app.post("/users", async (req, res) => {
-  const { tenantId } = AmbitenContext.get();
+const { tenantId } = AmbitenContext.get();
 
-  const user = await UserModel.create({
-    ...req.body,
-    tenantId
-  });
-
-  res.status(201).json(user);
+const user = await UserModel.create({
+  ...req.body,
+  tenantId,
 });
 ```
 
-The route does not need to know how the tenant was originally identified.
+Placing `tenantId` after `...req.body` ensures that a tenant ID supplied in the request body does not replace the resolved value.
 
-Today it might come from:
+The route does not need to know whether the identity originally came from a header, cookie, route parameter, or custom resolver.
 
-```text
-x-tenant-id
-```
-
-Later, the application could use a custom resolution strategy.
-
-The rest of the application can continue reading:
+If the resolution strategy changes, application code can continue reading:
 
 ```ts
-AmbitenContext.get().tenantId
+AmbitenContext.get().tenantId;
 ```
 
-without depending on the transport mechanism used at the adapter boundary.
-
-This gives the runtime a stable identity contract:
-
-```text
-request-specific source
-        ↓
-TenantResolver
-        ↓
-canonical tenantId
-        ↓
-AmbitenContext
-        ↓
-application
-```
+Database routing and document fields remain separate concerns. A tenant-aware provider uses context to select the database; storing `tenantId` in a document requires an appropriate schema field and supplied value or runtime default.
 
 ## Custom Tenant Resolution
 
-Some applications cannot identify tenants from a simple header.
+Ambiten supports two places for a custom request-facing resolver:
 
-Tenant identity may need to be derived from application-specific information.
+| Option | Behavior |
+| --- | --- |
+| `resolvers.tenantId` | Replaces the built-in tenancy resolution chain. |
+| `tenancy.resolver` | Runs first within the built-in chain; unresolved requests can continue to the other strategies. |
 
-Ambiten allows the adapter runtime to use a custom tenant resolver.
+A custom resolver receives an `AmbitenRequestLike` and returns a string or `undefined`. It may be synchronous or asynchronous.
 
-Conceptually:
+This self-contained example trims a tenant header and rejects array values:
 
 ```ts
-{
-  resolvers: {
-    tenantId: async (req) => {
-      // Resolve tenant identity using application-specific logic.
-      return "tenant5";
-    }
+import type { TenantResolver } from "@ambiten/adapter-types";
+
+const resolveRequestTenant: TenantResolver = (req) => {
+  const value = req.headers["x-tenant-id"];
+
+  if (typeof value !== "string") {
+    return undefined;
   }
-}
-```
 
-For example, an application might derive the tenant from authenticated request information:
+  const tenantId = value.trim();
 
-```ts
+  return tenantId || undefined;
+};
+
 await adapter.install(app, {
+  tenancy: {},
   resolvers: {
-    tenantId: async (req) => {
-      const authorization =
-        req.headers?.authorization;
-
-      if (!authorization) {
-        return undefined;
-      }
-
-      const identity =
-        await resolveAuthenticatedIdentity(
-          authorization
-        );
-
-      return identity?.tenantId;
-    }
-  }
+    tenantId: resolveRequestTenant,
+  },
 });
 ```
 
-The resolver's concern ends once it has answered:
+Here, `tenancy: {}` makes tenant identity required. Because `resolvers.tenantId` replaces the built-in chain, returning `undefined` causes tenant resolution to fail instead of falling back to another source.
 
-```text
-Which tenant does this request belong to?
-```
+The example demonstrates normalization, not authentication. An application can replace the function body with logic that derives the tenant from verified authentication data.
 
-It should not establish MongoDB connections or manually configure `MultiTenantManager`.
+The request resolver should return identity. Tenant database discovery and connection management belong to the infrastructure layer.
 
-Once the tenant identifier has been resolved, the rest of Ambiten's runtime can handle tenant resources independently.
+### Built-In Resolution Order
+
+When `resolvers.tenantId` is absent, the built-in tenancy resolver checks sources in this order:
+
+| Order | Source | Configuration |
+| --- | --- | --- |
+| 1 | Custom tenancy resolver | `tenancy.resolver` |
+| 2 | HTTP header | `tenancy.header`, defaulting to `x-tenant-id` |
+| 3 | Cookie | `tenancy.cookie` |
+| 4 | Route parameter | `tenancy.param` |
+| 5 | First hostname label | `tenancy.subdomain: true` |
+| 6 | A value in the JSON claims header | `tenancy.jwtClaim` |
+| 7 | Configured fallback identity | `tenancy.fallback` |
+
+Earlier matches take precedence. For example, configuring a cookie does not disable the default tenant header.
+
+Cookie and route-parameter strategies require those values to be available when the adapter runs. Install cookie parsing before the adapter when needed. In Express, global middleware may run before route parameters have been populated.
+
+The built-in subdomain strategy reads the first label of a hostname containing at least three labels. Use a custom resolver when tenant identification requires domain validation or more detailed hostname rules.
+
+`jwtClaim` reads a dotted property path from JSON in the `x-user-claims` header. It does not verify a JWT.
+
+Use `resolvers.tenantId` when the application needs complete control over source selection and fallback behavior.
 
 ## Resolution Before Context Creation
 
-Tenant resolution happens before Ambiten executes application logic inside the request context.
+Request tenant resolution and validation occur before the adapter establishes the new request context.
 
-Conceptually:
+The order is:
 
-```ts
-const resolvedTenantId =
-  await resolveTenantFromRequest(req);
+1. Resolve the tenant ID from the request.
+2. Check required identity and run configured validation.
+3. Build the execution context.
+4. Run application logic inside `AmbitenContext`.
 
-const context = {
-  tenantId: resolvedTenantId
-};
+A request-facing resolver should therefore use its request argument rather than expecting the new request's tenant ID to already exist in `AmbitenContext`.
 
-return AmbitenContext.run(
-  context,
-  () => handler()
-);
-```
-
-This ordering is important.
-
-Application code begins execution with the tenant identity already attached to the active context.
-
-That means:
+Likewise, a validator receives the tenant ID as its argument:
 
 ```ts
-AmbitenContext.get().tenantId
+validate: async (tenantId) => {
+  const tenant = await MultiTenantManager.resolveTenant(tenantId);
+
+  return tenant !== undefined;
+}
 ```
 
-can be available immediately inside the route, controller, service, middleware, or model operation running within that request lifecycle.
+After context creation, routes, controllers, services, and model operations running within that execution can access:
+
+```ts
+AmbitenContext.get().tenantId;
+```
 
 ## Tenant Validation
 
-Resolving a tenant identifier does not necessarily mean that the identifier is valid.
+Resolving a tenant ID does not automatically establish that the tenant exists.
 
-Ambiten allows tenant resolution to be followed by validation.
-
-For example:
+Configure `tenancy.validate` to check the resolved ID before application logic runs:
 
 ```ts
+import { MultiTenantManager } from "@ambiten/core";
+
 await adapter.install(app, {
   tenancy: {
     header: "x-tenant-id",
 
     validate: async (tenantId) => {
-      const tenant =
-        await MultiTenantManager.resolveTenant(
-          tenantId
-        );
+      const tenant = await MultiTenantManager.resolveTenant(tenantId);
 
-      if (!tenant) {
-        throw new Error(
-          `Tenant with ID "${tenantId}" not found.`
-        );
-      }
-
-      return true;
-    }
-  }
+      return tenant !== undefined;
+    },
+  },
 });
 ```
 
-The flow becomes:
+The validator receives the resolved tenant ID and returns a boolean, synchronously or asynchronously.
 
-```text
-Request
-   ↓
-Resolve tenantId
-   ↓
-tenant5
-   ↓
-validate("tenant5")
-   ↓
-valid?
- ┌───┴───┐
-yes      no
- ↓        ↓
-Context   reject request
-```
+- Returning `true` allows execution to continue.
+- Returning `false` causes the runtime to throw an invalid-tenant error.
+- Throwing an error rejects execution with that error.
 
-Validation may be asynchronous.
+Validation also applies when the ID comes from `resolvers.tenantId`, provided `tenancy.validate` is configured.
 
-This is useful when determining whether a tenant is valid requires external or runtime-backed information.
+The shared runtime throws errors; it does not assign an application-specific HTTP status. Handle those errors through the framework's error-handling mechanism.
 
 ## Resolution and Validation Are Different
 
-Tenant resolution and validation should not be treated as the same operation.
+Resolution, validation, and authorization answer different questions:
 
-Resolution answers:
+| Concern | Question |
+| --- | --- |
+| Resolution | What tenant ID does this request resolve to? |
+| Validation | Is that tenant ID acceptable or known? |
+| Authorization | May this requester act for that tenant? |
 
-> What tenant identity does this request claim or resolve to?
+For example, a header may resolve to `"tenant5"`, and a configuration lookup may confirm that `"tenant5"` exists.
 
-Validation answers:
+Neither fact alone proves that the caller is authorized to access it.
 
-> Is that tenant identity acceptable for this application?
-
-For example:
-
-```text
-Request header
-x-tenant-id: tenant5
-        ↓
-resolution
-        ↓
-"tenant5"
-        ↓
-validation
-        ↓
-tenant5 exists?
-```
-
-Keeping those concerns separate makes tenancy behavior easier to reason about and test.
+`tenancy.validate` receives the tenant ID, not the request object. Requester-specific authorization must use trusted authentication information through the application's resolver or authorization layer.
 
 ## Validation and Dynamic Tenants
 
-Validation can work naturally with dynamic tenant discovery.
+Validation can trigger dynamic tenant discovery.
 
-Suppose `"tenant5"` is not registered when the process starts.
-
-A validator can call:
+Suppose `"tenant5"` is absent from the local registry. A validator can call:
 
 ```ts
-await MultiTenantManager.resolveTenant(
-  "tenant5"
-);
+const tenant = await MultiTenantManager.resolveTenant("tenant5");
 ```
 
-`resolveTenant()` first checks the local registry.
+The manager:
 
-If the tenant is not registered and dynamic tenant resolution is configured, Ambiten can consult the configured `TenantConfigResolver`.
+1. Checks its local registry.
+2. Calls the configured `TenantConfigResolver` when the tenant is absent.
+3. Registers a successfully discovered tenant lazily.
+4. Returns the registered configuration.
 
-```text
-validate tenant5
-      ↓
-resolveTenant("tenant5")
-      ↓
-local registry?
-   ┌────┴────┐
-  yes        no
-   ↓          ↓
-return     TenantConfigResolver
-              ↓
-         external lookup
-              ↓
-           tenant found
-              ↓
-            register
-              ↓
-             valid
-```
+The tenant can therefore be validated without preloading every tenant at application startup.
 
-The tenant can therefore be validated without requiring every valid tenant to be registered at application startup.
+`resolveTenant()` does not open the discovered tenant's MongoDB connection. The external configuration lookup may perform its own database or network operations.
+
+If the resolver returns `null` or `undefined`, the manager returns `undefined`. Invalid configuration or lookup failures can throw.
 
 See [Dynamic Tenants](./dynamic-tenants) for the complete discovery flow.
 
 ## TenantResolver vs TenantConfigResolver
 
-These two resolvers have different responsibilities and should not be combined conceptually.
+These resolvers have different inputs, outputs, and responsibilities.
 
 ### TenantResolver
 
 A `TenantResolver` operates at the request boundary.
 
-Its purpose is:
-
-```text
-request
-   ↓
-tenant identity
-```
-
-For example:
-
-```text
-HTTP request
-   ↓
-x-tenant-id
-   ↓
-tenant5
-```
-
-or:
-
-```text
-HTTP request
-   ↓
-custom authentication logic
-   ↓
-tenant5
-```
-
-The output is an identity:
+It receives an `AmbitenRequestLike` and returns:
 
 ```ts
 "tenant5"
 ```
 
+or `undefined` when it cannot resolve an identity.
+
+Configure it through the adapter's `tenancy.resolver` or `resolvers.tenantId` option.
+
+It should not need the tenant's MongoDB URI or manage tenant clients.
+
 ### TenantConfigResolver
 
-A `TenantConfigResolver` operates at the infrastructure boundary.
+A `TenantConfigResolver` receives a tenant ID and returns external database configuration:
 
-Its purpose is:
-
-```text
-tenant identity
-   ↓
-tenant configuration
-```
-
-For example:
-
-```text
-tenant5
-   ↓
-TenantConfigResolver
-   ↓
+```ts
 {
-  uri,
-  dbName,
-  metadata,
-  ...
+  uri: "mongodb://localhost:27017/db_tenant5",
+  dbName: "db_tenant5",
+  metadata: {
+    tier: "standard",
+  },
 }
 ```
 
-The distinction is:
+Its result follows `ResolvedTenantConfig`:
 
-```text
-TenantResolver
-→ request → tenantId
+- `uri` is required.
+- `dbName` is optional.
+- `metadata` is optional.
 
-TenantConfigResolver
-→ tenantId → tenant infrastructure
-```
+It may return `null` or `undefined` for an unknown tenant and may be asynchronous.
 
-A request resolver should not need to know the tenant's MongoDB URI.
+The manager owns tenant registration and client state. The configuration resolver does not return a client or select the tenant's lazy connection state.
 
-A configuration resolver should not need to understand Express, Fastify, NestJS, HTTP headers, or request objects.
+Register the function through `MultiTenantManager.setTenantConfigResolver()` or supply it through bootstrap configuration.
 
-That separation keeps transport concerns and infrastructure concerns independent.
+For JSON configuration, `multiTenant.tenantConfigResolverModule` identifies the module exporting this configuration resolver. It does not configure request-facing tenant identity resolution.
+
+See [Dynamic Tenants](./dynamic-tenants) for function registration and module-reference examples.
 
 ## Tenant Resolution and AmbitenContext
 
-Once resolution and validation succeed, the tenant identifier becomes part of the execution context.
+Once resolution and configured validation succeed, the adapter establishes the execution context.
 
-For example:
-
-```ts
-const context =
-  AmbitenContext.get();
-
-console.log(context);
-```
-
-may produce:
+Application code can read:
 
 ```ts
-{
-  tenantId: "tenant5",
-  requestId: undefined,
-  dbName: undefined,
-  collectionName: undefined,
-  debug: undefined,
-  loggerMeta: undefined,
-  meta: undefined
-}
+const context = AmbitenContext.get();
+
+console.log(context.tenantId);
+console.log(context.requestId);
 ```
 
-The tenant ID now belongs to the active execution rather than to a particular function signature.
+Other context values depend on the adapter and application configuration. A tenant ID does not automatically populate `dbName`, `collectionName`, or tenant metadata.
 
-This means application code does not need patterns such as:
+Code running inside the active context can access tenant identity when needed without adding a tenant parameter to every intervening function.
 
-```ts
-await createUser(
-  tenantId,
-  data
-);
-```
-
-followed by:
-
-```ts
-await userService.create(
-  tenantId,
-  data
-);
-```
-
-followed by:
-
-```ts
-await repository.insert(
-  tenantId,
-  data
-);
-```
-
-just to preserve tenant identity.
-
-Instead, code running inside the Ambiten context can access:
-
-```ts
-AmbitenContext.get().tenantId
-```
-
-when tenant identity is required.
+Outside an established context, `AmbitenContext.get().tenantId` may be `undefined`. Reading the context does not create tenant identity.
 
 ## Context Propagation Across Async Operations
 
-Ambiten's context is request-scoped and designed to remain available across asynchronous execution associated with that request.
+Ambiten's context remains available through asynchronous execution associated with the established context.
 
-For example:
-
-```ts
-app.post("/users", async (req, res) => {
-  const before =
-    AmbitenContext.get().tenantId;
-
-  await someAsyncOperation();
-
-  const after =
-    AmbitenContext.get().tenantId;
-
-  console.log({
-    before,
-    after
-  });
-
-  res.sendStatus(204);
-});
-```
-
-For a request belonging to `"tenant5"`, both values should represent the same execution:
+This minimal example demonstrates propagation across an `await`:
 
 ```ts
-{
-  before: "tenant5",
-  after: "tenant5"
+import { AmbitenContext } from "@ambiten/core";
+
+async function demonstrateTenantContext() {
+  await AmbitenContext.run(
+    {
+      tenantId: "tenant5",
+    },
+    async () => {
+      const before = AmbitenContext.get().tenantId;
+
+      await Promise.resolve();
+
+      const after = AmbitenContext.get().tenantId;
+
+      console.log({ before, after });
+      // { before: "tenant5", after: "tenant5" }
+    }
+  );
 }
 ```
 
-This is important because real application flows rarely remain inside a single synchronous function.
+Framework adapters establish this context for their request handlers. Background jobs and other entry points can establish it explicitly with `AmbitenContext.run()`.
 
-Tenant identity may need to survive through:
-
-```text
-controller
-   ↓
-service
-   ↓
-await
-   ↓
-model
-   ↓
-MongoDB operation
-```
-
-Ambiten's framework adapters establish the request context so that application code can operate within that execution boundary.
+Context does not automatically travel through a queue, network request, or separate process. Carry the required identity through that boundary and establish a new context in the receiving execution.
 
 ## Framework Adapters Own the Request Boundary
 
-Framework-specific adapters are responsible for translating framework request objects into the request shape understood by Ambiten's adapter runtime.
+Framework adapters translate framework-specific request objects into the `AmbitenRequestLike` shape consumed by the shared adapter runtime.
 
-Conceptually:
+That shape includes headers and may include parameters, cookies, query values, a body, URL, and method.
 
-```text
-Express Request
-       │
-Fastify Request
-       │
-NestJS Request
-       ↓
-Framework Adapter
-       ↓
-AmbitenRequestLike
-       ↓
-Tenant Resolution
-       ↓
-AmbitenContext
-```
+Custom resolvers should use the normalized request contract. Framework-specific properties, such as an authentication middleware's `req.user`, are not automatically part of that contract.
 
-This keeps `adapter-runtime` independent of individual HTTP frameworks.
+Ensure that any parsing or authentication data required by the resolver is available at the adapter boundary through the application's integration.
 
-The tenant resolver therefore works with the normalized Ambiten request boundary rather than requiring the Core runtime to understand each framework directly.
+Once tenant resolution and validation succeed, the adapter runs application logic inside `AmbitenContext`.
 
 See [Framework Adapters](./framework-adapters) for framework-specific setup.
 
 ## Resolution Does Not Connect the Tenant
 
-Resolving a tenant identity does not itself mean that a MongoDB connection must be opened.
+Resolving request identity does not itself open a tenant MongoDB connection.
 
-These are separate stages:
+The request-facing resolver supplies a tenant ID. A configured validator may then discover and register its infrastructure through `MultiTenantManager.resolveTenant()`.
 
-```text
-resolve request tenant
-        ↓
-tenantId = tenant5
-        ↓
-AmbitenContext
-```
+A lazily registered tenant is connected when an operation requests its client through `getClient()`.
 
-Database resources are resolved later when they are actually required:
+This separates three actions:
 
-```text
-model operation
-      ↓
-MultiTenantManager
-      ↓
-resolve tenant configuration
-      ↓
-getClient()
-      ↓
-MongoDB
-```
+| Action | Result |
+| --- | --- |
+| Resolve request identity | Obtain a tenant ID. |
+| Resolve tenant configuration | Find or register its infrastructure configuration. |
+| Obtain the tenant client | Reuse an existing client or connect a lazy tenant. |
 
-This separation allows lazy tenant connections.
+Static tenants registered eagerly may already have clients. Dynamic discovery registers tenants lazily.
 
-A request can establish:
-
-```ts
-{
-  tenantId: "tenant5"
-}
-```
-
-without the request-facing resolver needing to manage database connection lifecycle.
+A custom resolver or validator can perform application-defined I/O, but it does not need to manage tenant MongoDB connections.
 
 ## Missing Tenant Identity
 
-When tenancy is required, a request that cannot be resolved to a tenant should not silently continue as though it belonged to another tenant.
+The shared adapter runtime treats missing identity according to its configuration.
 
-Conceptually:
+| Configuration | Missing identity behavior |
+| --- | --- |
+| A `tenancy` object is supplied | Throws `Tenant resolution failed.` |
+| `resolvers.tenantId` is supplied together with `tenancy` | Throws if the custom resolver returns no identity. |
+| `resolvers.tenantId` is supplied without `tenancy` | Returning `undefined` does not trigger the runtime's required-tenant check. |
+| Neither is supplied | The adapter can establish a context without a tenant ID. |
 
-```text
-Request
-   ↓
-TenantResolver
-   ↓
-undefined
-   ↓
-Tenant resolution failed
-```
+Use a `tenancy` configuration for request paths that require tenant identity.
 
-This protects the application from unintentionally falling back to unrelated tenant state.
+When `resolvers.tenantId` is present, its result is authoritative. Returning `undefined` does not fall back to the header, cookie, or other built-in strategies.
 
-Applications should configure their tenancy boundary according to whether tenant identity is mandatory for the request path being handled.
+Within the built-in chain, `tenancy.fallback` supplies an identity when the earlier strategies do not resolve one. It does not replace a tenant that was resolved but subsequently failed validation.
 
-For tenant-aware operations, the expected invariant should be:
-
-```text
-request enters application logic
-        ↓
-tenant identity already resolved
-```
+Configure fallback only when the application intentionally supports that behavior. Tenant-required routes should not silently continue without tenant identity.
 
 ## Do Not Treat Untrusted Headers as Authentication
 
-A tenant header can be a useful resolution mechanism, but tenant resolution and authentication are not the same security concern.
-
-For example:
+A header such as:
 
 ```http
 x-tenant-id: tenant5
 ```
 
-only tells the resolver what tenant identity was presented.
+identifies the tenant presented by the caller. It does not prove that the caller may access `"tenant5"`.
 
-It does not, by itself, prove that the caller is authorized to act for `"tenant5"`.
+Authenticate the requester and verify tenant membership or access permissions according to the application's policy.
 
-In environments where clients can control the header directly, applications should validate tenant access against authenticated identity or another trusted source.
+The same applies to the built-in `jwtClaim` option. It reads JSON from `x-user-claims`; it does not validate a token signature, issuer, audience, or expiry.
 
-A stronger flow may look like:
+Only use claims supplied through a trusted authentication boundary. Use a custom resolver when tenant identity must be derived directly from a verified token or authenticated account.
 
-```text
-Request
-   ↓
-Authentication
-   ↓
-Authenticated user/service identity
-   ↓
-TenantResolver
-   ↓
-tenant5
-   ↓
-Authorization / validation
-   ↓
-AmbitenContext
-```
+Also review resource overrides. The adapter runtime reads `x-db-name` and `x-collection-name` by default, and those values can influence downstream resource selection. Treat these as application-controlled inputs rather than assuming that tenant-ID validation authorizes arbitrary database or collection names.
 
-Ambiten provides the runtime machinery for tenant resolution and propagation.
+For database and collection context resolvers, returning `undefined` falls back to their configured headers; it does not disable header lookup.
 
-The application remains responsible for defining its authentication and authorization policy.
+Ambiten supplies context propagation and tenant routing. The application defines authentication, authorization, and which request inputs are trusted.
 
 ## Avoid Re-Resolving the Tenant Throughout the Application
 
-Once the request has crossed the adapter boundary successfully, application code should generally use the resolved context rather than attempting to derive the tenant again.
-
-Prefer:
+After a request crosses the adapter boundary successfully, downstream code should generally read:
 
 ```ts
-const { tenantId } =
-  AmbitenContext.get();
+const { tenantId } = AmbitenContext.get();
 ```
 
-over:
+Repeatedly reading the original request source can disagree with custom normalization, authentication-derived identity, or configured precedence.
 
-```ts
-const tenantId =
-  req.headers["x-tenant-id"];
-```
+Keep source selection at the request boundary:
 
-inside downstream application logic.
+- The adapter and resolver interpret request information.
+- Application code uses the resolved tenant ID.
+- Infrastructure code resolves tenant resources.
 
-Repeatedly reading the original request source introduces unnecessary coupling:
-
-```text
-Controller
-→ knows x-tenant-id
-
-Service
-→ knows x-tenant-id
-
-Repository
-→ knows x-tenant-id
-```
-
-Using the runtime context instead gives:
-
-```text
-Framework Adapter
-→ understands request source
-
-Application
-→ understands tenantId
-
-Infrastructure
-→ understands tenant resources
-```
-
-Each layer receives only the concern it needs.
+This allows the request strategy to change without spreading transport-specific logic across services and repositories.
 
 ## Avoid Writing Tenant Infrastructure into the Request Context
 
-The context should carry execution identity and request-scoped information.
+The context carries execution identity and execution-specific state. It should not replace the tenant registry.
 
-It should not become a replacement tenant registry.
+`MultiTenantManager` owns tenant connection URIs, registered clients, lazy state, and stored tenant configuration.
 
-For example, this is appropriate:
+The context may legitimately contain execution-specific values such as `dbName`, `collectionName`, a transaction session, or application metadata. These do not replace the manager's tenant registration and connection responsibilities.
 
-```ts
-{
-  tenantId: "tenant5"
-}
-```
+Tenant metadata is not automatically copied into `AmbitenContext.meta`. An application may deliberately expose selected metadata for an execution when needed.
 
-The following infrastructure belongs to `MultiTenantManager`, not the request context:
-
-```text
-MongoDB URI
-connection client
-lazy connection state
-deployment region
-tenant infrastructure metadata
-```
-
-The runtime should remain conceptually separated:
-
-```text
-AmbitenContext
-→ tenant identity for this execution
-
-MultiTenantManager
-→ tenant resources for the process
-```
+Keep connection credentials and the full tenant infrastructure record in the appropriate infrastructure layer.
 
 ## Typical Request Example
 
-A complete request flow may look like this:
+The following example assumes:
+
+- `app` is an initialized Express application and `express` is imported.
+- Ambiten has been bootstrapped with multi-tenancy enabled.
+- Static tenants or a configuration resolver have been registered.
+- `UserModel` uses the configured tenant-aware provider.
+- Its schema accepts the supplied fields.
+- Authentication and tenant authorization are handled by the application.
+
+Place the setup inside the application's async startup function:
 
 ```ts
-const adapter =
-  createExpressAdapter();
+import { AmbitenContext, MultiTenantManager } from "@ambiten/core";
+import { createExpressAdapter } from "@ambiten/adapter-express";
+
+// Inside async startup, after runtime and model initialization:
+app.use(express.json());
+
+const adapter = createExpressAdapter();
 
 await adapter.install(app, {
   tenancy: {
     header: "x-tenant-id",
 
     validate: async (tenantId) => {
-      const tenant =
-        await MultiTenantManager.resolveTenant(
-          tenantId
-        );
+      const tenant = await MultiTenantManager.resolveTenant(tenantId);
 
-      if (!tenant) {
-        throw new Error(
-          `Tenant with ID "${tenantId}" not found.`
-        );
-      }
-
-      return true;
-    }
-  }
+      return tenant !== undefined;
+    },
+  },
 });
 
-app.post("/users", async (req, res) => {
-  const { tenantId } =
-    AmbitenContext.get();
+app.post("/users", async (req, res, next) => {
+  try {
+    const { tenantId } = AmbitenContext.get();
 
-  const user =
-    await UserModel.create({
+    const user = await UserModel.create({
       ...req.body,
-      tenantId
+      tenantId,
     });
 
-  res.status(201).json(user);
+    res.status(201).json(user);
+  } catch (error) {
+    next(error);
+  }
 });
 ```
 
-For:
+For an accepted request carrying `x-tenant-id: tenant5`:
 
-```http
-POST /users
-x-tenant-id: tenant5
-```
+1. The adapter resolves `"tenant5"`.
+2. Validation finds or discovers the tenant configuration.
+3. The adapter establishes context with that tenant ID.
+4. The route calls `UserModel.create()`.
+5. The tenant-aware provider obtains the tenant's database resources.
+6. The model performs the operation.
 
-the conceptual execution is:
-
-```text
-POST /users
-     ↓
-x-tenant-id: tenant5
-     ↓
-Express Adapter
-     ↓
-TenantResolver
-     ↓
-tenant5
-     ↓
-validate("tenant5")
-     ↓
-AmbitenContext
-tenantId = tenant5
-     ↓
-UserModel.create(...)
-     ↓
-MultiTenantManager
-     ↓
-db_tenant5
-```
-
-Application code never needs the tenant's MongoDB configuration.
-
-The request-facing resolver never needs to perform model operations.
-
-The model never needs to inspect the HTTP request.
-
-Each layer remains responsible for one part of the flow.
+An unresolved tenant, invalid configuration, or failed connection prevents successful completion. Handle resulting errors through the application's Express error middleware.
 
 ## Resolution Model
 
-A useful mental model is:
+The request and infrastructure boundaries cooperate while retaining distinct responsibilities:
 
-```text
-                         REQUEST BOUNDARY
-                                │
-                         incoming request
-                                │
-                                ▼
-                         TenantResolver
-                                │
-                             tenantId
-                                │
-                          validation
-                                │
-                                ▼
-                         AmbitenContext
-                                │
-                         application code
-                                │
-                                ▼
-                      INFRASTRUCTURE BOUNDARY
-                                │
-                      MultiTenantManager
-                                │
-                  ┌─────────────┴─────────────┐
-                  │                           │
-          registered tenant?           unknown tenant?
-                  │                           │
-                  ▼                           ▼
-           existing config           TenantConfigResolver
-                  │                           │
-                  └─────────────┬─────────────┘
-                                │
-                           tenant config
-                                │
-                            getClient()
-                                │
-                         tenant database
-```
+| Stage | Responsibility |
+| --- | --- |
+| Request resolution | Derive tenant identity from the chosen request source. |
+| Validation and authorization | Check tenant acceptability and the requester's access. |
+| Context establishment | Make tenant identity available during application execution. |
+| Tenant discovery | Obtain configuration from the local registry or an external resolver. |
+| Database access | Obtain a client and select the database for the operation. |
+
+Infrastructure discovery may happen during validation or later during database access.
 
 The request boundary answers:
 
-> **Who is this execution for?**
+> **Which tenant is this execution for?**
 
 The infrastructure boundary answers:
 
-> **How does the runtime reach that tenant?**
+> **How does the runtime reach that tenant's database?**
 
-Keeping those questions separate is what allows Ambiten's tenancy model to remain flexible across frameworks, authentication systems, and tenant infrastructure strategies.
+This separation allows the same application model code to work across different frameworks, authentication systems, and tenant configuration sources.
 
 ## Related Pages
 
 Continue with:
 
 - [Multi-Tenancy Overview](./overview) — the overall Ambiten tenancy architecture.
-- [MultiTenantManager](./multi-tenant-manager) — tenant registration, lookup, runtime state, and client lifecycle.
+- [MultiTenantManager](./multi-tenant-manager) — tenant registration, lookup, discovery, runtime state, and clients.
 - [Dynamic Tenants](./dynamic-tenants) — discovering tenants that are not registered at startup.
 - [Framework Adapters](./framework-adapters) — integrating framework request lifecycles with Ambiten's execution context.
 
-For exact resolver interfaces, configuration types, and generated method signatures, see the corresponding Ambiten API reference.
+For exact resolver interfaces and configuration types, see the corresponding Ambiten API reference.

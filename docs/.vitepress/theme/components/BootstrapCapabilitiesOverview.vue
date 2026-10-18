@@ -6,14 +6,14 @@
       </span>
 
       <h3>
-        MongoDB infrastructure and model registration
+        Database connectivity, schemas, and models
       </h3>
 
       <p>
-        Prepares MongoDB connectivity, providers, schemas, and model
-        infrastructure for the application process. Model registration remains
-        structural at startup, while database, collection, tenant, and session
-        resolution occur when operations execute.
+        Connects the configured database provider and constructs the schema
+        and model from inline configuration or referenced modules. Model
+        operations use the active execution context and operation options
+        to select database resources.
       </p>
     </div>
 
@@ -23,13 +23,14 @@
       </span>
 
       <h3>
-        Logging and runtime instrumentation
+        Logging and file destination preparation
       </h3>
 
       <p>
-        Initializes the configured logging and instrumentation infrastructure
-        so later execution boundaries can enrich runtime operations with
-        request, tenant, model, and operation metadata consistently.
+        Initializes logging and prepares configured file destinations,
+        creating missing directories and files before file transports start.
+        Log output follows the selected transports, level, and formatting
+        options.
       </p>
     </div>
 
@@ -39,13 +40,14 @@
       </span>
 
       <h3>
-        Redis and cache infrastructure
+        Redis connectivity and cache helpers
       </h3>
 
       <p>
-        Prepares Redis-backed and runtime cache capabilities at process startup
-        so requests, workers, models, and other execution flows can reuse
-        managed cache infrastructure without creating it per operation.
+        Connects to Redis when caching is enabled and a Redis URI is
+        supplied. The runtime exposes caching and tenant cache invalidation
+        helpers so application operations can reuse the configured Redis
+        infrastructure.
       </p>
     </div>
 
@@ -55,14 +57,15 @@
       </span>
 
       <h3>
-        MultiTenantManager and tenant infrastructure
+        Static registration and dynamic tenant discovery
       </h3>
 
       <p>
-        Configures tenant runtime infrastructure, including registered tenants,
-        lazy client activation, and dynamic tenant discovery where configured.
-        Request-bound tenant identity remains the responsibility of adapters,
-        resolvers, or explicit execution context.
+        Registers static tenants and installs the configured
+        <code>TenantConfigResolver</code> when multi-tenancy is enabled.
+        Lazy registration defers tenant connections until needed.
+        Adapters or explicit <code>AmbitenContext</code> boundaries
+        establish the tenant identity for each execution.
       </p>
     </div>
 
@@ -72,14 +75,14 @@
       </span>
 
       <h3>
-        Optional GraphQL runtime capability
+        Optional GraphQL service initialization
       </h3>
 
       <p>
-        Assembles GraphQL-related runtime capabilities when configured while
-        leaving operation-scoped execution to the GraphQL adapter and its
-        context factory. Bootstrap prepares infrastructure; the adapter
-        establishes resolver execution scope.
+        Initializes the GraphQL service and generates its schema when
+        enabled. The application integrates its GraphQL server and adapter
+        with the runtime and establishes the execution context used by
+        resolver operations.
       </p>
     </div>
 
@@ -89,14 +92,15 @@
       </span>
 
       <h3>
-        Runtime services and controlled shutdown
+        Connection hooks and runtime shutdown
       </h3>
 
       <p>
-        Starts and manages process-level lifecycle features such as garbage
-        collection, TTL-oriented cleanup, connection hooks, and runtime-owned
-        resources, then provides a coordinated shutdown boundary when the
-        application terminates.
+        Exposes connection hooks and prepares the garbage collection runner
+        when enabled. Runtime shutdown disconnects Redis, closes the
+        configured database provider, and invokes logger cleanup.
+        The application coordinates server shutdown, tenant client cleanup,
+        and any background tasks.
       </p>
     </div>
   </div>

@@ -2,50 +2,81 @@
   <div class="advanced-usage-overview">
     <div class="advanced-usage-hero-card">
       <div class="advanced-usage-hero-copy">
-        <span class="advanced-usage-eyebrow">Production Patterns</span>
-        <h3>Operational guidance for moving from working code to durable runtime systems</h3>
+        <span class="advanced-usage-eyebrow">
+          Production Patterns
+        </span>
+
+        <h3>
+          Coordinate requests, jobs, and infrastructure with clear
+          execution boundaries
+        </h3>
+
         <p>
-          Advanced Ambiten usage is not about hidden APIs. It is about composing the runtime
-          deliberately under real workload pressure: tenant strategy, transaction scope,
-          worker execution, observability, and infrastructure discipline.
+          Advanced Ambiten applications coordinate tenant routing,
+          transaction sessions, worker context, and observability.
+          Separate shared infrastructure from execution state, and
+          define how resources are initialized, reused, and closed.
         </p>
       </div>
 
       <div class="advanced-usage-signal-strip">
-        <span>Transaction Scope</span>
-        <span>Tenant Strategy</span>
+        <span>Transaction Boundaries</span>
+        <span>Tenant Isolation</span>
         <span>Worker Context</span>
         <span>Observability</span>
-        <span>Performance</span>
-        <span>Production Readiness</span>
+        <span>Connection Reuse</span>
+        <span>Resource Lifecycle</span>
       </div>
     </div>
 
     <div class="advanced-usage-pillars">
       <div class="advanced-usage-pillar">
-        <span class="advanced-usage-eyebrow">Architecture</span>
-        <strong>Define runtime boundaries deliberately</strong>
+        <span class="advanced-usage-eyebrow">
+          Architecture
+        </span>
+
+        <strong>
+          Define tenant scope and transaction ownership
+        </strong>
+
         <p>
-          Tenant isolation, transaction scope, and context propagation determine whether
-          execution remains predictable as the system scales.
+          Resolve tenant identity and authorize access before database
+          work. Keep transaction sessions with their owning client,
+          and account for the state inherited by nested execution
+          contexts.
         </p>
       </div>
 
       <div class="advanced-usage-pillar">
-        <span class="advanced-usage-eyebrow">Operations</span>
-        <strong>Background work must establish its own execution scope</strong>
+        <span class="advanced-usage-eyebrow">
+          Operations
+        </span>
+
+        <strong>
+          Establish context for each independent job
+        </strong>
+
         <p>
-          Jobs, queues, and scheduled tasks should create tenant and request context
-          explicitly instead of assuming request-bound state still exists.
+          Carry validated tenant and correlation identifiers through
+          queues, then establish <code>AmbitenContext</code> in the
+          consumer. Each job controls the lifetime of its work and
+          any transaction it starts.
         </p>
       </div>
 
       <div class="advanced-usage-pillar">
-        <span class="advanced-usage-eyebrow">Readiness</span>
-        <strong>Operational visibility matters as much as correctness</strong>
+        <span class="advanced-usage-eyebrow">
+          Readiness
+        </span>
+
+        <strong>
+          Measure execution and coordinate shutdown
+        </strong>
+
         <p>
-          A production-grade Ambiten system must be measurable, traceable, and tunable
-          under load—not merely functionally correct.
+          Correlate logs and query telemetry with execution identity.
+          Track tenant connection usage, drain active work, and
+          coordinate server, worker, tenant client, and runtime cleanup.
         </p>
       </div>
     </div>

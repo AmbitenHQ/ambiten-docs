@@ -689,10 +689,7 @@ Infrastructure Resolution
 Scoped providers can also be used where infrastructure scope should be fixed:
 
 ```ts
-const tenantProvider =
-  client.withTenant(
-    "tenant-a"
-  );
+const tenantProvider =  client.withTenant("tenant-a");
 ```
 
 ## Cross-process execution

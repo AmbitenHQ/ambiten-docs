@@ -8,23 +8,23 @@
 
         <h3>
           Resolve tenant identity at the execution boundary.
-          Resolve tenant infrastructure when operations need it.
+          Select tenant database resources when operations need them.
         </h3>
 
         <p>
           Ambiten separates tenant identity from tenant infrastructure.
-          A resolver determines which tenant belongs to the current
-          execution, <code>AmbitenContext</code> carries that identity,
-          and <code>MultiTenantManager</code> resolves the configuration,
-          client, database, and runtime resources required downstream.
+          <code>AmbitenContext</code> carries the tenant identity through
+          the current execution, <code>MultiTenantManager</code> manages
+          tenant configuration and MongoDB clients, and a configured
+          tenant-aware provider selects the database for model operations.
         </p>
       </div>
 
       <div class="multi-tenancy-signal-strip">
-        <span>Execution-scoped</span>
-        <span>Context-bound identity</span>
-        <span>Manager-resolved resources</span>
-        <span>Dynamic-tenant ready</span>
+        <span>Execution-scoped identity</span>
+        <span>Static and dynamic tenants</span>
+        <span>Lazy tenant connections</span>
+        <span>Tenant-aware model routing</span>
       </div>
     </div>
 
@@ -33,9 +33,11 @@
         <strong>Tenant Identity</strong>
 
         <p>
-          A <code>TenantResolver</code> determines who the execution
-          belongs to and binds the resolved <code>tenantId</code> into
-          <code>AmbitenContext</code>.
+          For requests, a <code>TenantResolver</code> identifies the
+          tenant and the framework adapter establishes its
+          <code>AmbitenContext</code>. Background jobs can provide a
+          tenant identity explicitly through
+          <code>AmbitenContext.run()</code>.
         </p>
       </div>
 
@@ -43,20 +45,24 @@
         <strong>Tenant Infrastructure</strong>
 
         <p>
-          <code>MultiTenantManager</code> owns tenant configuration,
-          dynamic discovery, lazy client activation, and resolution of
-          the database resources required by the active tenant.
+          <code>MultiTenantManager</code> checks its local registry and
+          can discover unknown tenants through a configured
+          <code>TenantConfigResolver</code> function. It creates and
+          reuses tenant MongoDB clients, connecting lazy tenants when
+          database access is needed.
         </p>
       </div>
 
       <div class="multi-tenancy-pillar">
-        <strong>Execution Continuity</strong>
+        <strong>Tenant-Aware Data Access</strong>
 
         <p>
-          Models, middleware, transactions, logging, and instrumentation
-          consume the active tenant-aware execution state without requiring
-          tenant infrastructure to be propagated manually through
-          application code.
+          A tenant-aware <code>AmbitenClient</code> provider selects
+          the tenant database for model operations.
+          <code>AmbitenContext</code> keeps tenant identity and other
+          execution state available across asynchronous calls,
+          without requiring application code to pass tenant
+          configuration through every function.
         </p>
       </div>
     </div>
@@ -66,7 +72,7 @@
         <span>Ingress</span>
 
         <strong>
-          Request, operation, or job enters execution
+          A request or background job enters the application
         </strong>
       </div>
 
@@ -78,10 +84,11 @@
       </div>
 
       <div class="multi-tenancy-flow-step">
-        <span>Tenant Resolution</span>
+        <span>Tenant Identity</span>
 
         <strong>
-          TenantResolver identifies the tenantId
+          A request resolver supplies tenantId, or a job provides it
+          explicitly
         </strong>
       </div>
 
@@ -96,7 +103,8 @@
         <span>Context Binding</span>
 
         <strong>
-          tenantId becomes part of AmbitenContext
+          The adapter or AmbitenContext.run() establishes the
+          execution context
         </strong>
       </div>
 
@@ -111,7 +119,8 @@
         <span>Infrastructure Resolution</span>
 
         <strong>
-          MultiTenantManager resolves tenant configuration and resources
+          When database access is needed, MultiTenantManager resolves
+          tenant configuration and obtains a tenant client
         </strong>
       </div>
 
@@ -126,7 +135,8 @@
         <span>Tenant-Aware Execution</span>
 
         <strong>
-          Models operate against the resolved tenant infrastructure
+          The provider selects the tenant database and the model
+          operation executes
         </strong>
       </div>
     </div>

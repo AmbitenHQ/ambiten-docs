@@ -346,16 +346,13 @@ await service.createUser(
 application code can remain focused on domain input:
 
 ```ts
-await service.createUser(
-  data
-);
+await service.createUser(data);
 ```
 
 while infrastructure-aware components can resolve:
 
 ```ts
-const context =
-  AmbitenContext.get();
+const context = AmbitenContext.get();
 ```
 
 when runtime state is required.
@@ -460,17 +457,11 @@ Execution context remains associated with asynchronous operations belonging to t
 For example:
 
 ```ts
-const before =
-  AmbitenContext
-    .get()
-    .tenantId;
+const before = AmbitenContext.get().tenantId;
 
 await someAsyncOperation();
 
-const after =
-  AmbitenContext
-    .get()
-    .tenantId;
+const after = AmbitenContext.get().tenantId;
 ```
 
 For one execution:
@@ -508,9 +499,7 @@ await UserModel.find({});
 or:
 
 ```ts
-await UserModel.create({
-  username: "Alice"
-});
+await UserModel.create({ username: "Alice" });
 ```
 
 The model coordinates behavior such as:
@@ -599,8 +588,7 @@ Where provider abstractions participate in model execution, they resolve infrast
 Conceptually:
 
 ```ts
-const db =
-  await provider.db(ctx);
+const db = await provider.db(ctx);
 ```
 
 The provider layer can participate in decisions such as:
@@ -747,9 +735,7 @@ The finalized operation can then be expressed through MongoDB driver behavior.
 Conceptually:
 
 ```ts
-db
-  .collection("users")
-  .find(...);
+db.collection("users").find(...);
 ```
 
 The execution has now moved from runtime coordination into persistence execution.

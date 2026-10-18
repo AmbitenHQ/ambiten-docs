@@ -1,620 +1,385 @@
 ---
 title: Advanced Usage
-description: Design advanced Ambiten systems around execution context, transactions, multi-tenancy, workers, observability, scaling, and distributed runtime boundaries.
+description: Design Ambiten applications around execution context, transactions, tenant infrastructure, workers, observability, and resource ownership.
 ---
 
 # Advanced Usage
 
-Advanced usage in Ambiten begins when the runtime becomes part of the broader application architecture rather than remaining a simple database dependency.
+Advanced Ambiten applications coordinate database operations across requests, services, tenants, workers, and background tasks.
 
-At this stage, the system is no longer concerned only with CRUD operations or isolated request handling.
+The main design questions are:
 
-The focus shifts toward:
-
-- transaction orchestration,
-- tenant isolation,
-- dynamic tenant discovery,
-- background execution,
-- context propagation,
-- infrastructure lifecycle,
-- observability,
-- framework boundaries,
-- package/runtime consistency,
-- and operational behavior under concurrency.
-
-These concerns are especially important for:
-
-- multi-tenant SaaS platforms,
-- high-throughput APIs,
-- queue-driven systems,
-- background workers,
-- distributed services,
-- long-running applications,
-- and operationally sensitive production environments.
+- Where does each execution context begin?
+- Which tenant and database resources belong to it?
+- Which operations must share a transaction?
+- What information crosses a process boundary?
+- Who owns connection management and shutdown?
 
 <AdvancedUsageOverview />
 
-## What "Advanced" Means in Ambiten
+Ambiten provides the runtime mechanisms for these responsibilities. Application architecture determines how they are combined.
 
-Advanced Ambiten usage is not about using obscure APIs.
-
-It is about understanding how the runtime behaves when execution becomes more concurrent, distributed, and operationally sensitive.
-
-At that point, architectural decisions around:
-
-```text
-context propagation
-transaction boundaries
-tenant resolution
-tenant infrastructure
-connection lifecycle
-framework integration
-background execution
-observability
-package boundaries
-```
-
-become more important than individual method calls.
-
-The runtime itself becomes part of the system architecture.
-
-A useful high-level model is:
-
-```text
-Execution Entry Point
-        ↓
-Framework Adapter / Explicit Context
-        ↓
-AmbitenContext
-        ↓
-Application Logic
-        ↓
-AmbitenModel
-        ↓
-MultiTenantManager / Providers
-        ↓
-MongoDB
-```
-
-Each layer has a different responsibility.
+Examples on this page assume that the runtime has already been initialized and that application models declare the fields used in their operations.
 
 ## Runtime Boundaries
 
-Ambiten distinguishes between long-lived runtime infrastructure and short-lived execution state.
+Separate application infrastructure from the state associated with one execution.
 
-```text
-PROCESS LIFETIME
-────────────────────────────
-AmbitenBootstrapFactory
-AmbitenRuntime
-MultiTenantManager
-MongoDB clients
-Redis
-Logging
-Schedulers
-GC
+| Scope | Examples | Ownership |
+| --- | --- | --- |
+| Application process | Runtime, providers, tenant registry, database clients, Redis, logger | Application startup and shutdown |
+| Request or job | Tenant ID, request ID, database scope, operation metadata | Adapter or explicit context boundary |
+| Transaction | MongoDB session and transaction lifecycle | The code that starts the transaction |
+| Distributed message | Serializable identity, correlation information, and payload | Producer and consumer contract |
 
+Initialize shared infrastructure before accepting work.
 
-EXECUTION LIFETIME
-────────────────────────────
-AmbitenContext
-tenantId
-requestId
-transaction session
-logger metadata
-operation metadata
-```
+Create an execution context for each request, job, or other independently handled operation.
 
-This distinction becomes increasingly important as systems grow.
+## Configuration and Runtime State
 
-Process-level resources should generally remain long-lived.
+Schema definitions, model options, and tenant resolver modules belong to application configuration.
 
-Execution state should remain scoped to the request, job, worker task, or invocation that owns it.
+Request identities, active sessions, and job-specific metadata belong to execution state.
 
-## Transaction Orchestration
+For example, configuration can reference modules:
 
-Ambiten provides transaction propagation through:
-
-```ts
-AmbitenContext.withTransaction(...)
-```
-
-A standard transaction flow remains intentionally simple:
-
-```ts
-await AmbitenContext.withTransaction(
-  async () => {
-    await UserModel.create({
-      name: "Alice"
-    });
-
-    await OrderModel.create({
-      user: "Alice"
-    });
-  }
-);
-```
-
-The important behavior is not only the transaction itself.
-
-It is the runtime boundary surrounding it.
-
-```text
-AmbitenContext
-      ↓
-transaction session
-      ↓
-service
-      ↓
-model
-      ↓
-another service
-      ↓
-another model
-```
-
-Operations executed within the transaction boundary can reuse the same transaction session rather than independently constructing competing transaction scopes.
-
-This makes deeper service chains easier to reason about.
-
-## Nested Transactional Execution
-
-In complex applications, one service may call another service that also performs transactional work.
-
-Conceptually:
-
-```text
-Request
-   ↓
-withTransaction()
-   ↓
-Service A
-   ↓
-Service B
-   ↓
-Model A
-   ↓
-Model B
-```
-
-The intended model is one coherent transaction boundary for the active execution rather than independent transactions appearing unpredictably at different service layers.
-
-Application code should therefore treat transaction scope as part of the runtime execution model.
-
-## Manual Transaction Control
-
-Some infrastructure-level workflows may require explicit transaction orchestration.
-
-For example:
-
-```ts
-await runManualTransaction(
-  async (session) => {
-    await UserModel.create(
-      {
-        name: "Alice"
-      },
-      {
-        session
-      }
-    );
-  }
-);
-```
-
-This style can be appropriate for:
-
-- workflow engines,
-- migration tooling,
-- specialized infrastructure integrations,
-- controlled commit sequencing,
-- low-level orchestration.
-
-For normal application request execution, runtime-managed transaction boundaries are usually simpler.
-
-## Avoid Over-Transactional Design
-
-Transactions should be intentional.
-
-Do not automatically wrap every request in a transaction merely because the runtime supports it.
-
-Transactions have operational cost.
-
-Use them when multiple operations must succeed or fail as one logical unit.
-
-```text
-Need atomic consistency?
-      ↓
-yes → transaction
-
-Independent operations?
-      ↓
-often no transaction required
-```
-
-The transaction boundary should reflect the application's consistency requirements.
-
-## Multi-Tenancy as Runtime Architecture
-
-Multi-tenancy is one of the most consequential architectural decisions in an Ambiten-based system.
-
-It affects:
-
-- isolation,
-- scalability,
-- connection management,
-- observability,
-- recovery,
-- infrastructure cost,
-- operational governance.
-
-Ambiten separates tenant identity from tenant infrastructure.
-
-```text
-TenantResolver
-→ Who is this execution for?
-
-AmbitenContext
-→ Which tenant belongs to this execution?
-
-MultiTenantManager
-→ What resources belong to that tenant?
-
-TenantConfigResolver
-→ Where can an unknown tenant be found?
-```
-
-This separation is important in advanced systems because these responsibilities often originate from different infrastructure layers.
-
-## Request Identity vs Tenant Infrastructure
-
-Consider a request carrying:
-
-```http
-x-tenant-id: tenant5
-```
-
-The framework adapter may resolve:
-
-```ts
-AmbitenContext.get().tenantId;
-// "tenant5"
-```
-
-The request only needs to know:
-
-```text
-tenant5
-```
-
-It does not need to carry:
-
-```text
-MongoDB URI
-database name
-connection client
-lazy state
-deployment metadata
-```
-
-Those belong to `MultiTenantManager`.
-
-Conceptually:
-
-```text
-REQUEST
-   ↓
-tenantId = tenant5
-
-
-PROCESS RUNTIME
-   ↓
-tenant5
-├── uri
-├── dbName
-├── client
-├── lazy
-└── metadata
-```
-
-Keeping these layers separate reduces infrastructure leakage into application code.
-
-## Tenant Isolation Strategies
-
-Different applications require different isolation models.
-
-### Database-per-Tenant
-
-A database-per-tenant strategy may look like:
-
-```text
-tenantA → dbA
-tenantB → dbB
-tenantC → dbC
-```
-
-This provides strong operational separation and can simplify:
-
-- backup boundaries,
-- restoration,
-- tenant-specific maintenance,
-- auditing,
-- infrastructure migration,
-- regulatory separation.
-
-It also introduces connection and resource-management considerations as the tenant population grows.
-
-### Collection-Based Segmentation
-
-Some systems use tenant-specific collections:
-
-```text
-users_tenantA
-users_tenantB
-```
-
-This reduces some infrastructure overhead but requires stricter discipline around:
-
-- collection naming,
-- indexing,
-- isolation enforcement,
-- migration strategy,
-- operational tooling.
-
-### Shared Collections
-
-Other systems may use shared collections with explicit tenant fields.
-
-For example:
-
-```ts
+```json
 {
-  tenantId: "tenantA",
-  ...
+  "schema": {
+    "path": "./src/schemas/user.schema.ts",
+    "exportName": "userSchema"
+  },
+  "model": {
+    "path": "./src/models/user.model.ts",
+    "exportName": "userModelOptions"
+  }
 }
 ```
 
-This can reduce infrastructure overhead further but places more isolation responsibility on application and query discipline.
+Bootstrap loads those definitions and constructs the schema and model.
 
-### Hybrid Isolation
+Runtime schema defaults are evaluated later, when documents are validated. A context default reads the active `AmbitenContext`; it does not capture a tenant during bootstrap.
 
-Larger platforms may use different strategies for different tenant groups.
+Keep shared model and schema configuration stable while requests execute.
 
-For example:
-
-```text
-standard tenants
-→ shared infrastructure
-
-enterprise tenants
-→ isolated database
-
-regulated tenants
-→ dedicated infrastructure
-```
-
-The important principle is intentionality.
-
-Tenant isolation should be treated as architecture rather than a late implementation detail.
-
-## Dynamic Tenants
-
-Advanced multi-tenant systems often cannot preload every tenant during startup.
-
-Ambiten supports dynamic tenant discovery through `TenantConfigResolver`.
-
-For example:
-
-```ts
-MultiTenantManager.setTenantConfigResolver({
-  async resolve(tenantId) {
-    const config =
-      await lookupTenant(tenantId);
-
-    if (!config) {
-      return undefined;
-    }
-
-    return {
-      tenantId,
-      uri: config.uri,
-      dbName: config.dbName,
-      lazy: true,
-      metadata: config.metadata
-    };
-  }
-});
-```
-
-The runtime flow becomes:
-
-```text
-Request
-   ↓
-tenant5
-   ↓
-tenant5 registered?
-   │
-   ├── yes
-   │    ↓
-   │ use existing configuration
-   │
-   └── no
-        ↓
-   TenantConfigResolver
-        ↓
-   external lookup
-        ↓
-   register tenant5
-```
-
-This allows tenant infrastructure to live outside the application process.
-
-For example:
-
-```text
-control database
-tenant registry
-configuration service
-account service
-infrastructure API
-```
-
-## Dynamic Discovery and Lazy Connections
-
-Tenant discovery does not need to imply immediate database connection.
-
-A dynamically discovered tenant can move through:
-
-```text
-unknown
-   ↓
-resolved
-   ↓
-registered
-   ↓
-lazy
-   ↓
-first database operation
-   ↓
-connected
-```
-
-For example, a runtime may begin with:
-
-```ts
-{
-  registeredTenants: 3,
-  connectedTenants: 0,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
-}
-```
-
-After a request uses a dynamically discovered tenant:
-
-```ts
-{
-  registeredTenants: 4,
-  connectedTenants: 1,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
-}
-```
-
-Only the tenant actually requiring database access becomes connected.
-
-This becomes increasingly valuable as tenant populations grow.
-
-## Tenant Resolution in Application Code
-
-Normal application code should usually not manually coordinate tenant discovery and client creation.
-
-Avoid patterns such as:
-
-```ts
-const tenant =
-  await MultiTenantManager
-    .resolveTenant(tenantId);
-
-const client =
-  await MultiTenantManager
-    .getClient(tenantId);
-
-await UserModel.create(...);
-```
-
-inside every route.
-
-When the execution already has:
-
-```ts
-AmbitenContext.get().tenantId
-```
-
-the runtime can resolve the required tenant infrastructure when the model operation requires it.
-
-Prefer:
-
-```ts
-await UserModel.create({
-  username: "Alice"
-});
-```
-
-inside the established execution context.
-
-Direct manager access remains useful for:
-
-- administration,
-- diagnostics,
-- preloading,
-- infrastructure services,
-- runtime inspection,
-- specialized operational flows.
+See [Configuration Modules](/advanced/configuration-modules) and [Schema](/models/schema).
 
 ## Explicit Context Management
 
-Inside adapter-managed HTTP requests, Ambiten establishes the execution boundary automatically.
+Framework adapters establish context for supported request lifecycles.
 
-Outside those flows, context becomes an explicit responsibility.
-
-For example:
+For workers, scripts, scheduled tasks, and other entry points, establish it explicitly:
 
 ```ts
+import { AmbitenContext } from "@ambiten/core";
+
 await AmbitenContext.run(
   {
-    tenantId: "tenant-a",
-    requestId: "manual-ctx"
+    tenantId: "tenant5",
+    requestId: "maintenance-001"
   },
-
   async () => {
     await UserModel.find({});
   }
 );
 ```
 
-This pattern is appropriate for execution that does not originate from a framework adapter.
+Await the returned promise when the caller must wait for the operation to finish.
 
-Examples include:
+### Nested contexts inherit state
 
-- queue workers,
-- scheduled jobs,
-- CLI commands,
-- migrations,
-- maintenance tooling,
-- background processors,
-- custom invocation systems.
+`AmbitenContext.run()` merges the supplied fields with the active parent context.
 
-The principle is:
+This allows a nested operation to add metadata while retaining the current tenant and session.
 
-```text
-Adapter-managed execution
-→ context established by adapter
+It also means that supplying a different `tenantId` does not automatically remove an inherited session, database name, collection name, or other state.
 
-Non-adapter execution
-→ establish context explicitly
-```
+Keep tenant and database scope consistent throughout a transaction. Start independent tenant work from an appropriate execution boundary.
 
-## Background Workers
+The merge is shallow. Nested metadata objects can still contain shared references.
 
-Background workers are one of the most common places where context assumptions become unsafe.
+### Operation overrides and context defaults
 
-A worker should establish the execution scope associated with the job it is processing.
+Model operation options and `AmbitenContext` serve related but distinct purposes.
+
+A per-operation tenant or database override does not necessarily replace an existing ambient context. Schema context defaults and instrumentation may still read that active context.
+
+Keep operation overrides aligned with the execution context so database routing, document defaults, and diagnostic metadata describe the same execution.
+
+## Transaction Orchestration
+
+Use a transaction when multiple database operations must commit as one unit.
+
+`AmbitenContext.withTransaction()` resolves a MongoDB client for the active execution, creates a session when needed, and exposes that session through the context.
 
 For example:
 
 ```ts
-async function processJob(job) {
+import { AmbitenContext } from "@ambiten/core";
+
+await AmbitenContext.run(
+  {
+    tenantId: "tenant5",
+    requestId: "registration-001"
+  },
+  async () => {
+    await AmbitenContext.withTransaction(async () => {
+      const user = await UserModel.create({
+        username: "Alice",
+        email: "alice@example.com"
+      });
+
+      await OrderModel.create({
+        userId: user._id,
+        status: "pending"
+      });
+    });
+  }
+);
+```
+
+The models must resolve collections through the MongoDB client that owns the transaction session.
+
+Bootstrap configures the transaction resolver. Applications that initialize providers manually must configure the corresponding context integration, for example through `configureAmbitenContext(provider)`.
+
+MongoDB multi-document transactions require a supported replica-set or sharded-cluster deployment. A standalone MongoDB deployment does not support them.
+
+### Sequential operations
+
+Await operations sequentially within one transaction.
+
+The MongoDB Node.js driver does not support parallel operations inside a single transaction. Avoid `Promise.all()` for operations sharing that session.
+
+Parallel application work should use independent execution scopes and sessions where appropriate.
+
+### Nested transactional calls
+
+When `AmbitenContext` already contains a session, `withTransaction()` reuses it.
+
+A nested call does not create a savepoint or independently commit its work. The outer transaction owner controls the outcome.
+
+The current implementation checks for an existing session; it does not verify that the supplied session already has an active transaction.
+
+Placing a session in context is therefore not equivalent to starting a transaction.
+
+### Retry behavior
+
+When available, `AmbitenContext.withTransaction()` uses the MongoDB driver's `session.withTransaction()` implementation.
+
+The driver can retry the callback for certain transaction errors. Write callbacks so repeated execution does not duplicate external side effects.
+
+Keep email delivery, HTTP calls, and queue publication outside retryable transaction callbacks. For reliable event delivery, consider recording an outbox entry in the same database transaction and processing it separately.
+
+### Hooks and events are not commit notifications
+
+A model operation can complete before an enclosing transaction commits.
+
+Schema post hooks, model middleware, instrumentation, cache activity, and published model events must not be treated as proof that the outer transaction committed.
+
+MongoDB rollback does not undo effects already performed outside MongoDB.
+
+For transactional reads, leave query-result caching disabled so the read uses the transaction's database session.
+
+## Manual Transaction Control
+
+The manual helper accepts a session followed by an operation:
+
+```ts
+runManualTransaction(session, operation);
+```
+
+It does not create the session or automatically place it in `AmbitenContext`.
+
+For example, at a boundary with no existing transaction:
+
+```ts
+import {
+  AmbitenContext,
+  runManualTransaction
+} from "@ambiten/core";
+
+await AmbitenContext.run(
+  {
+    tenantId: "tenant5",
+    requestId: "manual-transaction-001"
+  },
+  async () => {
+    const provider = runtime.getMongoClient();
+
+    const session = await provider.startSession({
+      tenantId: "tenant5"
+    });
+
+    await runManualTransaction(
+      session,
+      async (activeSession) => {
+        await AmbitenContext.run(
+          {
+            session: activeSession
+          },
+          async () => {
+            const user = await UserModel.create({
+              username: "Alice",
+              email: "alice@example.com"
+            });
+
+            await OrderModel.create({
+              userId: user._id,
+              status: "pending"
+            });
+          }
+        );
+      }
+    );
+  }
+);
+```
+
+The helper starts the transaction, commits successful work, aborts failed work, and ends the session.
+
+Unlike the driver's convenient transaction API, this helper does not implement automatic transaction retries.
+
+Use it when the application intentionally owns that lower-level orchestration.
+
+## Tenant Identity and Tenant Infrastructure
+
+Ambiten separates the identity of an execution from its database configuration.
+
+| Component | Question it answers |
+| --- | --- |
+| Request-facing tenant resolver | Which tenant does this request identify? |
+| `AmbitenContext` | Which tenant belongs to this execution? |
+| `TenantConfigResolver` | What database configuration belongs to an unknown tenant? |
+| `MultiTenantManager` | Which tenant configurations and clients are registered in this runtime? |
+
+A request or job usually needs a tenant identifier.
+
+The receiving application's infrastructure resolves the MongoDB URI, database name, client, and registration state associated with that identifier.
+
+## Tenant Isolation Strategies
+
+Different storage designs require different enforcement.
+
+| Strategy | Resource organization | Application responsibility |
+| --- | --- | --- |
+| Database per tenant | Each tenant resolves to a database. | Control database selection, credentials, indexes, and lifecycle. |
+| Collection per tenant | Tenants use distinct collections. | Enforce collection selection and consistent collection maintenance. |
+| Shared collections | Documents include tenant-identifying fields. | Enforce tenant predicates across every relevant read and write. |
+| Hybrid | Different tenants use different storage arrangements. | Maintain explicit routing and policy for each arrangement. |
+
+The tenant manager's configuration naturally supports resolving a tenant URI and database name.
+
+Separate database names do not automatically mean separate servers, credentials, or physical infrastructure.
+
+### Shared collections require explicit enforcement
+
+A `tenantId` field or schema context default does not automatically add tenant filters to queries.
+
+A default only fills a missing value. It does not establish that a supplied value belongs to the authenticated tenant.
+
+Shared-collection isolation must cover reads, updates, deletes, aggregations, bulk operations, and direct driver access.
+
+## Dynamic Tenant Discovery
+
+With multi-tenancy enabled, install a resolver function:
+
+```ts
+import {
+  MultiTenantManager,
+  type TenantConfigResolver
+} from "@ambiten/core";
+
+const resolveTenantConfig: TenantConfigResolver = (
+  tenantId
+) => {
+  if (tenantId !== "tenant5") {
+    return undefined;
+  }
+
+  return {
+    uri: "mongodb://localhost:27017/my-app_tenant5",
+    dbName: "my-app_tenant5",
+    metadata: {
+      tier: "enterprise",
+      region: "eu-central"
+    }
+  };
+};
+
+MultiTenantManager.setTenantConfigResolver(
+  resolveTenantConfig
+);
+```
+
+The function can be asynchronous when configuration comes from a control database or service.
+
+Return `undefined` or `null` when the tenant is not found. Throw when the configuration source fails.
+
+The resolver result contains `uri`, optional `dbName`, and optional `metadata`. Registration state and MongoDB clients belong to the manager.
+
+For configuration-driven bootstrap, reference the function through `multiTenant.tenantConfigResolverModule`.
+
+See [Dynamic Tenants](/multi-tenancy/dynamic-tenants).
+
+### Discovery and connection are separate
+
+`resolveTenant()` can discover a tenant and register its configuration lazily.
+
+`getClient()` resolves the tenant and opens a connection when needed.
+
+| Method | Behavior |
+| --- | --- |
+| `getTenant(id)` | Looks only in the local registry. |
+| `resolveTenant(id)` | Uses the local registry or the configured external resolver. |
+| `getClient(id)` | Obtains the tenant client, connecting a lazy tenant when necessary. |
+
+`getClient()` returns `null` when no tenant can be resolved. Connection and resolver failures can reject the operation.
+
+Normal model operations can use the active tenant context to resolve these resources. Repeating discovery and client lookup in every controller is usually unnecessary.
+
+### Registered configuration is process-local
+
+Discovered tenants remain registered in the current process.
+
+The manager does not automatically refresh existing registrations when an external source changes. Credential rotation or tenant relocation requires coordinated application handling.
+
+Each application process or worker maintains its own registry and clients.
+
+`getAllTenants()` lists locally registered tenants. It does not enumerate every tenant in an external service.
+
+## Background Workers
+
+Initialize the worker's runtime before it begins consuming jobs.
+
+Each job should provide enough validated information to establish its own context.
+
+```ts
+import { AmbitenContext } from "@ambiten/core";
+
+interface ProcessUserJob {
+  id: string;
+  tenantId: string;
+  email: string;
+}
+
+async function processJob(
+  job: ProcessUserJob
+): Promise<void> {
+  if (!job.tenantId.trim()) {
+    throw new Error("Job tenantId is required.");
+  }
+
   await AmbitenContext.run(
     {
       tenantId: job.tenantId,
       requestId: `job-${job.id}`
     },
-
     async () => {
-      await UserModel.updateMany(
-        {},
+      await UserModel.updateOne(
+        {
+          email: job.email
+        },
         {
           $set: {
             processed: true
@@ -626,578 +391,293 @@ async function processJob(job) {
 }
 ```
 
-The worker now has an explicit runtime boundary:
+This example assumes the application model includes `email` and `processed`.
 
-```text
-Job
- ↓
-tenantId
- ↓
-AmbitenContext
- ↓
-Worker Logic
- ↓
-Model
- ↓
-Tenant Database
-```
+Validate messages at the queue boundary and design job effects for the queue's retry and delivery behavior.
 
-This preserves tenant-aware execution outside HTTP request lifecycles.
-
-## Detached Execution
-
-Detached asynchronous work should be treated carefully.
-
-For example:
-
-```ts
-setTimeout(
-  async () => {
-    await UserModel.find({});
-  },
-  10_000
-);
-```
-
-should not automatically be assumed to represent the same logical execution as the request that scheduled it.
-
-For long-lived or detached work, preserve the information required to create a new execution boundary later.
-
-For example:
-
-```ts
-const job = {
-  tenantId:
-    AmbitenContext.get().tenantId,
-
-  requestId:
-    AmbitenContext.get().requestId
-};
-```
-
-Then the future worker can establish:
-
-```ts
-await AmbitenContext.run(
-  {
-    tenantId: job.tenantId,
-    requestId: job.requestId
-  },
-
-  async () => {
-    // detached work
-  }
-);
-```
-
-The larger principle is:
-
-```text
-capture identity
-      ↓
-cross boundary
-      ↓
-create new runtime context
-```
-
-rather than assuming one execution context remains valid indefinitely.
+A TypeScript interface describes the expected message shape; it does not validate received data at runtime.
 
 ## Scheduled Tasks
 
-Scheduled tasks usually begin outside an HTTP request.
+Scheduled work should establish a context for each tenant execution.
 
-They should therefore establish their own execution state when tenant-aware behavior is required.
-
-For example:
+A reusable application helper can accept the work to perform:
 
 ```ts
-async function runTenantCleanup(
-  tenantId: string
-) {
-  await AmbitenContext.run(
-    {
-      tenantId,
-      requestId:
-        `cleanup-${Date.now()}`
-    },
+import { randomUUID } from "node:crypto";
+import { AmbitenContext } from "@ambiten/core";
 
-    async () => {
-      await CleanupModel.run();
-    }
+async function runForTenants(
+  tenantIds: readonly string[],
+  task: () => Promise<void>
+): Promise<void> {
+  for (const tenantId of tenantIds) {
+    await AmbitenContext.run(
+      {
+        tenantId,
+        requestId: `scheduled-${randomUUID()}`
+      },
+      task
+    );
+  }
+}
+```
+
+`task` is an application callback, not a built-in Ambiten model method.
+
+Call this helper from the scheduler's independent execution boundary, outside another tenant's transaction.
+
+Obtain the tenant list from the appropriate source. A process-local registry may not include tenants that this worker has never encountered.
+
+Use bounded concurrency when increasing scheduled throughput.
+
+## Detached Work and Queue Boundaries
+
+A timer created inside an asynchronous context can inherit that context.
+
+This does not make it safe to continue using the original request's transaction session after the request or transaction has finished.
+
+For work that must survive independently, create a serializable job containing the required identity and payload:
+
+```ts
+interface UserJobMessage {
+  id: string;
+  tenantId: string;
+  originatingRequestId?: string;
+  payload: {
+    email: string;
+  };
+}
+```
+
+The consumer validates the message and establishes a new execution context.
+
+Carry identifiers and correlation information across the boundary. Do not serialize MongoDB clients, sessions, or the complete context object.
+
+AsyncLocalStorage state does not travel through a queue, network request, or worker-thread message.
+
+## Cross-Service Execution
+
+Services must propagate required identity explicitly.
+
+For example, within an authenticated execution:
+
+```ts
+const context = AmbitenContext.get();
+
+if (!context.tenantId) {
+  throw new Error("Tenant context is required.");
+}
+
+const headers: Record<string, string> = {
+  "x-tenant-id": context.tenantId
+};
+
+if (context.requestId) {
+  headers["x-request-id"] = context.requestId;
+}
+
+const response = await fetch(
+  "https://users.internal/api/users",
+  {
+    headers
+  }
+);
+
+if (!response.ok) {
+  throw new Error(
+    `User service returned HTTP ${response.status}.`
   );
 }
 ```
 
-For multi-tenant scheduled work:
+This illustrates context headers only. The service-to-service authentication mechanism remains part of the application's transport configuration.
 
-```text
-scheduler
-   ↓
-tenant1 context
-   ↓
-execute
-   ↓
-tenant2 context
-   ↓
-execute
-   ↓
-tenant3 context
-```
+The receiving service verifies the caller's authority and establishes its own context.
 
-Each tenant execution remains independently scoped.
-
-## Queue Consumers
-
-Queue systems naturally cross process boundaries.
-
-Do not depend on in-memory AsyncLocalStorage state surviving queue publication.
-
-Instead propagate the identity required by the consumer.
-
-Producer:
-
-```ts
-const context =
-  AmbitenContext.get();
-
-await queue.publish({
-  type: "user.process",
-
-  tenantId:
-    context.tenantId,
-
-  requestId:
-    context.requestId,
-
-  payload
-});
-```
-
-Consumer:
-
-```ts
-await AmbitenContext.run(
-  {
-    tenantId: message.tenantId,
-    requestId: message.requestId
-  },
-
-  async () => {
-    await processMessage(
-      message.payload
-    );
-  }
-);
-```
-
-The queue message becomes the explicit distributed context carrier.
-
-## Cross-Service Execution Boundaries
-
-AsyncLocalStorage does not cross process or network boundaries.
-
-Distributed systems must propagate required execution identity explicitly.
-
-For example:
-
-```ts
-const context =
-  AmbitenContext.get();
-
-await fetch(
-  "https://users.internal/api/users",
-  {
-    headers: {
-      "x-tenant-id":
-        context.tenantId ?? "",
-
-      "x-request-id":
-        context.requestId ?? ""
-    }
-  }
-);
-```
-
-The receiving service can then establish its own Ambiten context through its framework adapter.
-
-```text
-Service A
-AmbitenContext
-      ↓
-HTTP headers
-      ↓
-Service B adapter
-      ↓
-Service B AmbitenContext
-```
-
-Each process owns its own execution context.
-
-The distributed system propagates the identity needed to reconstruct that context.
-
-## Do Not Propagate Infrastructure Secrets
-
-Cross-service propagation should normally carry identity and correlation information.
-
-For example:
-
-```text
-tenantId
-requestId
-trace identifier
-authenticated identity reference
-```
-
-Avoid propagating:
-
-```text
-MongoDB URI
-database credentials
-MongoClient instances
-tenant secrets
-internal connection state
-```
-
-Tenant infrastructure should remain under the authority of the receiving service's own runtime.
+A propagated request ID provides correlation. It does not extend a MongoDB transaction across services.
 
 ## Framework Adapter Boundaries
 
-Framework adapters are the preferred execution boundary for supported HTTP frameworks.
+Use the framework adapter as the primary context boundary for supported request lifecycles.
 
-Conceptually:
+Install authentication and other required request processing in the appropriate order, then let the adapter establish the execution context before application logic runs.
 
-```text
-Express
-Fastify
-NestJS
-   ↓
-Ambiten Adapter
-   ↓
-adapter-runtime
-   ↓
-AmbitenContext
-```
-
-Application code should not manually recreate the same request context after the adapter has already established it.
-
-Avoid:
+Domain services can read:
 
 ```ts
-app.post(
-  "/users",
-  async (req, res) => {
-    await AmbitenContext.run(
-      {
-        tenantId:
-          req.headers["x-tenant-id"]
-      },
+const {
+  tenantId,
+  requestId
+} = AmbitenContext.get();
+```
 
+They do not need a framework request object solely to obtain these identifiers.
+
+### Express transaction boundaries
+
+Establish transactions around the application operation that must be awaited:
+
+```ts
+await AmbitenContext.withTransaction(async () => {
+  await UserModel.create({
+    username: "Alice",
+    email: "alice@example.com"
+  });
+
+  await OrderModel.create({
+    customerEmail: "alice@example.com",
+    status: "pending"
+  });
+});
+```
+
+The current Express adapter passes control onward through `next()`. Returning from `next()` does not mean downstream asynchronous route work has finished.
+
+Keep the adapter's `enableTransactions` option disabled when using explicit route or service transaction boundaries. An adapter-level transaction must not be assumed to cover the full asynchronous Express handler.
+
+## Query Discipline
+
+Query efficiency remains an application responsibility.
+
+The model's `find()` signature is:
+
+```ts
+find(filter, context?, queryOptions?);
+```
+
+Its second argument is execution context, not MongoDB `FindOptions`. Passing a projection there does not configure a projected query.
+
+For a bounded projection through the model API, use an aggregation:
+
+```ts
+const users = await UserModel.aggregate([
+  {
+    $match: {
+      isDeleted: false
+    }
+  },
+  {
+    $sort: {
+      _id: 1
+    }
+  },
+  {
+    $limit: 50
+  },
+  {
+    $project: {
+      _id: 0,
+      username: 1,
+      email: 1
+    }
+  }
+]);
+```
+
+This example assumes the model uses an `isDeleted` field.
+
+Design indexes for the actual filters and sorting used by the application. Bound result sizes and review expensive aggregation stages.
+
+Direct MongoDB driver queries can use driver-specific options, but they bypass Ambiten model middleware and schema hooks.
+
+## Observability and Instrumentation
+
+Model operations such as `find()` and `create()` already use Ambiten's query instrumentation.
+
+For application code that calls the MongoDB driver directly, `measureQuery()` accepts a metadata object followed by an asynchronous executor.
+
+```ts
+import {
+  AmbitenContext,
+  measureQuery
+} from "@ambiten/core";
+
+await AmbitenContext.run(
+  {
+    tenantId: "tenant5",
+    requestId: "query-001",
+    logger: runtime.getLogger()
+  },
+  async () => {
+    const db = await runtime.getMongoClient().db({
+      tenantId: "tenant5"
+    });
+
+    return measureQuery(
+      {
+        operation: "find",
+        collectionName: "users"
+      },
       async () => {
-        // ...
+        return db.collection("users")
+          .find(
+            {},
+            {
+              projection: {
+                username: 1,
+                email: 1
+              }
+            }
+          )
+          .limit(50)
+          .toArray();
       }
     );
   }
 );
 ```
 
-when the adapter is already responsible for that request boundary.
+`measureQuery()` requires an active Ambiten context.
 
-Prefer one authoritative entry point.
+It records execution information such as tenant ID, request ID, duration, outcome, and query-budget counters.
 
-```text
-Framework Request
-      ↓
-Adapter
-      ↓
-AmbitenContext
-      ↓
-Application
-```
+Wrapping an already instrumented model operation measures it again and increments the instrumentation budget again. Use a separate application timing mechanism when measuring an entire service workflow.
 
-## Adapter Context and Domain Services
+### Context logging
 
-One benefit of adapter-managed context is that downstream services do not need framework request objects merely to access runtime identity.
+A bootstrap logger and a context logger are separate references.
 
-Avoid:
-
-```text
-Express Request
-      ↓
-Service
-      ↓
-Repository
-      ↓
-Model
-```
-
-when the only reason to pass the request is tenant identity.
-
-Prefer:
-
-```text
-Adapter
-   ↓
-AmbitenContext
-   ↓
-Controller
-   ↓
-Service
-   ↓
-Repository
-   ↓
-Model
-```
-
-Then domain code can read:
+Supply a logger in the execution context when query instrumentation should use it, or explicitly obtain the runtime logger for application messages:
 
 ```ts
-const { tenantId } =
-  AmbitenContext.get();
-```
+const logger = runtime.getLogger();
 
-without depending on Express, Fastify, or NestJS.
+const {
+  tenantId,
+  requestId
+} = AmbitenContext.get();
 
-## Package Boundaries Matter
-
-Context-aware runtimes are sensitive to module identity.
-
-A framework adapter, adapter runtime, and Core must participate in the same compatible module graph for the active application format.
-
-For an ESM application:
-
-```text
-ESM application
-    ↓
-ESM adapter
-    ↓
-ESM adapter-runtime
-    ↓
-ESM Core
-```
-
-For a CommonJS application:
-
-```text
-CommonJS application
-    ↓
-CommonJS adapter
-    ↓
-CommonJS adapter-runtime
-    ↓
-CommonJS Core
-```
-
-This matters because request-scoped runtime state is owned by Core.
-
-Applications should use public package entry points:
-
-```ts
-import {
-  AmbitenContext
-} from "@ambiten/core";
-```
-
-and:
-
-```ts
-import {
-  createExpressAdapter
-} from "@ambiten/adapter-express";
-```
-
-Avoid internal package paths such as:
-
-```text
-@ambiten/core/dist/...
-@ambiten/adapter-runtime/dist/...
-```
-
-Public package exports allow the package manager and Node runtime to select the correct ESM or CommonJS entry.
-
-## Why Package-Level Integration Testing Matters
-
-Unit tests executed entirely inside a monorepo cannot verify every behavior that an external consumer encounters.
-
-Advanced Ambiten releases should also validate built artifacts through external package boundaries.
-
-Conceptually:
-
-```text
-pack Core
-   ↓
-pack adapter-runtime
-   ↓
-pack framework adapter
-   ↓
-install into isolated consumer
-   ↓
-run actual request
-```
-
-Both consumer formats should be tested:
-
-```text
-ESM fixture
-→ adapter
-→ runtime
-→ Core
-→ context preserved
-```
-
-and:
-
-```text
-CommonJS fixture
-→ adapter
-→ runtime
-→ Core
-→ context preserved
-```
-
-This type of test protects runtime behavior that depends on package exports and module resolution rather than only source code.
-
-## Performance and Scaling Discipline
-
-Runtime coherence does not remove the need for good MongoDB operational practices.
-
-Connection reuse remains important.
-
-Long-lived runtime resources should generally remain long-lived rather than being recreated per request.
-
-Avoid:
-
-```text
-request
- ↓
-new MongoClient
- ↓
-operation
- ↓
-disconnect
-```
-
-for ordinary application traffic.
-
-Prefer managed runtime clients:
-
-```text
-application process
-      ↓
-managed MongoClient
-      ↓
-many operations
-```
-
-The same principle applies to tenant connections.
-
-## Query Discipline
-
-Query efficiency remains an application responsibility.
-
-For example:
-
-```ts
-await UserModel.find(
-  {},
-  {
-    projection: {
-      name: 1
-    }
-  }
-);
-```
-
-Advanced systems should consider:
-
-- projections,
-- indexes,
-- pagination,
-- aggregation complexity,
-- document shape,
-- tenant workload distribution,
-- query frequency,
-- connection pressure.
-
-Ambiten provides runtime consistency.
-
-It does not eliminate database performance fundamentals.
-
-## Tenant-Aware Capacity Planning
-
-Multi-tenant systems should avoid assuming all tenants behave similarly.
-
-A single tenant may generate significantly more workload than others.
-
-Useful operational dimensions include:
-
-```text
-queries per tenant
-latency per tenant
-connected clients
-tenant connection churn
-error rate
-storage growth
-aggregation cost
-```
-
-Tenant metadata can also support operational classification:
-
-```ts
-{
-  region: "de-west-1",
-  tier: "enterprise"
-}
-```
-
-This information can help observability systems reason about infrastructure behavior without placing infrastructure logic into application controllers.
-
-## Observability and Diagnostics
-
-Production systems must remain inspectable under operational pressure.
-
-Instrumentation becomes more useful when correlated with runtime context.
-
-For example:
-
-```ts
-await measureQuery(
-  "UserModel.find",
-
-  async () => {
-    return UserModel.find({});
-  }
-);
-```
-
-Runtime-aware logging can also include:
-
-```ts
-const ctx =
-  AmbitenContext.get();
-
-console.log({
-  tenantId:
-    ctx.tenantId,
-
-  requestId:
-    ctx.requestId
+logger.info("User operation completed", {
+  tenantId,
+  requestId,
+  operation: "UserModel.create"
 });
 ```
 
-This makes logs easier to correlate across service and tenant boundaries.
+### Observer callbacks
+
+Query observer callbacks are scheduled asynchronously. Their completion is not awaited as part of the database operation.
+
+Handle failures inside asynchronous observer implementations.
+
+Observers provide telemetry; they are not transaction-commit hooks.
+
+### Sensitive query metadata
+
+Instrumentation may include filters, updates, or aggregation pipelines.
+
+Apply appropriate redaction and access controls to diagnostic output. Use identifiers and sanitized metadata instead of passwords, tokens, connection credentials, or complete request payloads.
 
 ## Runtime Statistics
 
-`MultiTenantManager` also exposes useful runtime information.
-
-For example:
+Inspect the current tenant registry:
 
 ```ts
-const stats =
-  MultiTenantManager.getStats();
+const stats = MultiTenantManager.getStats();
 ```
 
-may return:
+For example:
 
 ```ts
 {
@@ -1208,404 +688,193 @@ may return:
 }
 ```
 
-These values can contribute to:
+These values describe the current process.
 
-- health endpoints,
-- dashboards,
-- diagnostics,
-- operational telemetry,
-- connection planning.
+`connectedTenants` counts registered entries with a stored client. It is not a database health check or an active-request count.
 
-They should be interpreted as runtime infrastructure state rather than request state.
+The statistics also exclude the bootstrap provider's separate main connection.
 
-## Context-Aware Logging
+Use them alongside connection failures, operation latency, query errors, and workload measurements.
 
-Logs become substantially more useful when they can answer:
+## Connection Management and Scaling
 
-```text
-Which request?
-Which tenant?
-Which operation?
-Which service?
-```
+Reuse runtime clients across ordinary operations.
 
-For example:
+Opening and closing a MongoDB client for each request adds connection work and prevents effective reuse.
 
-```ts
-const {
-  tenantId,
-  requestId
-} = AmbitenContext.get();
+For tenant infrastructure, consider:
 
-logger.info(
-  "User created",
-  {
-    tenantId,
-    requestId
-  }
-);
-```
+- The number of application processes and replicas.
+- The number of tenants encountered by each process.
+- Per-tenant client and pool usage.
+- First-use connection latency.
+- Tenant workload distribution.
+- Registry growth and connection retirement.
 
-This becomes especially important when many tenants share the same process.
+The current manager shares concurrent external configuration lookups for the same tenant ID. It does not provide equivalent deduplication for concurrent first-time client creation.
 
-## Avoid Logging Sensitive Data
+It also does not provide automatic idle-client eviction.
 
-Operational visibility should not expose secrets.
+Account for these behaviors when testing simultaneous first access and large tenant populations.
 
-Avoid logging:
+Closing or replacing tenant clients requires application coordination so active operations are not interrupted.
 
-```text
-passwords
-MongoDB URIs with credentials
-tokens
-cookies
-authorization headers
-tenant secrets
-```
+## Middleware and Operation Policy
 
-Prefer stable identifiers and sanitized metadata.
+Register schema hooks and model middleware during startup.
 
 For example:
 
 ```ts
-logger.info(
-  "Tenant operation completed",
-  {
-    tenantId,
-    requestId,
-    operation:
-      "UserModel.create"
+const userSchema = runtime.getSchema();
+
+userSchema.pre("find", async (context) => {
+  if (!context.tenantId) {
+    throw new Error("Missing tenant context.");
   }
-);
+});
 ```
 
-## Middleware as Operational Control
+This checks tenant presence for that hook. It does not authorize a user or enforce every model operation.
 
-In advanced systems, middleware becomes more than convenience.
+Choose the layer that owns the policy:
 
-It can act as a centralized policy boundary around model operations.
+| Policy | Appropriate layer |
+| --- | --- |
+| Caller authentication | Framework or transport security |
+| Tenant access authorization | Application security boundary |
+| Request tenant resolution | Adapter resolver |
+| Tenant database discovery | `TenantConfigResolver` and manager |
+| Document normalization | Model middleware before validation |
+| Model operation checks | Relevant model middleware or schema hooks |
+| Connection ownership | Runtime and application lifecycle |
 
-Examples include:
+For `create()`, schema pre-create hooks run after initial document validation. Required fields must already be present or supplied by valid defaults before that point.
 
-- auditing,
-- normalization,
-- soft-delete behavior,
-- execution validation,
-- instrumentation,
-- policy checks.
-
-For example:
-
-```ts
-userSchema.pre(
-  "find",
-  async (ctx) => {
-    if (!ctx.tenantId) {
-      throw new Error(
-        "Missing tenant context"
-      );
-    }
-  }
-);
-```
-
-Centralizing these concerns reduces duplication across controllers and services.
-
-## Policy Belongs at the Correct Layer
-
-Not every rule belongs in model middleware.
-
-For example:
-
-```text
-HTTP authentication
-→ framework/security layer
-
-tenant request resolution
-→ adapter layer
-
-tenant infrastructure
-→ MultiTenantManager
-
-model operation policy
-→ model/schema middleware
-
-database lifecycle
-→ runtime infrastructure
-```
-
-Advanced architecture depends on keeping policy close to the layer that owns the concern.
+Use model middleware before validation when normalization must happen first.
 
 ## Security and Tenant Isolation
 
-Tenant resolution is not the same as authorization.
+Resolving a tenant identifier does not establish authorization.
 
-A request containing:
+The application must verify that the authenticated caller or trusted job producer is permitted to act for the selected tenant.
 
-```http
-x-tenant-id: tenant5
-```
+Database and collection scope also require attention. The shared adapter runtime can read database and collection names from configured headers.
 
-may correctly identify:
+Treat those values as untrusted input unless the application controls and validates them. Ensure they cannot override an authorized tenant's intended database or collection scope.
 
-```text
-tenant5
-```
-
-while still being unauthorized.
-
-A secure application may require:
-
-```text
-Request
-   ↓
-Authentication
-   ↓
-Identity
-   ↓
-Tenant Resolution
-   ↓
-Authorization
-   ↓
-AmbitenContext
-```
-
-Do not treat a client-controlled tenant identifier as proof of access rights.
-
-Ambiten handles execution and tenant routing.
-
-Application security policy remains an application responsibility.
+Schema defaults, request IDs, and tenant existence checks are not substitutes for access control.
 
 ## Failure Semantics
 
-Advanced systems should distinguish between different classes of tenant failure.
+Keep different failure conditions distinguishable.
 
-For example:
+| Condition | Expected handling |
+| --- | --- |
+| External tenant is absent | Resolver returns `undefined` or `null`. |
+| Tenant registry service fails | Resolver throws or rejects. |
+| Resolver returns invalid configuration | Configuration validation rejects it. |
+| MongoDB cannot connect | Client acquisition rejects. |
+| Request tenant identity is missing | Request or job boundary rejects the execution. |
+| Caller lacks tenant access | Application authorization rejects the operation. |
 
-```text
-tenant not found
-```
+Map these failures to the application's HTTP, queue, or worker error contract.
 
-is different from:
+Do not convert every resolver failure into “tenant not found,” and do not silently redirect an unresolved tenant to an unrelated database.
 
-```text
-tenant registry unavailable
-```
+Retry temporary failures according to application policy. Permanent identity or configuration failures need different handling.
 
-which is different from:
+## Package Boundaries
 
-```text
-MongoDB connection failed
-```
+Adapters, the shared adapter runtime, and Core must resolve compatible public package entry points.
 
-These should not automatically collapse into the same error.
-
-A dynamic resolver can express:
+Use:
 
 ```ts
-return undefined;
+import { AmbitenContext } from "@ambiten/core";
+
+import {
+  createExpressAdapter
+} from "@ambiten/adapter-express";
 ```
 
-for:
+Internal `dist` imports can bypass the intended package exports.
 
-```text
-tenant not found
-```
+Verify that the application and adapters resolve compatible Core installations. Separate module instances can lead to separate context stores.
 
-and throw for:
+ESM and CommonJS support should be exercised through actual consumer entry points.
 
-```text
-tenant resolution infrastructure failed
-```
+## Integration Testing
 
-Clear failure semantics improve diagnostics and operational response.
+Test behavior across the boundaries the deployed application uses.
+
+Useful cases include:
+
+- Concurrent requests for different tenants retain their own context.
+- Context remains available after awaited service and model calls.
+- An unknown tenant can be discovered and connected.
+- Missing or unauthorized tenants do not reach unrelated resources.
+- A failed transaction rolls back its database writes.
+- Retried work does not duplicate external effects.
+- Worker messages establish the intended tenant context.
+- Schema defaults read the active execution identity.
+- Shutdown drains work before connections close.
+
+For package releases, also test built and packed artifacts in isolated ESM and CommonJS consumers.
+
+Source-level tests alone do not verify the package exports, dependency resolution, or emitted files used by external applications.
 
 ## Graceful Shutdown
 
-Long-lived applications should shut down Ambiten at the process lifecycle boundary.
+Shutdown is an application lifecycle operation.
 
-For example:
+Coordinate it in this order:
 
-```ts
-process.on(
-  "SIGTERM",
-  async () => {
-    await runtime.shutdown();
-    process.exit(0);
-  }
-);
-```
+1. Stop accepting new requests and jobs.
+2. Wait for active work to finish.
+3. Stop recurring tasks, consumers, and application-owned services.
+4. Close tenant clients owned by the application.
+5. Await `runtime.shutdown()`.
 
-Shutdown may coordinate managed infrastructure such as:
+In v1.3.0, `runtime.shutdown()` disconnects the shared Redis client, closes the configured database provider, and invokes logger cleanup.
 
-```text
-MongoDB
-tenant clients
-Redis
-logging transports
-schedulers
-garbage collection
-runtime services
-```
+It does not automatically close the HTTP server, explicitly close all clients stored in `MultiTenantManager`, or stop every application scheduler.
 
-Do not shut down the runtime at the end of an individual request.
+`removeTenant()` and `clearTenants()` remove registry entries without closing their clients.
 
-## Production Readiness
+Avoid forcing process exit before cleanup and buffered logging have completed.
 
-Production readiness in Ambiten is primarily about execution discipline.
+See [AmbitenBootstrapFactory](/advanced/bootstrap-cli) for a complete startup and shutdown example.
 
-A production-oriented system should verify that:
+## Operational Review
 
-- runtime infrastructure initializes before traffic is accepted,
-- framework adapters establish execution boundaries correctly,
-- tenant identity remains available through async execution,
-- dynamic tenants resolve correctly,
-- unresolved tenants do not silently fall back to unrelated databases,
-- transaction boundaries are intentional,
-- workers establish explicit execution context,
-- distributed boundaries propagate required identity,
-- tenant authorization is handled separately from tenant resolution,
-- managed clients are reused,
-- runtime shutdown is graceful,
-- ESM/CommonJS package boundaries resolve correctly,
-- packed package integration is tested,
-- logs and metrics include useful execution correlation,
-- secrets are not exposed through diagnostics.
+Before deploying an advanced application, verify the responsibilities that matter for its workload:
 
-The runtime model is strongest when operational discipline matches architectural intent.
-
-## Advanced Runtime Mental Model
-
-A useful mental model is:
-
-```text
-Context defines execution.
-
-Adapters establish execution boundaries.
-
-Transactions protect consistency.
-
-TenantResolvers identify execution ownership.
-
-MultiTenantManager resolves tenant resources.
-
-Providers resolve infrastructure.
-
-Middleware enforces operation policy.
-
-Instrumentation exposes behavior.
-
-Bootstrap owns process lifecycle.
-```
-
-These layers should work together without collapsing into one another.
-
-## Full Advanced Execution Flow
-
-A multi-tenant request may look like:
-
-```text
-HTTP Request
-      ↓
-Authentication
-      ↓
-Framework Adapter
-      ↓
-TenantResolver
-      ↓
-tenantId
-      ↓
-Validation
-      ↓
-AmbitenContext
-      ↓
-Application Service
-      ↓
-Transaction Boundary
-      ↓
-AmbitenModel
-      ↓
-MultiTenantManager
-      ↓
-TenantConfigResolver
-      │
-      └── only if tenant unknown
-      ↓
-Tenant MongoClient
-      ↓
-Tenant Database
-      ↓
-Instrumentation
-      ↓
-Response
-```
-
-A worker may instead look like:
-
-```text
-Queue Message
-      ↓
-tenantId + requestId
-      ↓
-AmbitenContext.run(...)
-      ↓
-Worker Logic
-      ↓
-AmbitenModel
-      ↓
-Tenant Resource
-```
-
-The entry point changes.
-
-The runtime principles remain the same.
-
-## Summary
-
-Advanced Ambiten usage is ultimately about runtime architecture.
-
-As systems scale across:
-
-```text
-tenants
-requests
-workers
-services
-transactions
-frameworks
-processes
-packages
-infrastructure
-```
-
-execution correctness increasingly depends on clear boundaries rather than isolated application code.
-
-Ambiten's architecture separates:
-
-```text
-startup infrastructure
-execution state
-tenant identity
-tenant resources
-transactions
-model operations
-framework integration
-observability
-```
-
-while allowing those concerns to participate in one coherent runtime.
-
-The larger the system becomes, the more important those boundaries become.
+| Area | What to verify |
+| --- | --- |
+| Startup | Required infrastructure is ready before work is accepted. |
+| Context | Request and job identities remain correct across asynchronous work. |
+| Tenancy | Routing and authorization agree on the allowed resources. |
+| Transactions | Session ownership, callback lifetime, and retries are understood. |
+| Workers | Messages are validated and repeated delivery is handled. |
+| Connections | Client growth and first-use concurrency are measured. |
+| Observability | Telemetry is correlated, bounded, and appropriately redacted. |
+| Shutdown | Work is drained before owned resources are closed. |
+| Packaging | The application's actual module format and package versions are tested. |
 
 ## Related Pages
 
 - [Context](/core/context)
 - [Transactions](/core/transactions)
 - [Instrumentation](/core/instrumentation)
+- [Middleware](/core/middleware)
+- [Schema](/models/schema)
+- [Configuration Modules](/advanced/configuration-modules)
 - [AmbitenBootstrapFactory](/advanced/bootstrap-cli)
 - [CLI Init](/advanced/cli-init)
+- [Performance Tuning](/advanced/performance-tuning)
 - [Multi-Tenancy Overview](/multi-tenancy/overview)
-- [Tenant Resolution](/multi-tenancy/tenant-resolution)
+- [Tenant Resolution](/multi-tenancy/tenant-resolver)
 - [MultiTenantManager](/multi-tenancy/multi-tenant-manager)
 - [Dynamic Tenants](/multi-tenancy/dynamic-tenants)
 - [Framework Adapters](/multi-tenancy/framework-adapters)

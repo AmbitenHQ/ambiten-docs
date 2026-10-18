@@ -2,85 +2,63 @@
 
 Ambiten provides multi-tenancy as part of its runtime rather than as a convention that every application layer must implement independently.
 
-A tenant identity can enter an application through an HTTP header, route parameter, cookie, token, subdomain, or a custom resolver. Once resolved, Ambiten carries that identity through the active execution context and uses it when database resources are selected.
+A tenant identity can enter an application through an HTTP header, route parameter, cookie, token, subdomain, or custom resolver. Once resolved, Ambiten carries that identity through the active execution context and uses it when database resources are selected.
 
 This allows application code to work with Ambiten models without manually passing a tenant identifier through every function call.
 
 <MultiTenancyOverview />
 
-```text
-Request
-   ↓
-Tenant Resolution
-   ↓
-AmbitenContext
-   ↓
-MultiTenantManager
-   ↓
-Tenant MongoDB Client
-   ↓
-Tenant Database
-   ↓
-AmbitenModel
-```
+The multi-tenant runtime separates responsibilities:
 
-The multi-tenant runtime is built around a separation of responsibilities:
+| Component | Responsibility |
+| --- | --- |
+| Tenant resolution | Determines which tenant a request belongs to. |
+| `AmbitenContext` | Carries tenant identity and other execution state through the current asynchronous execution. |
+| `MultiTenantManager` | Manages tenant configuration, discovery, registration, and MongoDB client creation and reuse. |
+| `AmbitenClient` | Resolves the database required by the active tenant through its configured tenant-aware provider. |
+| `AmbitenModel` | Performs operations against the database selected for the current execution. |
 
-- Tenant resolution determines which tenant a request belongs to.
-- AmbitenContext carries that tenant identity through the current execution.
-- MultiTenantManager manages tenant configuration, discovery, registration, and client lifecycle.
-- AmbitenClient resolves the database connection required by the active tenant.
-- AmbitenModel performs operations against the database selected for the current execution.
+When using `AmbitenBootstrapFactory`, enable `multiTenant.enabled` so bootstrap configures the tenant-aware database provider. Applications that construct providers manually must supply the corresponding tenant resolver themselves.
 
-This separation keeps tenant identity, tenant infrastructure, and application data access related without collapsing them into one concern.
+Tenant identity in the context and tenant-aware database configuration work together to route model operations.
 
 ## Request-Scoped Tenant Identity
 
 When a framework adapter receives a request, it resolves the tenant using the configured tenancy strategy.
 
-For example:
+For example, with an initialized adapter:
 
 ```ts
 await adapter.install(app, {
   tenancy: {
-    header: "x-tenant-id"
-  }
+    header: "x-tenant-id",
+  },
 });
 ```
 
 A request such as:
 
-```bash
-POST /users
+```http
+POST /users HTTP/1.1
+Host: api.example.com
 x-tenant-id: tenant5
 ```
 
-can result in the following runtime context:
-
-```ts
-AmbitenContext.get();
-{
-  tenantId: "tenant5",
-  requestId: undefined,
-  dbName: undefined,
-  collectionName: undefined,
-  ...
-}
-```
-
-The resolved tenant identity belongs to the current execution.
-
-Application code does not need to repeatedly read the original HTTP header or manually forward `"tenant5"` through each service and model operation.
-
-Instead:
+makes the resolved tenant identity available inside the request's Ambiten execution context:
 
 ```ts
 const { tenantId } = AmbitenContext.get();
+
+// tenantId === "tenant5"
 ```
 
-returns the tenant associated with the active request.
+The context may also contain a request ID, database name, session, logger, and other execution state, depending on the application's configuration.
 
-This also means tenant resolution is not tied specifically to HTTP headers. A custom resolver may derive the same tenant identity from another source while the rest of the runtime continues to work unchanged.
+The resolved tenant identity belongs to the current execution. Application code does not need to repeatedly read the original HTTP header or manually forward `"tenant5"` through each service and model operation.
+
+Tenant resolution is not tied specifically to HTTP headers. A custom resolver may derive the same tenant identity from another source while the rest of the runtime continues to use the context.
+
+Resolving a tenant ID does not establish authorization. The application must still verify that the requester is allowed to access that tenant.
 
 ## Static and Dynamic Tenants
 
@@ -88,45 +66,61 @@ Ambiten supports both statically configured tenants and dynamically discovered t
 
 A static tenant is known when multi-tenancy is initialized.
 
-Conceptually:
+For example, the `multiTenant` section of an application configuration may contain:
 
-```ts
+```json
 {
-  tenant1: "...",
-  tenant2: "...",
-  tenant3: "..."
+  "multiTenant": {
+    "enabled": true,
+    "tenants": {
+      "tenant1": "mongodb://localhost:27017/db_tenant1",
+      "tenant2": "mongodb://localhost:27017/db_tenant2",
+      "tenant3": "mongodb://localhost:27017/db_tenant3"
+    },
+    "initOptions": {
+      "lazy": true
+    }
+  }
 }
 ```
 
-These tenants can be registered during application startup and, when lazy mode is enabled, remain disconnected until they are actually needed.
+These tenants are registered during initialization. With `initOptions.lazy` enabled, their MongoDB connections are deferred until needed.
 
-A dynamic tenant does not need to exist in the local registry at startup.
-
-Instead, Ambiten can resolve its configuration when the tenant is first encountered:
-
-```text
-tenant5 request
-   ↓
-tenant5 not registered
-   ↓
-TenantConfigResolver
-   ↓
-external tenant configuration found
-   ↓
-tenant5 registered
-   ↓
-client created when required
-```
+A dynamic tenant does not need to exist in the local registry at startup. When the manager encounters an unregistered tenant, it can call a configured `TenantConfigResolver` to obtain that tenant's database configuration.
 
 This is useful when tenant configuration lives outside the application process, for example in:
 
-- a control database,
-- an account service,
-- a configuration API,
-- a secrets or infrastructure service,
-- or another application-defined source.
+- A control database.
+- An account service.
+- A configuration API.
+- A secrets or infrastructure service.
+- Another application-defined source.
 
-Static and dynamic tenants ultimately enter the same runtime registry and use the same database resolution path.
+Programmatic configuration accepts the resolver function through `multiTenant.tenantConfigResolver`.
+
+JSON configuration references a module that exports the function:
+
+```json
+{
+  "multiTenant": {
+    "enabled": true,
+    "tenantConfigResolverModule": {
+      "path": "./src/tenantResolver.ts",
+      "exportName": "resolveTenantConfig"
+    }
+  }
+}
+```
+
+This is a configuration fragment; retain the application's other configuration properties.
+
+The module path is resolved relative to the JSON configuration file. Loading a `.ts` module requires a runtime that supports TypeScript imports. For a compiled deployment, reference the emitted JavaScript module, such as `./dist/tenantResolver.js`.
+
+Static tenants and a dynamic resolver can be configured together. The static `tenants` map may also be empty or omitted when tenant configuration is supplied entirely by the resolver.
+
+Both approaches populate the same local runtime registry and use the same tenant-aware database resolution path.
+
+See [Dynamic Tenants](./dynamic-tenants) for complete programmatic and JSON configuration examples.
 
 ## Lazy Tenant Connections
 
@@ -134,232 +128,201 @@ Registration and connection are separate operations.
 
 A tenant may be known to Ambiten without having an active MongoDB client.
 
-For example, after startup:
+For example, after registering three static tenants lazily and configuring a dynamic resolver:
 
 ```ts
-MultiTenantManager.getStats();
+const stats = MultiTenantManager.getStats();
 ```
 
-might report:
+The statistics might report:
 
-```ts
+```json
 {
-  registeredTenants: 3,
-  connectedTenants: 0,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
+  "registeredTenants": 3,
+  "connectedTenants": 0,
+  "lazyTenants": 3,
+  "dynamicResolverEnabled": true
 }
 ```
 
-If a request then arrives for a dynamically resolved tenant:
+If a request then arrives for `"tenant5"` and its model operation requires database access, Ambiten can discover, register, and connect that tenant on demand.
 
-```ts
-tenant5
-```
+After a successful connection, the statistics might become:
 
-and a model operation requires database access, Ambiten can register and connect that tenant on demand.
-
-The resulting state might become:
-
-```ts
+```json
 {
-  registeredTenants: 4,
-  connectedTenants: 1,
-  lazyTenants: 3,
-  dynamicResolverEnabled: true
+  "registeredTenants": 4,
+  "connectedTenants": 1,
+  "lazyTenants": 3,
+  "dynamicResolverEnabled": true
 }
 ```
 
 The newly used tenant is connected while the other registered tenants remain lazy.
 
-This prevents every tenant connection from needing to be opened during application startup.
+`initOptions.lazy` controls initialization of the static tenant map. Dynamically discovered tenants are registered lazily by `MultiTenantManager`; their resolver does not supply a `lazy` setting.
+
+`getClient(tenantId)` returns an existing tenant client or connects a lazily registered tenant. It returns `null` when no tenant configuration can be resolved, and connection failures can throw.
+
+These statistics describe the manager's tenant registry. A separate base connection opened during application bootstrap is not included in these tenant counts.
 
 ## Tenant Resolution Is Separate from Tenant Configuration
 
-Ambiten deliberately distinguishes two different questions.
+Ambiten distinguishes two questions:
 
-The first is:
+| Question | Responsibility |
+| --- | --- |
+| Which tenant does this request belong to? | The request-facing `TenantResolver`. |
+| Where does this tenant's database live? | `TenantConfigResolver` and `MultiTenantManager`. |
 
-> Which tenant does this request belong to?
+The request resolver returns a tenant identity, such as `"tenant5"`.
 
-That is the responsibility of the request-facing `TenantResolver`.
+The configuration resolver receives that identity and returns a `ResolvedTenantConfig` containing:
 
-The second is:
+- `uri`: the tenant's MongoDB connection URI.
+- `dbName`: an optional database name.
+- `metadata`: optional application-defined tenant metadata.
 
-> Where does this tenant live?
-
-That is the responsibility of tenant configuration resolution and `MultiTenantManager`.
-
-The complete path can therefore look like this:
-
-```text
-Incoming Request
-      ↓
-TenantResolver
-      ↓
-tenantId
-      ↓
-AmbitenContext
-      ↓
-MultiTenantManager
-      ↓
-registered locally?
-   ┌───────┴────────┐
-  yes               no
-   ↓                 ↓
-use config     TenantConfigResolver
-                     ↓
-                resolve config
-                     ↓
-                 register
-   └───────────┬───────────┘
-               ↓
-           getClient()
-               ↓
-        tenant database
-```
-
-This distinction is important because request identity and database configuration often come from completely different systems.
-
-An HTTP adapter may determine that a request belongs to:
+A minimal resolver module could contain:
 
 ```ts
-tenant5
+import type { TenantConfigResolver } from "@ambiten/core";
+
+export const resolveTenantConfig: TenantConfigResolver = (tenantId) => {
+  if (tenantId !== "tenant5") {
+    return undefined;
+  }
+
+  return {
+    uri: "mongodb://localhost:27017/db_tenant5",
+    dbName: "db_tenant5",
+    metadata: {
+      tier: "standard",
+    },
+  };
+};
 ```
 
-without knowing anything about that tenant's MongoDB URI, database name, deployment region, or metadata.
+This example recognizes one tenant. An application can replace the condition with a database or service lookup and make the function asynchronous when needed.
 
-`MultiTenantManager` owns that infrastructure-facing information.
+Returning `null` or `undefined` indicates that the tenant could not be found.
+
+For manual manager setup, register the function directly:
+
+```ts
+import { MultiTenantManager } from "@ambiten/core";
+import { resolveTenantConfig } from "./tenantResolver.js";
+
+MultiTenantManager.setTenantConfigResolver(resolveTenantConfig);
+```
+
+The setter validates and stores the function. It does not perform the lookup or open a connection immediately. Bootstrap performs this registration when the resolver is supplied through its configuration.
+
+An HTTP adapter can therefore identify `"tenant5"` without knowing its MongoDB URI, database name, deployment region, or metadata.
+
+The manager associates the returned configuration with the tenant ID and manages its registration and connection state.
 
 ## AmbitenContext and MultiTenantManager
 
-`AmbitenContext` and `MultiTenantManager` participate in the same tenant flow, but they serve different purposes.
+`AmbitenContext` and `MultiTenantManager` participate in the same tenant flow, but serve different purposes.
 
-```text
-AmbitenContext
-→ What belongs to this execution?
-
-MultiTenantManager
-→ What tenant resources exist in this runtime?
-```
-
-For example:
+`AmbitenContext` answers questions about the current execution:
 
 ```ts
-AmbitenContext.get().tenantId
+const tenantId = AmbitenContext.get().tenantId;
 ```
 
-answers:
-
-> Which tenant is the current request running for?
-
-While:
+`MultiTenantManager` answers questions about tenant resources registered in the current runtime:
 
 ```ts
-MultiTenantManager.getTenant("tenant5")
+const tenant = MultiTenantManager.getTenant("tenant5");
 ```
 
-answers:
+`getTenant()` is a synchronous local-registry lookup. It returns the registered configuration or `undefined`; it does not invoke the external resolver.
 
-> Is tenant5 currently registered, and what configuration is associated with it?
+To allow dynamic discovery, use:
+
+```ts
+const tenant = await MultiTenantManager.resolveTenant("tenant5");
+```
+
+This checks the local registry first and, if needed, calls the configured resolver. A successfully discovered tenant is registered before its configuration is returned.
+
+The tenant registry is local to the application process. Separate application processes maintain their own registration and connection state.
 
 Keeping these responsibilities separate prevents request-scoped state from becoming global tenant state.
 
 ## Models Use the Active Runtime Context
 
-Once a tenant has been resolved, model operations can use the current execution context to select the correct database.
+With a tenant-aware provider configured, model operations can use the current execution context to select the tenant database.
 
-Application code can remain focused on the operation itself:
+Assuming `UserModel` has been configured with the appropriate schema and provider, application code can focus on the operation:
 
 ```ts
 const user = await UserModel.create({
   username: "Abinod Ltd",
-  email: "aemma@abinod.com"
+  email: "aemma@abinod.com",
 });
 ```
 
-If the active context contains:
+When the active context contains `tenantId: "tenant5"`, the provider can obtain that tenant's client and database configuration through `MultiTenantManager`.
 
-```ts
-{
-  tenantId: "tenant5"
-}
-```
-
-Ambiten can resolve the corresponding tenant configuration and execute the operation against that tenant's database.
-
-Conceptually:
-
-```text
-UserModel.create(...)
-       ↓
-AmbitenContext
-tenantId = tenant5
-       ↓
-MultiTenantManager
-       ↓
-tenant5 MongoClient
-       ↓
-db_tenant5
-       ↓
-users collection
-```
+The operation then runs against the model's collection in the selected tenant database.
 
 The model does not need to infer tenant identity itself, and the application does not need to manually select a database for every operation.
+
+In the tenant-aware provider path, an unresolved tenant causes the operation to fail. It is not silently redirected to the application's base database.
+
+Tenant-based database routing also does not automatically add a `tenantId` field to stored documents. If documents need that field, define it in the schema and configure its value or runtime default.
 
 ## Framework Adapters
 
 Framework adapters connect framework-specific request lifecycles to Ambiten's runtime context.
 
-For example:
+Express, Fastify, NestJS, and other supported integrations use the shared adapter runtime to establish context before application logic runs.
 
-```text
-Express / Fastify / NestJS
-          ↓
-     adapter-runtime
-          ↓
-     AmbitenContext
-          ↓
-      application
+Once inside that context, tenant identity remains available through asynchronous operations and model calls within the active execution.
+
+Ambiten supports ESM and CommonJS consumers while preserving the request-scoped context used by its framework adapters.
+
+For background jobs or other execution paths without a framework adapter, establish the context explicitly:
+
+```ts
+await AmbitenContext.run(
+  {
+    tenantId: "tenant5",
+  },
+  async () => {
+    await UserModel.create({
+      username: "Abinod Ltd",
+      email: "background@abinod.com",
+    });
+  }
+);
 ```
 
-The adapter is responsible for entering the request into the Ambiten execution context before application logic runs.
+The model must still use a configured tenant-aware provider.
 
-Once inside that context, tenant identity can remain available across asynchronous operations and model calls.
-
-Ambiten's package boundary supports both ESM and CommonJS consumers while preserving the request-scoped runtime context used by framework adapters.
-
-See [Framework Adapters](/multi-tenant/framework-adapters) for adapter-specific configuration.
+See [Framework Adapters](./framework-adapters) for adapter-specific configuration.
 
 ## Multi-Tenancy Flow
 
-Putting the pieces together:
+A typical tenant-aware model operation follows this sequence:
 
-```text
-1. Request arrives
+1. A request arrives.
+2. The framework adapter resolves its tenant identity.
+3. `AmbitenContext` carries `tenantId` through the execution.
+4. Application code calls an Ambiten model.
+5. The model's provider requests resources for the active tenant.
+6. `MultiTenantManager` checks its local registry.
+7. If the tenant is absent, the configured `TenantConfigResolver` attempts discovery.
+8. A successfully discovered tenant is registered lazily.
+9. `getClient()` returns an existing client or connects the tenant when needed.
+10. The provider selects the tenant database and the model operation executes.
 
-2. Framework adapter resolves tenant identity
+If tenant discovery fails or the database cannot be reached, the operation does not proceed successfully through this flow. The application handles the resulting error according to its request or service policy.
 
-3. AmbitenContext stores tenantId for the execution
-
-4. Application calls an Ambiten model
-
-5. Ambiten resolves the tenant through MultiTenantManager
-
-6. If necessary, TenantConfigResolver discovers the tenant
-
-7. The tenant is registered
-
-8. getClient() guarantees an active MongoDB client
-
-9. Ambiten selects the tenant database
-
-10. The model operation executes
-```
-
-The application therefore does not need to manually coordinate request identity, tenant discovery, connection management, and model routing.
-
-Those concerns remain separate while participating in the same runtime.
+The application configures tenant identity resolution and tenant infrastructure. Ambiten then coordinates context propagation, discovery, registration, and database selection during model operations.
 
 ## Next
 
@@ -368,4 +331,4 @@ Continue with:
 - [Tenant Resolution](./tenant-resolver) — how tenant identity is derived from a request.
 - [MultiTenantManager](./multi-tenant-manager) — tenant registration, lookup, discovery, connections, and runtime state.
 - [Dynamic Tenants](./dynamic-tenants) — resolving tenants that are not known at startup.
-- [Framework Adapters](./framework-adapters) — connecting HTTP framework request lifecycles to Ambiten's execution context.
+- [Framework Adapters](./framework-adapters) — connecting framework request lifecycles to Ambiten's execution context.
