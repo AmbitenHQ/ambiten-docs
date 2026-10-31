@@ -4,7 +4,7 @@ export default defineConfig({
   title: "Ambiten",
   description:
     "Context-driven data runtime for multi-tenant, transaction-safe apps.",
-  lang: "en-US",
+  lang: "en-US", 
   base: "/",
   ignoreDeadLinks: true,
 
